@@ -20,8 +20,6 @@ def _make_simulation(length: int, ev_id: str) -> ChargerSimulation:
     return ChargerSimulation(
         electric_vehicle_charger_state=[1] * length,
         electric_vehicle_id=[ev_id] * length,
-        electric_vehicle_battery_capacity_khw=[100.0] * length,
-        current_soc=[50.0] * length,
         electric_vehicle_departure_time=[-1] * length,
         electric_vehicle_required_soc_departure=[-0.1] * length,
         electric_vehicle_estimated_arrival_time=[-1] * length,

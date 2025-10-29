@@ -1261,7 +1261,7 @@ class Building(Environment):
                 if soc_key in valid_observations:
                     observations[soc_key] = charger.connected_electric_vehicle.battery.soc[t]
                 if capacity_key in valid_observations:
-                    observations[capacity_key] = float(sim.electric_vehicle_battery_capacity_kwh[t])
+                    observations[capacity_key] = float(charger.connected_electric_vehicle.battery.capacity)
             else:
                 if connected_state_key in valid_observations:
                     observations[connected_state_key] = 0

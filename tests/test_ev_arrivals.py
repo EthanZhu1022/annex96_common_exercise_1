@@ -16,30 +16,6 @@ def _zero_actions(env: CityLearnEnv):
     return [np.zeros(space.shape, dtype="float32") for space in env.action_space]
 
 
-def _expected_arrival_soc(csv_path: str, transition_index: int, from_state: int) -> float:
-    df = pd.read_csv(csv_path)
-
-    cap = df.loc[transition_index, "electric_vehicle_battery_capacity_khw"]
-    if pd.isna(cap) and transition_index + 1 < len(df):
-        cap = df.loc[transition_index + 1, "electric_vehicle_battery_capacity_khw"]
-    cap = float(cap)
-    assert cap > 0, "Battery capacity must be positive in dataset."
-
-    if from_state == 2:
-        estimated = df.loc[transition_index, "electric_vehicle_estimated_soc_arrival"]
-        if not pd.isna(estimated) and estimated >= 0:
-            return float(estimated) / 100.0
-    else:
-        estimated = df.loc[transition_index + 1, "electric_vehicle_estimated_soc_arrival"]
-        if not pd.isna(estimated) and estimated >= 0:
-            return float(estimated) / 100.0
-
-    # Fallback to current SOC recorded in kWh.
-    current_soc_kwh = df.loc[transition_index + 1, "current_soc"]
-    assert not pd.isna(current_soc_kwh), "Current SOC must be available when estimate is missing."
-    return float(current_soc_kwh) / cap
-
-
 def _find_transition(from_state: int):
     for csv_path in glob("data/datasets/citylearn_challenge_2022_phase_all_plus_evs/charger_*_*.csv"):
         df = pd.read_csv(csv_path)
@@ -81,7 +57,33 @@ def test_ev_soc_matches_dataset_on_arrival(from_state: int):
 
     ev = next(ev for ev in env.electric_vehicles if ev.name == target_ev_id)
 
-    expected_soc = _expected_arrival_soc(csv_path, transition_index, from_state)
+    step = env.time_step
+    prev_state = sim.electric_vehicle_charger_state[step - 1] if step > 0 else float("nan")
+    prev_ev_id = sim.electric_vehicle_id[step - 1] if step > 0 else None
+
+    candidate_index = None
+    if prev_state in (2, 3):
+        candidate_index = step - 1
+    elif 0 <= step < len(sim.electric_vehicle_estimated_soc_arrival):
+        candidate_index = step
+
+    estimated_soc = None
+    if candidate_index is not None and 0 <= candidate_index < len(sim.electric_vehicle_estimated_soc_arrival):
+        candidate_value = sim.electric_vehicle_estimated_soc_arrival[candidate_index]
+        if isinstance(candidate_value, (float, np.floating)) and not np.isnan(candidate_value) and candidate_value >= 0:
+            estimated_soc = float(candidate_value)
+
+    if estimated_soc is None:
+        fallback_index = step if step < len(sim.electric_vehicle_required_soc_departure) else step - 1
+        fallback_value = sim.electric_vehicle_required_soc_departure[fallback_index]
+        assert (
+            isinstance(fallback_value, (float, np.floating))
+            and not np.isnan(fallback_value)
+            and fallback_value >= 0
+        ), "Expected fallback SOC from required departure."
+        expected_soc = float(fallback_value)
+    else:
+        expected_soc = estimated_soc
 
     assert pytest.approx(expected_soc, abs=1e-6) == float(ev.battery.soc[env.time_step])
 

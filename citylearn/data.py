@@ -675,11 +675,6 @@ class ChargerSimulation(TimeSeriesData):
             3: 'Commuting (vehicle is away)'
     electric_vehicle_id : np.array
         Identifier for the electric vehicle.
-    electric_vehicle_battery_capacity_kwh : np.array
-        Battery capacity of the vehicle (in kilowatt-hours).
-    current_soc : np.array
-        Current state-of-charge of the EV battery at the charger (normalized [0, 1]).
-        This is calculated from the raw kWh value divided by capacity.
     electric_vehicle_departure_time : np.array
         Number of time steps expected until the EV departs from the charger (only for state 1).
         Defaults to -1 when not present.
@@ -700,15 +695,13 @@ class ChargerSimulation(TimeSeriesData):
         self,
         electric_vehicle_charger_state: Iterable[int],
         electric_vehicle_id: Iterable[str],
-        electric_vehicle_battery_capacity_khw: Iterable[float],
-        current_soc: Iterable[float],
         electric_vehicle_departure_time: Iterable[float],
         electric_vehicle_required_soc_departure: Iterable[float],
         electric_vehicle_estimated_arrival_time: Iterable[float],
         electric_vehicle_estimated_soc_arrival: Iterable[float],
         start_time_step: int = None,
         end_time_step: int = None,
-        noise_std: float = 1.0
+        noise_std: float = 1.0,
     ):
         """Initialize ChargerSchedule from charger-centric EV CSV input."""
         super().__init__(start_time_step=start_time_step, end_time_step=end_time_step)
@@ -724,16 +717,7 @@ class ChargerSimulation(TimeSeriesData):
         ], dtype=float)
 
         self.electric_vehicle_id = np.array(electric_vehicle_id, dtype=object)
-        self.electric_vehicle_battery_capacity_kwh = np.array(
-            electric_vehicle_battery_capacity_khw, dtype=float
-        )
 
-        current_soc_arr = np.array(current_soc, dtype=float)
-        current_soc_arr = np.where(np.isnan(current_soc_arr), default_soc_value, current_soc_arr)
-        self.current_soc = np.clip(
-            current_soc_arr / self.electric_vehicle_battery_capacity_kwh,
-            0, 1
-        )
 
         departure_time_arr = np.array(electric_vehicle_departure_time, dtype=float)
         self.electric_vehicle_departure_time = np.where(

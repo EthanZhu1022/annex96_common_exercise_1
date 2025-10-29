@@ -1354,26 +1354,33 @@ class CityLearnEnv(Environment, Env):
         r"""Associate charger to its corresponding electric_vehicle based on charger simulation state."""
 
         def _resolve_arrival_soc(simulation: ChargerSimulation, step: int, prev_state: float, prev_id: Union[str, None], ev_identifier: str) -> Union[float, None]:
-            """Return expected SOC for an EV connecting at `step` or None when unavailable."""
+            """Return expected SOC (as fraction) for an EV connecting at `step`, or ``None`` when unavailable."""
 
-            candidate_index = step
-            if prev_state == 2 and step > 0 and isinstance(prev_id, str) and prev_id == ev_identifier:
+            candidate_index = None
+
+            if prev_state in (2, 3) and step > 0:
+                if isinstance(prev_id, str) and prev_id.strip() not in {"", "nan"} and prev_id != ev_identifier:
+                    raise ValueError(
+                        f"Charger dataset EV mismatch: expected '{ev_identifier}' but found '{prev_id}' at time step {step - 1}."
+                    )
                 candidate_index = step - 1
 
-            soc_value = np.nan
-            if 0 <= candidate_index < len(simulation.electric_vehicle_estimated_soc_arrival):
-                soc_value = simulation.electric_vehicle_estimated_soc_arrival[candidate_index]
+            elif 0 <= step < len(simulation.electric_vehicle_estimated_soc_arrival):
+                candidate_index = step
 
-            if isinstance(soc_value, (float, np.floating)) and not np.isnan(soc_value) and 0.0 <= soc_value <= 1.0:
-                return float(soc_value)
+            soc_value = None
 
-            fallback_index = min(step, len(simulation.current_soc) - 1)
-            if fallback_index >= 0:
-                fallback_soc = simulation.current_soc[fallback_index]
-                if isinstance(fallback_soc, (float, np.floating)) and not np.isnan(fallback_soc) and 0.0 <= fallback_soc <= 1.0:
-                    return float(fallback_soc)
+            if candidate_index is not None and 0 <= candidate_index < len(simulation.electric_vehicle_estimated_soc_arrival):
+                candidate = simulation.electric_vehicle_estimated_soc_arrival[candidate_index]
+                if isinstance(candidate, (float, np.floating)) and not np.isnan(candidate) and candidate >= 0:
+                    soc_value = float(candidate)
 
-            return None
+            if soc_value is None and 0 <= step < len(simulation.electric_vehicle_required_soc_departure):
+                fallback = simulation.electric_vehicle_required_soc_departure[step]
+                if isinstance(fallback, (float, np.floating)) and not np.isnan(fallback) and fallback >= 0:
+                    soc_value = float(fallback)
+
+            return soc_value
 
         for building in self.buildings:
             if building.electric_vehicle_chargers is None:
