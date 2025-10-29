@@ -1323,11 +1323,11 @@ class WashingMachine(ElectricDevice):
 
             self.__initiated = True
 
-            # Apply load values from the profile to the internal electricity usage
+            # Apply load profile across future timesteps
             for offset, load in enumerate(load_profile):
                 step = self.time_step + offset
                 if step < self.episode_tracker.episode_time_steps:
-                    self.update_electricity_consumption(load, enforce_polarity=False)
+                    self._ElectricDevice__electricity_consumption[step] += float(load)
 
     def observations(self) -> Mapping[str, float]:
         """Return the current observation dictionary including simulation inputs and machine state."""
