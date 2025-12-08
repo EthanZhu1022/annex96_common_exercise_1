@@ -187,9 +187,17 @@ SimulationData/
 results/
 
 # --- My ignored files ---
-src/pre-processing/process_vt_neighborhood.py
+src/pre-processing/
 src/simulations/simulate.py
 citylearn/agents/rbc_kathryn.py
 requirements_kathryn.txt
 utilities/
+citylearn/building_edited.py
+data/extra_schemas/
+
+
+## Ignore workflows  ---
+.github/workflows/
+
+
 
