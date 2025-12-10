@@ -124,7 +124,7 @@ def main():
     print(f"[OK] Saved district target to {out_path}")
 
     # Save the generated target values in the middle, zeros before and after to fill 8760 rows
-    data_dir = DATA_DIR / "datasets"/ dataset_key 
+    data_dir = DATA_DIR / "datasets"/  dataset_key 
     data_dir.mkdir(parents=True, exist_ok=True)
     simple_target_path = data_dir / "district_target.csv"
     HOURS_PER_YEAR = 8760
