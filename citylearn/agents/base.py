@@ -4,7 +4,7 @@ from gymnasium import spaces
 import numpy as np
 from citylearn.base import Environment
 from citylearn.citylearn import CityLearnEnv
-
+import wandb
 LOGGER = logging.getLogger()
 
 class Agent(Environment):
@@ -33,7 +33,6 @@ class Agent(Environment):
             seconds_per_time_step=self.env.unwrapped.seconds_per_time_step,
             random_seed=self.env.unwrapped.random_seed,
             episode_tracker=self.env.unwrapped.episode_tracker,
-            time_step_ratio=self.env.unwrapped.time_step_ratio
         )
         self.reset()
 
@@ -151,13 +150,21 @@ class Agent(Environment):
             terminated = False
             time_step = 0
             rewards_list = []
+            reward_agent_list = []
+            reward_tracking_list = []
 
             while not terminated:
                 actions = self.predict(observations, deterministic=deterministic)
-
+                  
                 # apply actions to citylearn_env
-                next_observations, rewards, terminated, truncated, _ = self.env.step(actions)
+                next_observations, rewards, terminated, truncated, info = self.env.step(actions)
                 rewards_list.append(rewards)
+                
+                # Collect reward metadata if available
+                if 'reward_info_1' in info:
+                    reward_agent_list.append(info['reward_info_1'])
+                if 'reward_info_2' in info:
+                    reward_tracking_list.append(info['reward_info_2'])
 
                 # update
                 if not deterministic:
@@ -184,6 +191,31 @@ class Agent(Environment):
                 'mean': rewards.mean(axis=0)
             }
             logging.info(f'Completed episode: {episode + 1}/{episodes}, Reward: {rewards_summary}')
+
+            if deterministic == False:
+                if wandb.run is not None:
+                    log_dict = {
+                        'episode': episode + 1,
+                    }
+                    
+                    # Log individual agent rewards
+                    for i in range(len(rewards_summary['mean'])):
+                        log_dict[f'Mean Reward_agent_{i}'] = rewards_summary['mean'][i]
+                    
+                    # Add reward components if available
+                    if reward_agent_list:
+                        reward_agent_array = np.array(reward_agent_list)
+                        
+                        # Per-agent comfort breakdown
+                        if len(reward_agent_array.shape) > 1:
+                            for i in range(reward_agent_array.shape[1]):
+                                log_dict[f'Mean Reward_Comfort_agent_{i}'] = reward_agent_array[:, i].mean()
+                    
+                    if reward_tracking_list:
+                        reward_tracking_array = np.array(reward_tracking_list)
+                        log_dict[f'Mean Reward_Tracking_agent'] = reward_tracking_array.mean()
+                    
+                    wandb.log(log_dict)
 
     def predict(self, observations: List[List[float]], deterministic: bool = None) -> List[List[float]]:
         """Provide actions for current time step.

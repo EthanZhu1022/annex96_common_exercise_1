@@ -245,16 +245,16 @@
       "active": false
     },
     "electrical_storage": {
-      "active": true
+      "active": false
     },
     "cooling_device": {
       "active": false
     },
     "heating_device": {
-      "active": false
+      "active": true
     },
     "cooling_or_heating_device": {
-      "active": true
+      "active": false
     }
   },
   "agent": {
@@ -272,7 +272,7 @@
       "energy_simulation": "resstock-amy2018-2021-release-1-112208.csv",
       "weather": "weather.csv",
       "carbon_intensity": null,
-      "pricing": null,
+      "pricing": null,      
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"

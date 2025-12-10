@@ -8,7 +8,6 @@ import pandas as pd
 import torch
 
 from citylearn.citylearn import CityLearnEnv
-from citylearn.agents.aac_madrl import AAC_MADRL
 from citylearn.agents.sac import SAC
 from citylearn.agents.marlisa import MARLISA
 from citylearn.agents.rbc import PITemperatureController as RBC
@@ -225,10 +224,8 @@ def run_model_and_save_obs(
     env = CityLearnEnv(dataset_arg, **env_kwargs)
     print(f"[INFO] Environment created with {len(env.buildings)} buildings")
 
-    # Modello
-    if model_type == "AAC_MADRL":
-        model = AAC_MADRL(env, classes=aac_classes or {}, attend_heads=1, lr=lr, sample=False)
-    elif model_type in ("SAC", "SAC_CENTRALIZED"):
+    
+    if model_type in ("SAC", "SAC_CENTRALIZED"):
         model = SAC(env, lr=lr)
     elif model_type == "MARLISA":
         model = MARLISA(env, lr=lr)
