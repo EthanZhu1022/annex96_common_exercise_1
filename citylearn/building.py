@@ -1342,6 +1342,28 @@ class Building(Environment):
         assert self.power_outage or demand <= max_device_output or abs(demand - max_device_output) < TOLERANCE, \
             f'demand is greater than {end_use}_device max output | {message}'
 
+    # # kathryn updated code to fix sign convention
+    # def ___demand_limit_check(self, end_use: str, demand: float, max_device_output: float):
+    #     # Convert to magnitudes to avoid sign-convention issues
+    #     eff_demand = abs(demand)
+    #     eff_capacity = abs(max_device_output)
+
+    #     # Check whether the device is big enough in magnitude
+    #     difference = eff_demand - eff_capacity
+    #     check = eff_demand <= eff_capacity or abs(difference) < TOLERANCE
+
+    #     # Debug message
+    #     message = (
+    #         f"timestep: {self.time_step}, building: {self.name}, outage: {self.power_outage}, "
+    #         f"demand: {demand}, output: {max_device_output}, "
+    #         f"eff_demand: {eff_demand}, eff_capacity: {eff_capacity}, "
+    #         f"difference: {difference}, check: {check},"
+    #     )
+
+    #     # # Only assert if not in an outage and the magnitude is truly insufficient
+    #     # assert self.power_outage or check, \
+    #     #     f"demand is greater than {end_use}_device max output | {message}"
+
     def ___electricity_consumption_polarity_check(self, end_use: str, device_output: float, electricity_consumption: float):
         message = f'timestep: {self.time_step}, building: {self.name}, device_output: {device_output}, electricity_consumption: {electricity_consumption}'
         assert electricity_consumption >= 0.0 or abs(electricity_consumption) < TOLERANCE, \

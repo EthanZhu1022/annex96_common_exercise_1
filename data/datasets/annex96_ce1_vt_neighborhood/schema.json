@@ -18,7 +18,7 @@
       "shared_in_central_agent": true
     },
     "day_type": {
-      "active": true,
+      "active": false,
       "shared_in_central_agent": true
     },
     "daylight_savings_status": {
@@ -30,11 +30,11 @@
       "shared_in_central_agent": true
     },
     "outdoor_relative_humidity": {
-      "active": true,
+      "active": false,
       "shared_in_central_agent": true
     },
     "diffuse_solar_irradiance": {
-      "active": true,
+      "active": false,
       "shared_in_central_agent": true
     },
     "direct_solar_irradiance": {
@@ -54,27 +54,27 @@
       "shared_in_central_agent": true
     },
     "outdoor_relative_humidity_predicted_1": {
-      "active": true,
+      "active": false,
       "shared_in_central_agent": true
     },
     "outdoor_relative_humidity_predicted_2": {
-      "active": true,
+      "active": false,
       "shared_in_central_agent": true
     },
     "outdoor_relative_humidity_predicted_3": {
-      "active": true,
+      "active": false,
       "shared_in_central_agent": true
     },
     "diffuse_solar_irradiance_predicted_1": {
-      "active": true,
+      "active": false,
       "shared_in_central_agent": true
     },
     "diffuse_solar_irradiance_predicted_2": {
-      "active": true,
+      "active": false,
       "shared_in_central_agent": true
     },
     "diffuse_solar_irradiance_predicted_3": {
-      "active": true,
+      "active": false,
       "shared_in_central_agent": true
     },
     "direct_solar_irradiance_predicted_1": {
@@ -118,23 +118,23 @@
       "shared_in_central_agent": false
     },
     "indoor_relative_humidity": {
-      "active": true,
+      "active": false,
       "shared_in_central_agent": false
     },
     "non_shiftable_load": {
-      "active": false,
+      "active": true,
       "shared_in_central_agent": false
     },
     "dhw_demand": {
-      "active": false,
+      "active": true,
       "shared_in_central_agent": false
     },
     "cooling_demand": {
-      "active": false,
+      "active": true,
       "shared_in_central_agent": false
     },
     "heating_demand": {
-      "active": false,
+      "active": true,
       "shared_in_central_agent": false
     },
     "solar_generation": {
@@ -202,7 +202,7 @@
       "shared_in_central_agent": false
     },
     "dhw_electricity_consumption": {
-      "active": false,
+      "active": true,
       "shared_in_central_agent": false
     },
     "cooling_storage_electricity_consumption": {
@@ -774,10 +774,7 @@
       },
       "cooling_storage": null,
       "heating_storage": null,
-      "dhw_storage": {
-        "type": "citylearn.energy_model.StorageTank",
-        "autosize": true
-      },
+      "dhw_storage": null,
       "electrical_storage": {
         "type": "citylearn.energy_model.Battery",
         "autosize": true
@@ -1063,10 +1060,7 @@
       },
       "cooling_storage": null,
       "heating_storage": null,
-      "dhw_storage": {
-        "type": "citylearn.energy_model.StorageTank",
-        "autosize": true
-      },
+      "dhw_storage": null,
       "electrical_storage": {
         "type": "citylearn.energy_model.Battery",
         "autosize": true
@@ -1449,10 +1443,7 @@
       },
       "cooling_storage": null,
       "heating_storage": null,
-      "dhw_storage": {
-        "type": "citylearn.energy_model.StorageTank",
-        "autosize": true
-      },
+      "dhw_storage": null,
       "electrical_storage": {
         "type": "citylearn.energy_model.Battery",
         "autosize": true
@@ -1835,10 +1826,7 @@
       },
       "cooling_storage": null,
       "heating_storage": null,
-      "dhw_storage": {
-        "type": "citylearn.energy_model.StorageTank",
-        "autosize": true
-      },
+      "dhw_storage": null,
       "electrical_storage": {
         "type": "citylearn.energy_model.Battery",
         "autosize": true
@@ -2609,10 +2597,7 @@
       },
       "cooling_storage": null,
       "heating_storage": null,
-      "dhw_storage": {
-        "type": "citylearn.energy_model.StorageTank",
-        "autosize": true
-      },
+      "dhw_storage": null,
       "electrical_storage": {
         "type": "citylearn.energy_model.Battery",
         "autosize": true
