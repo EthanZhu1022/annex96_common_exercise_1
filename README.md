@@ -1,4 +1,4 @@
-# IEA EBC Annex 96: Common Exercise 1 – README
+# IEA EBC Annex 96: Common Exercise 1
 
 ## Instructions (December 12, 2025)
 
