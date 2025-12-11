@@ -7,6 +7,7 @@
 ## Table of Contents
 - [Objective](#objective)
 - [Instructions](#instructions)
+- [CityLearn Tutorial](#citylearn-tutorial)
 - [Suggested Timeline](#suggested-timeline)
 - [Evaluation Metrics](#evaluation-metrics)
   - [Reference Load Profile](#reference-load-profile)
