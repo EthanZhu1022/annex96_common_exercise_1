@@ -3,7 +3,7 @@
   "root_directory": null,
   "central_agent": true,
   "simulation_start_time_step": 0,
-  "simulation_end_time_step": 8759,
+  "simulation_end_time_step": 743,
   "episode_time_steps": null,
   "rolling_episode_split": false,
   "random_episode_split": false,
@@ -245,7 +245,7 @@
       "active": false
     },
     "electrical_storage": {
-      "active": false
+      "active": true
     },
     "cooling_device": {
       "active": false
@@ -272,7 +272,8 @@
       "energy_simulation": "resstock-amy2018-2021-release-1-112208.csv",
       "weather": "weather.csv",
       "carbon_intensity": null,
-      "pricing": null,      
+      "pricing": null,
+      "district_load_target": "district_target.csv",      
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -370,6 +371,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -467,6 +469,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -564,6 +567,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -661,6 +665,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -758,6 +763,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [],
       "inactive_actions": [],
       "cooling_device": {
@@ -850,6 +856,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -947,6 +954,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -1044,6 +1052,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [],
       "inactive_actions": [],
       "cooling_device": {
@@ -1136,6 +1145,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -1233,6 +1243,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -1330,6 +1341,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -1427,6 +1439,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [],
       "inactive_actions": [],
       "cooling_device": {
@@ -1519,6 +1532,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -1616,6 +1630,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -1713,6 +1728,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -1810,6 +1826,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [],
       "inactive_actions": [],
       "cooling_device": {
@@ -1902,6 +1919,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -1999,6 +2017,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -2096,6 +2115,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -2193,6 +2213,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -2290,6 +2311,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -2387,6 +2409,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -2484,6 +2507,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [
         "dhw_storage_soc",
         "dhw_storage_electricity_consumption"
@@ -2581,6 +2605,7 @@
       "weather": "weather.csv",
       "carbon_intensity": null,
       "pricing": null,
+      "district_load_target": "district_target.csv",
       "inactive_observations": [],
       "inactive_actions": [],
       "cooling_device": {
