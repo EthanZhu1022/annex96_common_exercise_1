@@ -191,7 +191,8 @@ src/pre-processing/
 src/simulations/simulate.py
 citylearn/agents/rbc_kathryn.py
 requirements_kathryn.txt
-utilities/
+utilities/citylearn_loader.py
+utilities/common_imports.py
 citylearn/building_edited.py
 data/extra_schemas/
 

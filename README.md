@@ -83,7 +83,7 @@ This allows for consistent comparison across different control strategies and ar
 
 ---
 ## CityLearn Tutorial
-See /notebooks/ce1_tutorial for a quickstart on how to use citylearn with a standard RBC.
+See /notebooks/CE1_quickstart for an example of how to use citylearn with a standard RBC.
 
 ---
 ## Suggested Timeline
@@ -210,10 +210,7 @@ CityLearn includes energy models of buildings and distributed energy resources (
 ![Citylearn](https://github.com/intelligent-environments-lab/CityLearn/blob/master/assets/images/environment.jpg)
 
 ## Installation
-Install latest release in PyPi with `pip`:
-```console
-pip install CityLearn
-```
+Because this repo has been designed specifically for Annex 96 Common Exercise 1, it is best to clone this repo and then pip install the requirements.txt file. Be sure *not* to pip install citylearn. This could cause problems in directing the simulation from this specific repo to another repo in the package directory. For more information, see the CE1 Tutorial at /notebooks/CE1_quickstart.
 
 ## Documentation
 Refer to the [docs](https://intelligent-environments-lab.github.io/CityLearn/).
@@ -232,5 +229,3 @@ You can check a tutorial at the official CityLearn [website](https://intelligent
 **Compatibility:** This version of the UI currently supports CityLearn v2.5.0 simulation data.
 
 **Developed by:** José, a member of the [SoftCPS](https://www2.isep.ipp.pt/softcps/), Software for Cyber-Physical Systems research group (ISEP, Portugal) in collaboration with the Intelligent Environments Lab, University of Texas at Austin.
-
-# End of README
