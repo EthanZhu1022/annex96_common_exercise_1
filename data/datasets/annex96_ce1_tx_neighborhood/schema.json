@@ -186,7 +186,7 @@
       "shared_in_central_agent": false
     },
     "electrical_storage_soc": {
-      "active": false,
+      "active": true,
       "shared_in_central_agent": false
     },
     "net_electricity_consumption": {
@@ -218,7 +218,7 @@
       "shared_in_central_agent": false
     },
     "electrical_storage_electricity_consumption": {
-      "active": false,
+      "active": true,
       "shared_in_central_agent": true
     },
     "cooling_device_efficiency": {
@@ -245,7 +245,7 @@
       "active": false
     },
     "electrical_storage": {
-      "active": false
+      "active": true
     },
     "cooling_device": {
       "active": true
@@ -291,7 +291,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -382,7 +385,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -478,7 +484,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -569,7 +578,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -660,7 +672,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -757,7 +772,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -853,7 +871,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -949,7 +970,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -1040,7 +1064,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -1131,7 +1158,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -1222,7 +1252,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -1313,7 +1346,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -1409,7 +1445,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -1505,7 +1544,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -1601,7 +1643,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -1692,7 +1737,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -1783,7 +1831,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -1874,7 +1925,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -1970,7 +2024,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -2066,7 +2123,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -2157,7 +2217,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -2248,7 +2311,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -2339,7 +2405,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -2430,7 +2499,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
@@ -2521,7 +2593,10 @@
       "cooling_storage": null,
       "heating_storage": null,
       "dhw_storage": null,
-      "electrical_storage": null,
+      "electrical_storage": {
+        "type": "citylearn.energy_model.Battery",
+        "autosize": true
+      },
       "pv": {
         "type": "citylearn.energy_model.PV",
         "autosize": true,
