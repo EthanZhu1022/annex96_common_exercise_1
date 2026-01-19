@@ -523,8 +523,8 @@ class PV(ElectricDevice):
         Data source: https://github.com/intelligent-environments-lab/CityLearn/tree/master/citylearn/data/misc/lbl-tracking_the_sun_res-pv.csv.
         """
 
-        zero_net_energy_proportion = self._get_property_value(zero_net_energy_proportion, (0.7, 1.0))
-        safety_factor = self._get_property_value(safety_factor, 1.0)
+        zero_net_energy_proportion = self._get_property_value(zero_net_energy_proportion, (0.5, 0.8))
+        safety_factor = 1
         roof_area = np.inf if roof_area is None else roof_area
         use_sample_target = False if use_sample_target is None else use_sample_target
 
@@ -557,6 +557,12 @@ class PV(ElectricDevice):
                     pass
         
         inverter_ac_power_per_kw = np.array(model.Outputs.ac, dtype='float32')/pv_nominal_power
+        
+       
+        if pv_sizing_nominal_power is not None:
+            nominal_power = float(pv_sizing_nominal_power)
+            return nominal_power, inverter_ac_power_per_kw
+
 
         if use_sample_target:
             target_nominal_power = self.autosize_config['PV_system_size_DC']
@@ -565,6 +571,7 @@ class PV(ElectricDevice):
             zne_nominal_power = demand/sum(inverter_ac_power_per_kw/1000.0)
             limited_zne_nominal_power = zne_nominal_power*zero_net_energy_proportion
             target_nominal_power = math.floor(limited_zne_nominal_power*safety_factor/pv_nominal_power)*pv_nominal_power
+            
 
         module_area = self.autosize_config['module_area']
         pv_area = pv_nominal_power*5.263 if module_area is None or math.isnan(module_area) else module_area
