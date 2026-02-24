@@ -1,0 +1,19 @@
+[project]
+name = "annex96-common-exercise-1"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.8,<3.12"
+dependencies = [
+    "doe-xstock>=1.1.0",
+    "gymnasium<=0.28.1",
+    "nrel-pysam>=7.1.0",
+    "numpy<2.0.0",
+    "openstudio<=3.3.0",
+    "pandas>=2.0.3",
+    "pyyaml>=6.0.3",
+    "scikit-learn<=1.2.2",
+    "simplejson>=3.20.2",
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
+]
