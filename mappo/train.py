@@ -43,6 +43,7 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 from torch.optim import Adam
+from gymnasium import spaces
 
 # ── Ensure the local CityLearn copy is used (not any pip-installed version) ──
 REPO_DIR = Path(__file__).resolve().parent.parent
@@ -246,13 +247,16 @@ def assemble_env_actions(
     cluster_actions: List[np.ndarray],
     clusters:        List[List[int]],
     act_dims:        List[int],
+    action_spaces:   List[spaces.Box],
     n_buildings:     int,
 ) -> List[List[float]]:
     """Split cluster action vectors back into per-building action lists.
 
     CityLearn expects actions as List[List[float]] where actions[b] is the
     action vector for building b.  Each cluster actor outputs a *flattened*
-    joint action vector for all its assigned buildings in CityLearn order.
+    joint action vector in [-1, 1] for all its assigned buildings in CityLearn
+    order, so we rescale each per-building slice to that building's action
+    space before returning it.
 
     Example — cluster 0 controls buildings [0, 5, 10], each with act_dim=2:
         cluster_actions[0] = [a0_bat, a0_heat, a5_bat, a5_heat, a10_bat, a10_heat]
@@ -260,8 +264,8 @@ def assemble_env_actions(
         → env_actions[5]  = [a5_bat,  a5_heat]
         → env_actions[10] = [a10_bat, a10_heat]
 
-    CityLearn then clips each action component to its building-specific bounds
-    (e.g. heating_device → [0, 1]) before applying it to the building model.
+    The policy actions stored in the rollout buffer remain unscaled; only the
+    environment-facing copy is transformed here.
     """
     env_actions: List[Optional[List[float]]] = [None] * n_buildings
     for cluster_idx, building_indices in enumerate(clusters):
@@ -269,7 +273,12 @@ def assemble_env_actions(
         offset = 0
         for b in building_indices:
             dim = act_dims[b]
-            env_actions[b] = vec[offset: offset + dim].tolist()
+            raw_action = vec[offset: offset + dim]
+            action_space = action_spaces[b]
+            low = action_space.low.astype(np.float32)
+            high = action_space.high.astype(np.float32)
+            scaled_action = low + (raw_action + 1.0) * 0.5 * (high - low)
+            env_actions[b] = np.clip(scaled_action, low, high).tolist()
             offset += dim
     return env_actions  # type: ignore[return-value]
 
@@ -474,6 +483,7 @@ def train(cfg: Config) -> Tuple[List[Actor], Critic]:
     n_buildings   = len(base_env.buildings)
     obs_dims      = [env.observation_space[i].shape[0] for i in range(n_buildings)]
     act_dims      = [env.action_space[i].shape[0]      for i in range(n_buildings)]
+    action_spaces = [base_env.action_space[i] for i in range(n_buildings)]
     global_obs_dim = sum(obs_dims)
 
     print(
@@ -585,7 +595,9 @@ def train(cfg: Config) -> Tuple[List[Actor], Critic]:
 
             # Assemble per-building action list for CityLearn
             # Each cluster action vector is split back into per-building chunks
-            env_actions = assemble_env_actions(actions_np, clusters, act_dims, n_buildings)
+            env_actions = assemble_env_actions(
+                actions_np, clusters, act_dims, action_spaces, n_buildings
+            )
 
             # Step environment
             # rewards is List[float] with one reward per building

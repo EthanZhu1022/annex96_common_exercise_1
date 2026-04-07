@@ -1,0 +1,106 @@
+_wandb:
+    value:
+        cli_version: 0.25.1
+        e:
+            1lpcgc43pljzgzvpj55vwa8racvk6ebb:
+                args:
+                    - --n_episodes
+                    - "1"
+                    - --eval_freq
+                    - "1"
+                    - --wandb_project
+                    - annex96-ce1
+                    - --wandb_name
+                    - smoke-test
+                cpu_count: 8
+                cpu_count_logical: 16
+                cudaVersion: "13.1"
+                disk:
+                    /:
+                        total: "1081101176832"
+                        used: "26164215808"
+                email: z5610836@ad.unsw.edu.au
+                executable: /home/yue/EthanZhu/annex96_common_exercise_1/.venv/bin/python3
+                git:
+                    commit: fefbd7a2e10f5390eeb92c10f9551c7a099d8183
+                    remote: https://github.com/EthanZhu1022/annex96_common_exercise_1.git
+                gpu: NVIDIA GeForce RTX 3090
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      memoryTotal: "25769803776"
+                      name: NVIDIA GeForce RTX 3090
+                      uuid: GPU-5a921a1d-c334-2cd6-9e6f-c47d6ae92867
+                host: MetaBook14
+                memory:
+                    total: "16402022400"
+                os: Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39
+                program: -m mappo.train
+                python: CPython 3.11.14
+                root: /home/yue/EthanZhu/annex96_common_exercise_1
+                startedAt: "2026-04-07T15:11:17.649122Z"
+                writerId: 1lpcgc43pljzgzvpj55vwa8racvk6ebb
+        m: []
+        python_version: 3.11.14
+        t:
+            "1":
+                - 1
+                - 5
+                - 53
+            "2":
+                - 1
+                - 5
+                - 53
+            "3":
+                - 13
+                - 16
+            "4": 3.11.14
+            "5": 0.25.1
+            "12": 0.25.1
+            "13": linux-x86_64
+climate:
+    value: VT
+clip_eps:
+    value: 0.2
+entropy_coeff:
+    value: 0.01
+episode_time_steps:
+    value: null
+eval_freq:
+    value: 1
+gae_lambda:
+    value: 0.95
+gamma:
+    value: 0.99
+hidden_dim:
+    value: 256
+lr_actor:
+    value: 0.0003
+lr_critic:
+    value: 0.001
+max_grad_norm:
+    value: 0.5
+minibatch_size:
+    value: 64
+msg_dim:
+    value: 32
+n_buildings:
+    value: 25
+n_clusters:
+    value: 5
+n_episodes:
+    value: 1
+ppo_epochs:
+    value: 4
+save_dir:
+    value: results/mappo
+seed:
+    value: 42
+use_communication:
+    value: true
+value_coeff:
+    value: 0.5
+wandb_name:
+    value: smoke-test
+wandb_project:
+    value: annex96-ce1

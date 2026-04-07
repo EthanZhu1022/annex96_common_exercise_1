@@ -9,3 +9,4 @@ simplejson
 torch
 torchvision
 openstudio<=3.3.0
+wandb>=0.24.2
