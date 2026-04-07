@@ -1,11 +1,11 @@
 Metric,TX,VT
-NMBE RBC (%),inf,103.93
-NMBE Baseline (%),inf,101.11
-CV-RMSE RBC (%),inf,129.09
-CV-RMSE Baseline (%),inf,144.56
+NMBE RBC (%),89.57,103.93
+NMBE Baseline (%),79.12,101.11
+CV-RMSE RBC (%),207.63,129.09
+CV-RMSE Baseline (%),163.74,144.56
 Peak Demand RBC (kWh),127.42,340.24
 Peak Demand Baseline (kWh),96.19,314.16
-Peak Demand Target (kWh),0.00,194.97
+Peak Demand Target (kWh),23.37,194.97
 Avg Load RBC (kWh),36.98,203.03
 Avg Load Baseline (kWh),34.94,200.23
-Avg Load Target (kWh),0.00,99.56
+Avg Load Target (kWh),19.50,99.56
