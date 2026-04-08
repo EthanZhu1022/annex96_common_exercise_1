@@ -1,0 +1,135 @@
+_wandb:
+    value:
+        cli_version: 0.25.1
+        e:
+            mgkxuhgkkpr7ld5qhdjgawwvqffay1ij:
+                args:
+                    - --climate
+                    - VT
+                    - --n_buildings
+                    - "3"
+                    - --n_episodes
+                    - "2"
+                    - --eval_freq
+                    - "2"
+                    - --no_test
+                    - --save_dir
+                    - /tmp/mappo_compat
+                    - --n_clusters
+                    - "2"
+                    - --hidden_dim
+                    - "32"
+                    - --msg_dim
+                    - "4"
+                cpu_count: 8
+                cpu_count_logical: 16
+                cudaVersion: "13.1"
+                disk:
+                    /:
+                        total: "1081101176832"
+                        used: "26451656704"
+                email: z5610836@ad.unsw.edu.au
+                executable: /home/yue/EthanZhu/annex96_common_exercise_1/.venv/bin/python
+                git:
+                    commit: 6e1a716f312b57baa00fa80a317c04b89e765bfa
+                    remote: https://github.com/EthanZhu1022/annex96_common_exercise_1.git
+                gpu: NVIDIA GeForce RTX 3090
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      memoryTotal: "25769803776"
+                      name: NVIDIA GeForce RTX 3090
+                      uuid: GPU-5a921a1d-c334-2cd6-9e6f-c47d6ae92867
+                host: MetaBook14
+                memory:
+                    total: "16402022400"
+                os: Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39
+                program: -m mappo.train
+                python: CPython 3.11.14
+                root: /home/yue/EthanZhu/annex96_common_exercise_1
+                startedAt: "2026-04-08T05:19:19.712369Z"
+                writerId: mgkxuhgkkpr7ld5qhdjgawwvqffay1ij
+        m: []
+        python_version: 3.11.14
+        t:
+            "1":
+                - 1
+                - 5
+                - 53
+            "2":
+                - 1
+                - 5
+                - 53
+            "3":
+                - 2
+                - 13
+                - 16
+                - 61
+            "4": 3.11.14
+            "5": 0.25.1
+            "12": 0.25.1
+            "13": linux-x86_64
+backup_dir:
+    value: null
+climate:
+    value: VT
+clip_eps:
+    value: 0.2
+do_test:
+    value: false
+entropy_coeff:
+    value: 0.01
+episode_time_steps:
+    value: null
+eval_freq:
+    value: 2
+gae_lambda:
+    value: 0.95
+gamma:
+    value: 0.99
+hidden_dim:
+    value: 32
+lr_actor:
+    value: 0.0003
+lr_critic:
+    value: 0.001
+max_grad_norm:
+    value: 0.5
+minibatch_size:
+    value: 64
+msg_dim:
+    value: 4
+n_buildings:
+    value: 3
+n_clusters:
+    value: 2
+n_episodes:
+    value: 2
+ppo_epochs:
+    value: 4
+save_dir:
+    value: /tmp/mappo_compat
+save_every:
+    value: 2
+seed:
+    value: 42
+test_end_step:
+    value: 1415
+test_month:
+    value: 2
+test_start_step:
+    value: 744
+train_end_step:
+    value: 743
+train_month:
+    value: 1
+train_start_step:
+    value: 0
+use_communication:
+    value: true
+value_coeff:
+    value: 0.5
+wandb_name:
+    value: clustered-mappo
+wandb_project:
+    value: citylearn-mappo

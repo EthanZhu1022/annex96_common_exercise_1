@@ -1,0 +1,57 @@
+{
+  "os": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "python": "CPython 3.11.14",
+  "startedAt": "2026-04-08T05:15:41.937326Z",
+  "args": [
+    "--climate",
+    "VT",
+    "--n_buildings",
+    "5",
+    "--n_episodes",
+    "2",
+    "--save_every",
+    "2",
+    "--seed",
+    "42",
+    "--save_dir",
+    "/tmp/mappo_test_vt",
+    "--n_clusters",
+    "2",
+    "--hidden_dim",
+    "64",
+    "--msg_dim",
+    "8"
+  ],
+  "program": "-m mappo.train",
+  "git": {
+    "remote": "https://github.com/EthanZhu1022/annex96_common_exercise_1.git",
+    "commit": "6e1a716f312b57baa00fa80a317c04b89e765bfa"
+  },
+  "email": "z5610836@ad.unsw.edu.au",
+  "root": "/home/yue/EthanZhu/annex96_common_exercise_1",
+  "host": "MetaBook14",
+  "executable": "/home/yue/EthanZhu/annex96_common_exercise_1/.venv/bin/python",
+  "cpu_count": 8,
+  "cpu_count_logical": 16,
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "1081101176832",
+      "used": "26450636800"
+    }
+  },
+  "memory": {
+    "total": "16402022400"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA GeForce RTX 3090",
+      "memoryTotal": "25769803776",
+      "architecture": "Ampere",
+      "uuid": "GPU-5a921a1d-c334-2cd6-9e6f-c47d6ae92867"
+    }
+  ],
+  "cudaVersion": "13.1",
+  "writerId": "it1u49cwkhqo9vts2xfnutk0wcdjwtn7"
+}
