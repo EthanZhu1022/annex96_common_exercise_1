@@ -200,5 +200,6 @@ outputs/
 ## Ignore workflows  ---
 .github/workflows/
 
-
+# Wandb
+wandb/
 
