@@ -183,7 +183,13 @@ def extract_episode_kpis(env_unwrapped) -> Dict[str, Optional[float]]:
                     .set_index("cost_function")["value"])
 
         def _get(key: str) -> Optional[float]:
-            return float(district[key]) if key in district.index else None
+            if key not in district.index:
+                return None
+            val = district[key]
+            if val is None:
+                return None
+            val_f = float(val)
+            return val_f if np.isfinite(val_f) else None
 
         return {
             "kpi/electricity_consumption": _get("electricity_consumption_total"),

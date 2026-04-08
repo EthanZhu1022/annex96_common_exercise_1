@@ -86,10 +86,13 @@ class Actor(nn.Module):
             action:   shape (..., action_dim), clipped to [-1, 1]
             log_prob: scalar — sum of per-dimension log probs
         """
-        dist     = self._distribution(x)
-        action   = dist.sample()
-        log_prob = dist.log_prob(action).sum(dim=-1)
-        action   = action.clamp(-1.0, 1.0)
+        dist = self._distribution(x)
+        pre_tanh = dist.rsample()
+        action = torch.tanh(pre_tanh)
+
+        # Change-of-variables correction for tanh-squashed Gaussian.
+        log_prob = dist.log_prob(pre_tanh) - torch.log(1.0 - action.pow(2) + 1e-6)
+        log_prob = log_prob.sum(dim=-1)
         return action, log_prob
 
     def evaluate_actions(
@@ -108,9 +111,15 @@ class Actor(nn.Module):
             log_prob: shape (batch,)
             entropy:  shape (batch,)
         """
-        dist     = self._distribution(x)
-        log_prob = dist.log_prob(actions).sum(dim=-1)
-        entropy  = dist.entropy().sum(dim=-1)
+        actions = actions.clamp(-1.0 + 1e-6, 1.0 - 1e-6)
+        pre_tanh = 0.5 * (torch.log1p(actions) - torch.log1p(-actions))
+
+        dist = self._distribution(x)
+        log_prob = dist.log_prob(pre_tanh) - torch.log(1.0 - actions.pow(2) + 1e-6)
+        log_prob = log_prob.sum(dim=-1)
+
+        # Entropy of the base Gaussian is a stable proxy for exploration level.
+        entropy = dist.entropy().sum(dim=-1)
         return log_prob, entropy
 
 

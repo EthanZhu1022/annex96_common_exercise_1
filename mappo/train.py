@@ -603,6 +603,7 @@ def evaluate_on_test(
     test_start:  int,
     test_end:    int,
     use_wandb:   bool,
+    episode:     Optional[int] = None,
 ) -> Dict:
     """Run one episode on the test time window with no parameter updates.
 
@@ -672,6 +673,8 @@ def evaluate_on_test(
         **{f"test/{k}": v for k, v in test_kpis.items()},
         **{f"test/{k}": v for k, v in test_soc.items()},
     }
+    if episode is not None:
+        result["episode"] = episode
 
     # ── Console summary ──────────────────────────────────────────────────
     print(
@@ -682,7 +685,7 @@ def evaluate_on_test(
     )
 
     if use_wandb:
-        wandb.log(result)
+        wandb.log(_filter_log_values(result), step=episode)
 
     return result
 
@@ -742,6 +745,9 @@ def train(cfg: Config) -> Tuple[List[Actor], Critic]:
     })
     if use_wandb:
         wandb.init(project=cfg.wandb_project, name=cfg.wandb_name, config=cfg_dict)
+        wandb.define_metric("episode")
+        wandb.define_metric("train/*", step_metric="episode")
+        wandb.define_metric("test/*", step_metric="episode")
 
     # ── Training environment ─────────────────────────────────────────────
     train_month_name = _MONTH_NAMES.get(train_month, str(train_month))
@@ -920,7 +926,7 @@ def train(cfg: Config) -> Tuple[List[Actor], Critic]:
             **{f"train/{k}": v for k, v in soc_stats.items()},
         }
         if use_wandb:
-            wandb.log(log_dict, step=episode)
+            wandb.log(_filter_log_values(log_dict), step=episode)
 
         if episode % 10 == 0:
             print(
@@ -979,7 +985,7 @@ def train(cfg: Config) -> Tuple[List[Actor], Critic]:
         test_result = evaluate_on_test(
             actors, critic, comm_nets, clusters,
             act_dims, action_spaces, cfg, device,
-            test_start, test_end, use_wandb,
+            test_start, test_end, use_wandb, episode=cfg.n_episodes,
         )
 
     # ── Build final metrics dict ──────────────────────────────────────
@@ -1042,6 +1048,18 @@ def _export_test_metrics(
     csv_path = save_dir / "test_metrics.csv"
     pd.DataFrame([flat]).to_csv(csv_path, index=False)
     print(f"  [test]  metrics CSV  → {csv_path}")
+
+
+def _filter_log_values(metrics: Dict) -> Dict:
+    """Drop None/NaN/inf values before logging to W&B."""
+    clean: Dict = {}
+    for key, value in metrics.items():
+        if value is None:
+            continue
+        if isinstance(value, (float, np.floating)) and not np.isfinite(value):
+            continue
+        clean[key] = value
+    return clean
 
 
 # ---------------------------------------------------------------------------
