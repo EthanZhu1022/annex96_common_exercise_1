@@ -171,7 +171,7 @@ class Config:
     save_every:    int  = 10              # checkpoint every N episodes
     eval_freq:     int  = 10             # kept for backward compat (alias of save_every)
     seed:          int  = 42
-    wandb_project: str  = "citylearn-mappo"
+    wandb_project: str  = "annex96-ce1"
     wandb_name:    str  = "clustered-mappo"
     save_dir:      str  = "results/mappo"
     backup_dir:    Optional[str] = None  # None → auto: save_dir/backups/{ts}_{climate}_seed{seed}
@@ -610,6 +610,19 @@ def evaluate_on_test(
     Returns a dict with test_reward and test KPIs.
     """
     month_name = _MONTH_NAMES.get(cfg.test_month, str(cfg.test_month))
+
+    def _fmt_metric(value: Optional[float], ndigits: int = 3) -> str:
+        """Format optional scalar metric safely for console logging."""
+        if value is None:
+            return "nan"
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            return "nan"
+        if not np.isfinite(v):
+            return "nan"
+        return f"{v:.{ndigits}f}"
+
     print(f"\n{'='*65}")
     print(
         f"TEST EVALUATION | {cfg.climate} | {month_name} "
@@ -651,7 +664,8 @@ def evaluate_on_test(
                 actions_np, clusters, act_dims, action_spaces, n_buildings
             )
             next_obs_list, rewards, terminated, truncated, _ = test_env.step(env_actions)
-            global_reward = float(sum(rewards))
+            # Use per-building mean reward to keep scale stable across district size.
+            global_reward = float(np.mean(rewards))
             test_reward  += global_reward
             step_rewards.append(global_reward)
             obs_list = next_obs_list
@@ -679,9 +693,9 @@ def evaluate_on_test(
     # ── Console summary ──────────────────────────────────────────────────
     print(
         f"  reward {test_reward:9.2f} | "
-        f"ramp {test_kpis.get('kpi/ramping', float('nan')):.3f} | "
-        f"peak {test_kpis.get('kpi/daily_peak', float('nan')):.3f} | "
-        f"cost {test_kpis.get('kpi/cost', float('nan')):.3f}"
+        f"ramp {_fmt_metric(test_kpis.get('kpi/ramping'))} | "
+        f"peak {_fmt_metric(test_kpis.get('kpi/daily_peak'))} | "
+        f"cost {_fmt_metric(test_kpis.get('kpi/cost'))}"
     )
 
     if use_wandb:
@@ -870,7 +884,8 @@ def train(cfg: Config) -> Tuple[List[Actor], Critic]:
             )
 
             next_obs_list, rewards, terminated, truncated, _ = env.step(env_actions)
-            global_reward = float(sum(rewards))
+            # Use per-building mean reward to keep scale stable across district size.
+            global_reward = float(np.mean(rewards))
             done = terminated or truncated
 
             buffer.add(
@@ -1092,7 +1107,7 @@ def parse_args() -> Config:
     parser.add_argument("--eval_freq",   type=int,   default=None,
                         help="Alias for --save_every (backward compat)")
     parser.add_argument("--seed",        type=int,   default=42)
-    parser.add_argument("--wandb_project", default="citylearn-mappo")
+    parser.add_argument("--wandb_project", default="annex96-ce1")
     parser.add_argument("--wandb_name",    default="clustered-mappo")
     parser.add_argument("--save_dir",    default="results/mappo")
     parser.add_argument("--backup_dir",  default=None,
