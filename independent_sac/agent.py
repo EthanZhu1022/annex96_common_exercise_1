@@ -31,6 +31,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam
 
+import math
+
 LOG_STD_MIN = -5
 LOG_STD_MAX = 2
 
@@ -81,9 +83,13 @@ class Actor(nn.Module):
         dist     = torch.distributions.Normal(mean, std)
         pre_tanh = dist.rsample()          # reparameterized sample
         action   = torch.tanh(pre_tanh)
-        # Change-of-variables correction for tanh squashing:
-        #   log π(a|s) = log N(pre_tanh) - sum log(1 - tanh²(pre_tanh))
-        log_prob = dist.log_prob(pre_tanh) - torch.log(1.0 - action.pow(2) + 1e-6)
+        # Numerically stable tanh log-prob correction (softplus identity):
+        #   log(1 - tanh²(x)) = 2*(log 2 - x - softplus(-2x))
+        # This avoids catastrophic cancellation when |x| is large, unlike
+        # the naive torch.log(1 - tanh(x)^2 + eps) formulation.
+        log_prob = dist.log_prob(pre_tanh) - (
+            2.0 * (math.log(2.0) - pre_tanh - F.softplus(-2.0 * pre_tanh))
+        )
         log_prob = log_prob.sum(dim=-1, keepdim=True)
         return action, log_prob
 
@@ -204,12 +210,14 @@ class SACAgent:
         alpha_init:      float          = 0.2,
         target_entropy:  Optional[float] = None,
         buffer_capacity: int            = 100_000,
+        max_grad_norm:   float          = 1.0,
         device:          Optional[torch.device] = None,
     ) -> None:
-        self.gamma      = gamma
-        self.tau        = tau
-        self.action_dim = action_dim
-        self.device     = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.gamma         = gamma
+        self.tau           = tau
+        self.action_dim    = action_dim
+        self.max_grad_norm = max_grad_norm
+        self.device        = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Networks
         self.actor         = Actor(obs_dim, action_dim, hidden_dim).to(self.device)
@@ -313,6 +321,7 @@ class SACAgent:
 
         self.critic_opt.zero_grad()
         critic_loss.backward()
+        nn.utils.clip_grad_norm_(self.critic.parameters(), self.max_grad_norm)
         self.critic_opt.step()
 
         # ── 2. Actor update (freeze critic for efficiency) ───────────────
@@ -326,6 +335,7 @@ class SACAgent:
 
         self.actor_opt.zero_grad()
         actor_loss.backward()
+        nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)
         self.actor_opt.step()
 
         for p in self.critic.parameters():

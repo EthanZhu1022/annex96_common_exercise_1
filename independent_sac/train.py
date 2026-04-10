@@ -131,6 +131,7 @@ class Config:
     batch_size:       int   = 256     # minibatch size for gradient updates
     updates_per_step: int   = 1       # SAC gradient steps per env step
     learning_starts:  int   = 1000   # env steps before first gradient update
+    max_grad_norm:    float = 1.0     # gradient clipping norm (actor + critic)
 
     # Training
     n_episodes: int = 100
@@ -573,6 +574,7 @@ def train(cfg: Config) -> List[SACAgent]:
             tau             = cfg.tau,
             alpha_init      = cfg.alpha_init,
             buffer_capacity = cfg.buffer_capacity,
+            max_grad_norm   = cfg.max_grad_norm,
             device          = device,
         )
         for i in range(n_buildings)
@@ -787,6 +789,7 @@ def parse_args() -> Config:
     parser.add_argument("--batch_size",       type=int,   default=256)
     parser.add_argument("--updates_per_step", type=int,   default=1)
     parser.add_argument("--learning_starts",  type=int,   default=1000)
+    parser.add_argument("--max_grad_norm",    type=float, default=1.0)
 
     # Training
     parser.add_argument("--n_episodes",         type=int, default=100)
@@ -824,6 +827,7 @@ def parse_args() -> Config:
         batch_size          = args.batch_size,
         updates_per_step    = args.updates_per_step,
         learning_starts     = args.learning_starts,
+        max_grad_norm       = args.max_grad_norm,
         n_episodes          = args.n_episodes,
         episode_time_steps  = args.episode_time_steps,
         train_month         = args.train_month,
