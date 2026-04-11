@@ -321,6 +321,193 @@ def _make_backup_dir(cfg: Config) -> Path:
 
 
 # ---------------------------------------------------------------------------
+# Daily metrics helpers
+# ---------------------------------------------------------------------------
+
+def compute_daily_metrics(
+    step_loads:     List[float],
+    steps_per_day:  int = 24,
+) -> pd.DataFrame:
+    """Compute per-day metrics from a step-level portfolio net-electricity series.
+
+    Metrics follow the CE1 README definitions (Section: Secondary Metrics):
+      - ramping:     sum of |y_i - y_{i-1}| over the day's 24 hourly steps
+      - daily_peak:  max step load in the day
+      - daily_min:   min step load in the day
+      - load_factor: mean / peak  (1 = perfectly flat)
+      - pvr:         peak / min   (peak-to-valley ratio; 1 = perfectly flat)
+      - energy:      sum of step loads (proportional to kWh if loads are in kW)
+
+    Args:
+        step_loads:    Portfolio net electricity at every env step (kW or raw units).
+        steps_per_day: Number of steps per day (24 for hourly, 96 for 15-min).
+
+    Returns:
+        DataFrame with one row per day and columns:
+            day, ramping, daily_peak, daily_min, load_factor, pvr, energy
+    """
+    arr      = np.array(step_loads, dtype=float)
+    n_steps  = len(arr)
+    n_days   = n_steps // steps_per_day
+    rows: List[Dict] = []
+
+    for d in range(n_days):
+        sl   = d * steps_per_day
+        el   = sl + steps_per_day
+        day  = arr[sl:el]
+
+        peak = float(day.max())
+        low  = float(day.min())
+        mean = float(day.mean())
+
+        # Ramping: sum of absolute hourly differences (24 values per day)
+        diffs   = np.abs(np.diff(day))
+        ramping = float(diffs.sum()) if len(diffs) > 0 else 0.0
+
+        load_factor = mean / peak if peak > 0 else float("nan")
+        pvr         = peak / low  if low  > 0 else float("nan")
+
+        rows.append({
+            "day":         d + 1,
+            "ramping":     ramping,
+            "daily_peak":  peak,
+            "daily_min":   low,
+            "load_factor": load_factor,
+            "pvr":         pvr,
+            "energy":      float(day.sum()),
+        })
+
+    return pd.DataFrame(rows)
+
+
+def save_daily_metrics_plot(
+    daily_df:   pd.DataFrame,
+    save_dir:   Path,
+    climate:    str,
+    month_name: str,
+) -> Path:
+    """Save a 2-row × 3-column figure of day-by-day test metrics.
+
+    Panels (top row):
+      - Daily ramping
+      - Daily peak load
+      - Load factor
+
+    Panels (bottom row):
+      - Peak-to-valley ratio
+      - Daily energy
+      - [summary box: mean ± std of each metric]
+
+    Returns the path to the saved figure.
+    """
+    days = daily_df["day"].tolist()
+
+    fig, axes = plt.subplots(2, 3, figsize=(16, 8))
+    fig.suptitle(
+        f"Independent SAC — Daily Test Metrics | {climate} | {month_name}",
+        fontsize=13,
+    )
+
+    def _plot(ax: plt.Axes, col: str, title: str, ylabel: str, color: str) -> None:
+        vals = daily_df[col].tolist()
+        ax.plot(days, vals, marker="o", markersize=3, color=color, linewidth=1.2)
+        ax.fill_between(days, vals, alpha=0.15, color=color)
+        mean_v = float(np.nanmean(vals))
+        ax.axhline(mean_v, color=color, linestyle="--", linewidth=0.8, alpha=0.7,
+                   label=f"mean={mean_v:.2f}")
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("Day of test month")
+        ax.set_ylabel(ylabel)
+        ax.legend(fontsize=7)
+        ax.grid(True, alpha=0.3)
+
+    _plot(axes[0, 0], "ramping",    "Daily Ramping (∑|Δload|)",   "kW",  "#e15759")
+    _plot(axes[0, 1], "daily_peak", "Daily Peak Load",             "kW",  "#f28e2b")
+    _plot(axes[0, 2], "load_factor","Load Factor (mean/peak)",     "—",   "#4e79a7")
+    _plot(axes[1, 0], "pvr",        "Peak-to-Valley Ratio",        "—",   "#76b7b2")
+    _plot(axes[1, 1], "energy",     "Daily Energy Consumption",    "kWh", "#59a14f")
+
+    # Summary statistics panel
+    ax_s = axes[1, 2]
+    ax_s.axis("off")
+    summary_cols = ["ramping", "daily_peak", "load_factor", "pvr", "energy"]
+    col_labels   = ["Metric", "Mean", "Std", "Min", "Max"]
+    cell_text    = []
+    for col in summary_cols:
+        v = daily_df[col].dropna()
+        cell_text.append([
+            col,
+            f"{v.mean():.3f}",
+            f"{v.std():.3f}",
+            f"{v.min():.3f}",
+            f"{v.max():.3f}",
+        ])
+    tbl = ax_s.table(
+        cellText=cell_text,
+        colLabels=col_labels,
+        loc="center",
+        cellLoc="center",
+    )
+    tbl.auto_set_font_size(False)
+    tbl.set_fontsize(8)
+    tbl.scale(1.0, 1.4)
+    ax_s.set_title("Summary Statistics", fontsize=10)
+
+    plt.tight_layout()
+    out = Path(save_dir) / "test_daily_metrics.png"
+    plt.savefig(str(out), dpi=120)
+    plt.close()
+    print(f"  [daily] figure → {out}")
+    return out
+
+
+def _export_daily_metrics_csv(daily_df: pd.DataFrame, save_dir: Path) -> Path:
+    """Write per-day metrics to test_daily_metrics.csv."""
+    out = Path(save_dir) / "test_daily_metrics.csv"
+    daily_df.to_csv(out, index=False)
+    print(f"  [daily] CSV    → {out}")
+    return out
+
+
+def _run_daily_pipeline(
+    test_result: Dict,
+    cfg:         Config,
+    save_dir:    Path,
+    use_wandb:   bool,
+) -> Optional[pd.DataFrame]:
+    """Compute daily metrics, save figure + CSV, and optionally log to W&B.
+
+    Extracts '_step_portfolio_loads' from test_result (injected by evaluate_on_test).
+    Returns the daily DataFrame, or None if step loads are unavailable.
+    """
+    step_loads: List[float] = test_result.get("_step_portfolio_loads", [])
+    if not step_loads:
+        print("[warn] No step-level load data — skipping daily metrics.")
+        return None
+
+    daily_df = compute_daily_metrics(step_loads, steps_per_day=24)
+
+    month_name = _MONTH_NAMES.get(cfg.test_month, str(cfg.test_month))
+    save_daily_metrics_plot(daily_df, save_dir, cfg.climate, month_name)
+    _export_daily_metrics_csv(daily_df, save_dir)
+
+    if use_wandb:
+        wandb.define_metric("test_day")
+        wandb.define_metric("test/daily/*", step_metric="test_day")
+        for _, row in daily_df.iterrows():
+            wandb.log({
+                "test_day":              int(row["day"]),
+                "test/daily/ramping":    row["ramping"],
+                "test/daily/peak":       row["daily_peak"],
+                "test/daily/load_factor":row["load_factor"],
+                "test/daily/pvr":        row["pvr"],
+                "test/daily/energy":     row["energy"],
+            })
+
+    return daily_df
+
+
+# ---------------------------------------------------------------------------
 # Plotting
 # ---------------------------------------------------------------------------
 
@@ -372,6 +559,9 @@ def _export_test_metrics(
     test_month:  int,
 ) -> None:
     """Write test metrics to JSON and CSV — same schema as mappo/train.py."""
+    public_result = {
+        k: v for k, v in test_result.items() if not k.startswith("_")
+    }
     payload = {
         "climate":         cfg.climate,
         "seed":            cfg.seed,
@@ -379,7 +569,7 @@ def _export_test_metrics(
         "test_month_name": _MONTH_NAMES.get(test_month, str(test_month)),
         "test_start_step": test_start,
         "test_end_step":   test_end,
-        **test_result,
+        **public_result,
     }
 
     json_path = save_dir / "test_metrics.json"
@@ -394,10 +584,13 @@ def _export_test_metrics(
 
 
 def _filter_log_values(d: Dict) -> Dict:
-    """Drop None / NaN / inf values before W&B logging."""
+    """Drop non-scalar, None, NaN, and inf values before W&B logging."""
     clean: Dict = {}
     for k, v in d.items():
         if v is None:
+            continue
+        # Skip private keys (prefixed with _) and non-scalar containers
+        if k.startswith("_") or isinstance(v, (list, dict, tuple)):
             continue
         if isinstance(v, (float, np.floating)) and not np.isfinite(v):
             continue
@@ -442,6 +635,7 @@ def evaluate_on_test(
     obs_list, _ = test_env.reset(seed=cfg.seed)
     per_building_rewards:   List[float] = [0.0] * n_buildings
     step_portfolio_rewards: List[float] = []
+    step_portfolio_loads:   List[float] = []   # net electricity per step (kW)
     cumulative_reward:      float       = 0.0
     test_step:              int         = 0
 
@@ -457,6 +651,17 @@ def evaluate_on_test(
             per_building_rewards[i] += float(rewards[i])
         step_portfolio_rewards.append(step_rew)
         cumulative_reward += step_rew
+
+        # Collect portfolio net electricity for daily-metric computation
+        try:
+            net_load = sum(
+                float(b.net_electricity_consumption[-1])
+                for b in test_base_env.buildings
+            )
+            step_portfolio_loads.append(net_load)
+        except Exception:
+            step_portfolio_loads.append(float("nan"))
+
         obs_list = next_obs_list
 
         if log_per_step and use_wandb:
@@ -495,6 +700,9 @@ def evaluate_on_test(
         ),
         **{f"test/{k}": v for k, v in test_kpis.items()},
         **{f"test/{k}": v for k, v in test_soc.items()},
+        # Private key (prefix _) — step-level loads for daily-metric computation;
+        # filtered out of W&B logs by _filter_log_values and _export_test_metrics.
+        "_step_portfolio_loads": step_portfolio_loads,
     }
     for i, r in enumerate(per_building_rewards):
         result[f"test/building_{i}/reward"] = r
@@ -652,10 +860,13 @@ def run_test_only(cfg: Config) -> Dict:
         log_per_step=True,
     )
 
-    # ── Export results ────────────────────────────────────────────────────
+    # ── Export aggregate results (unchanged) ──────────────────────────────
     _export_test_metrics(
         test_result, cfg, test_save_dir, test_start, test_end, test_month
     )
+
+    # ── Daily metrics figure + CSV ────────────────────────────────────────
+    _run_daily_pipeline(test_result, cfg, test_save_dir, use_wandb)
 
     if use_wandb:
         wandb.finish()
@@ -933,6 +1144,7 @@ def train(cfg: Config) -> List[SACAgent]:
 
     if test_result is not None:
         _export_test_metrics(test_result, cfg, save_dir, test_start, test_end, test_month)
+        _run_daily_pipeline(test_result, cfg, save_dir, use_wandb)
 
     if use_wandb:
         wandb.finish()
