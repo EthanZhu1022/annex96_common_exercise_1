@@ -144,6 +144,11 @@ class Config:
     # Workflow
     do_test: bool = True
 
+    # Test-only mode
+    test_only:      bool         = False
+    checkpoint_dir: Optional[str] = None   # load weights from here in test-only mode
+    test_save_dir:  Optional[str] = None   # write test outputs here (default: checkpoint_dir)
+
     # Logging & output
     save_every:    int          = 10
     seed:          int          = 42
@@ -412,11 +417,16 @@ def evaluate_on_test(
     test_end:      int,
     use_wandb:     bool,
     episode:       Optional[int] = None,
+    log_per_step:  bool = False,
 ) -> Dict:
     """Run one deterministic episode on the test window.
 
     All agents are set to eval mode; no gradient updates are performed.
     Returns a dict with portfolio and per-building test rewards + KPIs.
+
+    When log_per_step=True, per-step metrics are logged to W&B using a
+    'test_step' axis so that test curves are rendered as real time series
+    rather than a single ambiguous point.
     """
     month_name = _MONTH_NAMES.get(cfg.test_month, str(cfg.test_month))
     print(f"\n{'='*65}")
@@ -432,6 +442,8 @@ def evaluate_on_test(
     obs_list, _ = test_env.reset(seed=cfg.seed)
     per_building_rewards:   List[float] = [0.0] * n_buildings
     step_portfolio_rewards: List[float] = []
+    cumulative_reward:      float       = 0.0
+    test_step:              int         = 0
 
     while not test_base_env.terminated:
         env_actions = []
@@ -440,10 +452,33 @@ def evaluate_on_test(
             env_actions.append(scale_action(raw, action_spaces[i]))
 
         next_obs_list, rewards, terminated, truncated, _ = test_env.step(env_actions)
+        step_rew = float(np.sum(rewards))
         for i in range(n_buildings):
             per_building_rewards[i] += float(rewards[i])
-        step_portfolio_rewards.append(float(np.sum(rewards)))
+        step_portfolio_rewards.append(step_rew)
+        cumulative_reward += step_rew
         obs_list = next_obs_list
+
+        if log_per_step and use_wandb:
+            step_log: Dict = {
+                "test_step":                    test_step,
+                "test/step_reward":             step_rew,
+                "test/cumulative_reward":       cumulative_reward,
+                "test/step_reward_mean":        step_rew / max(n_buildings, 1),
+            }
+            # Best-effort per-step SOC from env state
+            try:
+                soc_vals = [
+                    float(b.electrical_storage.soc[-1])
+                    for b in test_base_env.buildings
+                ]
+                step_log["test/soc/mean"] = float(np.mean(soc_vals))
+                step_log["test/soc/min"]  = float(np.min(soc_vals))
+            except Exception:
+                pass
+            wandb.log(_filter_log_values(step_log))
+
+        test_step += 1
 
     for agent in agents:
         agent.train_mode()
@@ -483,10 +518,151 @@ def evaluate_on_test(
         f"cost {_fmt(test_kpis.get('kpi/cost'))}"
     )
 
-    if use_wandb:
+    # Log episode-level summary (use test_step count as axis in test-only mode,
+    # episode number in train mode — keeps both axes meaningful)
+    if use_wandb and not log_per_step:
         wandb.log(_filter_log_values(result), step=episode)
+    elif use_wandb and log_per_step:
+        # Log final summary at the last test_step so it aligns with the curves
+        summary = {k: v for k, v in result.items() if not k.startswith("test/building_")}
+        summary["test_step"] = test_step - 1
+        wandb.log(_filter_log_values(summary))
 
     return result
+
+
+# ---------------------------------------------------------------------------
+# Test-only entry point  (load checkpoints → evaluate → export)
+# ---------------------------------------------------------------------------
+
+def run_test_only(cfg: Config) -> Dict:
+    """Load saved checkpoints and run a deterministic test evaluation.
+
+    Skips training entirely.  Enforces climate-specific test window
+    (VT → February, TX → September) unless overridden via --test_month.
+
+    Returns the test-result dict (same schema as _export_test_metrics).
+    """
+    # ── Resolve time windows ──────────────────────────────────────────────
+    defaults   = _CLIMATE_DEFAULTS.get(cfg.climate, {})
+    test_month = cfg.test_month or defaults.get("test_month")
+
+    if test_month is None or test_month not in _MONTH_STARTS:
+        raise ValueError(f"Invalid test_month={test_month}. Must be 1-12.")
+
+    cfg.test_month = test_month
+    test_start     = _MONTH_STARTS[test_month]
+    test_end       = _MONTH_ENDS[test_month]
+    month_name     = _MONTH_NAMES.get(test_month, str(test_month))
+
+    # ── Directories ───────────────────────────────────────────────────────
+    checkpoint_dir = Path(
+        cfg.checkpoint_dir or f"results/independent_sac_{cfg.climate.lower()}_uv"
+    ).resolve()
+    test_save_dir = Path(cfg.test_save_dir or str(checkpoint_dir)).resolve()
+    test_save_dir.mkdir(parents=True, exist_ok=True)
+
+    print("\n" + "=" * 65)
+    print("INDEPENDENT SAC — TEST-ONLY MODE")
+    print(f"  Climate:        {cfg.climate}")
+    print(f"  Test window:    {month_name} (steps {test_start}–{test_end})")
+    print(f"  Checkpoint dir: {checkpoint_dir}")
+    print(f"  Output dir:     {test_save_dir}")
+    print("=" * 65)
+
+    # ── Validate checkpoint dir ───────────────────────────────────────────
+    if not checkpoint_dir.exists():
+        raise FileNotFoundError(
+            f"Checkpoint directory not found: {checkpoint_dir}\n"
+            f"Run training first or pass --checkpoint_dir <path>."
+        )
+
+    # ── Seeding & device ─────────────────────────────────────────────────
+    seed_everything(cfg.seed)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # ── Build test environment (needed for obs/act dims) ──────────────────
+    env, base_env = build_env(cfg, start_step=test_start, end_step=test_end)
+    n_buildings   = len(base_env.buildings)
+    obs_dims      = [env.observation_space[i].shape[0] for i in range(n_buildings)]
+    act_dims      = [env.action_space[i].shape[0]      for i in range(n_buildings)]
+    action_spaces = [base_env.action_space[i]           for i in range(n_buildings)]
+
+    print(
+        f"Environment: {cfg.climate} | buildings: {n_buildings} | "
+        f"obs/building: {obs_dims[0]} | act/building: {act_dims[0]}"
+    )
+
+    # ── Create agents ─────────────────────────────────────────────────────
+    agents: List[SACAgent] = [
+        SACAgent(
+            obs_dim         = obs_dims[i],
+            action_dim      = act_dims[i],
+            hidden_dim      = cfg.hidden_dim,
+            lr              = cfg.lr,
+            gamma           = cfg.gamma,
+            tau             = cfg.tau,
+            alpha_init      = cfg.alpha_init,
+            buffer_capacity = 1,        # no replay needed in test-only
+            max_grad_norm   = cfg.max_grad_norm,
+            device          = device,
+        )
+        for i in range(n_buildings)
+    ]
+
+    # ── Load checkpoints with explicit error messages ─────────────────────
+    print(f"\nLoading checkpoints from {checkpoint_dir}/")
+    for i, agent in enumerate(agents):
+        prefix = str(checkpoint_dir / f"building_{i}")
+        missing = [
+            suffix for suffix in ["_actor.pt", "_critic.pt", "_critic_target.pt", "_log_alpha.pt"]
+            if not Path(prefix + suffix).exists()
+        ]
+        if missing:
+            raise FileNotFoundError(
+                f"Missing checkpoint files for building {i}:\n"
+                + "\n".join(f"  {prefix}{s}" for s in missing)
+            )
+        agent.load(prefix)
+    print(f"  Loaded {n_buildings} agent checkpoints.")
+
+    # ── W&B init (test-only run) ───────────────────────────────────────────
+    use_wandb = _WANDB_OK
+    if use_wandb:
+        cfg_dict = vars(cfg).copy()
+        cfg_dict.update({
+            "mode":            "test_only",
+            "test_start_step": test_start,
+            "test_end_step":   test_end,
+        })
+        wandb.init(
+            project = cfg.wandb_project,
+            name    = f"{cfg.wandb_name}-test-only",
+            config  = cfg_dict,
+        )
+        # Per-step test axis so charts render as curves, not a single point
+        wandb.define_metric("test_step")
+        wandb.define_metric("test/*", step_metric="test_step")
+
+    # ── Run deterministic evaluation with per-step logging ────────────────
+    test_result = evaluate_on_test(
+        agents, action_spaces, cfg,
+        test_start, test_end, use_wandb,
+        episode=None,
+        log_per_step=True,
+    )
+
+    # ── Export results ────────────────────────────────────────────────────
+    _export_test_metrics(
+        test_result, cfg, test_save_dir, test_start, test_end, test_month
+    )
+
+    if use_wandb:
+        wandb.finish()
+
+    print("\nTest-only evaluation complete.")
+    print(f"  Outputs: {test_save_dir}/")
+    return test_result
 
 
 # ---------------------------------------------------------------------------
@@ -813,6 +989,16 @@ def parse_args() -> Config:
     parser.add_argument("--no_test", action="store_true",
                         help="Skip test evaluation after training")
 
+    # Test-only mode
+    parser.add_argument("--test_only", action="store_true",
+                        help="Skip training; load checkpoints and run evaluation only")
+    parser.add_argument("--checkpoint_dir", default=None,
+                        help="Directory to load saved model weights from "
+                             "(default: results/independent_sac_{climate}_uv)")
+    parser.add_argument("--test_save_dir", default=None,
+                        help="Directory to write test outputs to "
+                             "(default: same as --checkpoint_dir)")
+
     args = parser.parse_args()
 
     return Config(
@@ -833,6 +1019,9 @@ def parse_args() -> Config:
         train_month         = args.train_month,
         test_month          = args.test_month,
         do_test             = not args.no_test,
+        test_only           = args.test_only,
+        checkpoint_dir      = args.checkpoint_dir,
+        test_save_dir       = args.test_save_dir,
         save_every          = args.save_every,
         seed                = args.seed,
         wandb_project       = args.wandb_project,
@@ -843,4 +1032,8 @@ def parse_args() -> Config:
 
 
 if __name__ == "__main__":
-    train(parse_args())
+    cfg = parse_args()
+    if cfg.test_only:
+        run_test_only(cfg)
+    else:
+        train(cfg)
