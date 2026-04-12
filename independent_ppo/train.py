@@ -36,11 +36,11 @@ Output artifacts (in save_dir/):
     training_curves.png     — reward + KPI trends across iterations
 
 Run:
-    # TX: August train, September test (default)
+    # VT: January train, February test (default)
     python -m independent_ppo.train
 
-    # VT: January train, February test
-    python -m independent_ppo.train --climate VT
+    # TX: August train, September test
+    python -m independent_ppo.train --climate TX
 
     # Custom options
     python -m independent_ppo.train --climate TX --n_iterations 50 --seed 0
@@ -131,7 +131,7 @@ _CLIMATE_DEFAULTS: Dict[str, Dict[str, int]] = {
 @dataclass
 class Config:
     # Dataset
-    climate:     str = "TX"
+    climate:     str = "VT"
     n_buildings: int = 25
 
     # PPO hyperparameters
@@ -1115,7 +1115,7 @@ def parse_args() -> Config:
     )
 
     # Dataset
-    parser.add_argument("--climate",     default="TX", choices=["VT", "TX"])
+    parser.add_argument("--climate",     default="VT", choices=["VT", "TX"])
     parser.add_argument("--n_buildings", type=int, default=25)
 
     # PPO hyperparameters
