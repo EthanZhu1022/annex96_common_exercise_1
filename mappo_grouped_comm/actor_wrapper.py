@@ -205,10 +205,13 @@ class CommActorWrapper(nn.Module):
         if not self.comm.is_identity:
             B, D = features.shape
             n    = self.n_agents
-            if n > 0 and B % n == 0:
-                T_mb     = B // n
-                features = self.comm(features.view(T_mb, n, D)).view(B, D)
-            # If B not divisible by n (shouldn't happen with standard config),
+            if n <= 0 or B % n != 0:
+                raise ValueError(
+                    f"Communication batch shape mismatch: batch={B}, n_agents={n}. "
+                    "Expected batches emitted by GroupedSharedReplayBuffer."
+                )
+            T_mb     = B // n
+            features = self.comm(features.view(T_mb, n, D)).view(B, D)
             # skip comm silently — safer than crashing.
 
         # 4. Evaluate action distribution

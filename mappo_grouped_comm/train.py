@@ -98,13 +98,13 @@ for _p in [str(REPO_DIR), str(ONPOLICY)]:
 # ---------------------------------------------------------------------------
 from onpolicy.algorithms.r_mappo.r_mappo import R_MAPPO                              # noqa: E402
 from onpolicy.algorithms.r_mappo.algorithm.rMAPPOPolicy import R_MAPPOPolicy         # noqa: E402
-from onpolicy.utils.shared_buffer import SharedReplayBuffer                           # noqa: E402
 
 # ---------------------------------------------------------------------------
 # CityLearn adapter and KPI utilities
 # ---------------------------------------------------------------------------
 from mappo_grouped_comm.env import CityLearnMAPPOEnv                                      # noqa: E402
 from mappo_grouped_comm.cluster import run_clustering                                      # noqa: E402
+from mappo_grouped_comm.buffer import GroupedSharedReplayBuffer                           # noqa: E402
 from mappo.utils import extract_episode_kpis, get_soc_stats                          # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -302,6 +302,15 @@ def build_mappo_args(
     )
 
 
+def _validate_comm_config(cfg: Config) -> None:
+    """Fail fast on communication settings that are reserved but not implemented."""
+    if not cfg.comm_share_within_group_only:
+        raise NotImplementedError(
+            "Cross-group communication routing is reserved for future work. "
+            "The current implementation only supports --comm_share_within_group_only."
+        )
+
+
 # ---------------------------------------------------------------------------
 # Build grouped MAPPO components
 # ---------------------------------------------------------------------------
@@ -312,7 +321,7 @@ def _build_grouped_components(
     group_assignments: np.ndarray,
     device:           torch.device,
 ) -> Tuple[argparse.Namespace, List[R_MAPPOPolicy], List[R_MAPPO],
-           List[SharedReplayBuffer], List[np.ndarray]]:
+           List[GroupedSharedReplayBuffer], List[np.ndarray]]:
     """Create K actor policies (shared critic), K trainers, and K replay buffers.
 
     Returns
@@ -320,7 +329,7 @@ def _build_grouped_components(
     mappo_args    : shared Namespace used by all components
     policies      : list of K R_MAPPOPolicy; policies[1..K-1].critic == policies[0].critic
     trainers      : list of K R_MAPPO; trainers[1..K-1].value_normalizer == trainers[0].value_normalizer
-    buffers       : list of K SharedReplayBuffer (n_agents = |group_k|)
+    buffers       : list of K GroupedSharedReplayBuffer (n_agents = |group_k|)
     group_indices : list of K np.ndarray of building indices per group
     """
     K            = int(group_assignments.max()) + 1
@@ -403,9 +412,9 @@ def _build_grouped_components(
             trainers[k].value_normalizer = shared_vn
 
     # ── K replay buffers ──────────────────────────────────────────────────────
-    buffers: List[SharedReplayBuffer] = []
+    buffers: List[GroupedSharedReplayBuffer] = []
     for k in range(K):
-        buf = SharedReplayBuffer(
+        buf = GroupedSharedReplayBuffer(
             args          = mappo_args,
             num_agents    = group_sizes[k],
             obs_space     = env.obs_space,
@@ -708,6 +717,29 @@ def load_checkpoint(
     return episode
 
 
+def _apply_checkpoint_model_config(cfg: Config, ckpt_meta: Dict[str, Any]) -> None:
+    """Align model-building config with the checkpoint before constructing policies."""
+    saved_cfg = ckpt_meta.get("cfg")
+    if not isinstance(saved_cfg, dict):
+        return
+
+    fields_to_restore = [
+        "hidden_size",
+        "layer_N",
+        "lr",
+        "critic_lr",
+        "comm_method",
+        "comm_hidden_dim",
+        "comm_rounds",
+        "comm_share_within_group_only",
+        "comm_use_residual",
+        "comm_dropout",
+    ]
+    for field_name in fields_to_restore:
+        if field_name in saved_cfg:
+            setattr(cfg, field_name, saved_cfg[field_name])
+
+
 # ---------------------------------------------------------------------------
 # Test evaluation — grouped actors, deterministic, identical output to mappo_standard
 # ---------------------------------------------------------------------------
@@ -875,6 +907,7 @@ def evaluate_on_test(
 
 def train(cfg: Config) -> None:
     """Full grouped MAPPO training loop followed by optional test evaluation."""
+    _validate_comm_config(cfg)
 
     # ── Resolve time windows ──────────────────────────────────────────────
     defaults    = _CLIMATE_DEFAULTS.get(cfg.climate, {})
@@ -1290,15 +1323,17 @@ def run_test_only(cfg: Config) -> Dict:
     # Load checkpoint metadata to recover K and group_assignments.
     # We intentionally load raw (no weights_only) to read the metadata dict.
     ckpt_meta = torch.load(ckpt_path, map_location=device, weights_only=False)
+    _apply_checkpoint_model_config(cfg, ckpt_meta)
+    _validate_comm_config(cfg)
     K    = ckpt_meta.get("K", 4)
     group_assignments = np.array(ckpt_meta.get("group_assignments",
                                                list(range(cfg.n_buildings))))
 
-    # If checkpoint recorded comm_method, warn if it differs from cfg
     saved_comm = ckpt_meta.get("comm_method", None)
-    if saved_comm and saved_comm != cfg.comm_method:
-        print(f"  [warn] checkpoint comm_method='{saved_comm}' differs from "
-              f"cfg comm_method='{cfg.comm_method}'.  Ensure they match.")
+    if saved_comm is not None:
+        print(f"  [ckpt] restored communication config from checkpoint: "
+              f"comm_method={cfg.comm_method}, comm_rounds={cfg.comm_rounds}, "
+              f"comm_hidden_dim={cfg.comm_hidden_dim}")
 
     group_indices = [np.where(group_assignments == k)[0] for k in range(K)]
     group_sizes   = [int(len(idx)) for idx in group_indices]
@@ -1491,12 +1526,20 @@ def parse_args() -> Config:
         default=1,
         help="Number of CommNet communication rounds per step (default: 1).",
     )
-    parser.add_argument(
+    comm_scope = parser.add_mutually_exclusive_group()
+    comm_scope.add_argument(
         "--comm_share_within_group_only",
+        dest="comm_share_within_group_only",
         action="store_true",
-        default=True,
-        help="Restrict communication to agents within the same group (default: True).",
+        help="Restrict communication to agents within the same group (default).",
     )
+    comm_scope.add_argument(
+        "--allow_cross_group_comm",
+        dest="comm_share_within_group_only",
+        action="store_false",
+        help="Reserved for future cross-group communication; currently not implemented.",
+    )
+    parser.set_defaults(comm_share_within_group_only=True)
     parser.add_argument(
         "--no_comm_residual",
         action="store_true",
