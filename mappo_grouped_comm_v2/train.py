@@ -46,6 +46,7 @@ from mappo_grouped_comm.train import (  # noqa: E402
     _filter_wandb,
     _run_daily_pipeline,
     build_mappo_args,
+    compute_primary_metric_tables,
     export_test_metrics,
     save_plots,
     save_run_config,
@@ -507,13 +508,38 @@ def evaluate_on_test(
 
     test_kpis = extract_episode_kpis(test_env.base_env)
     test_soc = get_soc_stats(test_env.base_env)
+    primary_metrics, daily_primary_df, comfort_building_df = compute_primary_metric_tables(
+        test_env.base_env,
+        cfg.test_month,
+    )
+    portfolio_reward = float(sum(per_building_rewards.values()))
+
+    def _fmt(v: Optional[float]) -> str:
+        if v is None:
+            return "nan"
+        try:
+            f = float(v)
+            return f"{f:.3f}" if np.isfinite(f) else "nan"
+        except Exception:
+            return "nan"
+
+    print(
+        f"  reward_sum {portfolio_reward:9.2f} | "
+        f"NMBE {_fmt(primary_metrics.get('primary/load_tracking/nmbe_pct'))}% | "
+        f"CV-RMSE {_fmt(primary_metrics.get('primary/load_tracking/cv_rmse_pct'))}% | "
+        f"comfort {_fmt(primary_metrics.get('primary/thermal_comfort/portfolio_exceedance_pct'))}%"
+    )
+
     result: Dict[str, Any] = {
-        "test/portfolio/reward_sum": float(sum(per_building_rewards.values())),
+        "test/portfolio/reward_sum": portfolio_reward,
         "test/portfolio/reward_mean": float(np.mean(list(per_building_rewards.values()))),
         "test/step_reward_mean": float(np.mean(step_portfolio_rewards)) if step_portfolio_rewards else 0.0,
+        **{f"test/{k}": v for k, v in primary_metrics.items()},
         **{f"test/{k}": v for k, v in test_kpis.items()},
         **{f"test/{k}": v for k, v in test_soc.items()},
         "_step_portfolio_loads": step_portfolio_loads,
+        "_daily_primary_metrics": daily_primary_df.to_dict(orient="records"),
+        "_building_comfort_metrics": comfort_building_df.to_dict(orient="records"),
     }
     for bid, reward in per_building_rewards.items():
         result[f"test/{bid}/reward"] = reward
@@ -626,7 +652,7 @@ def train(cfg: Config) -> None:
         )
 
     all_rewards: List[float] = []
-    all_kpis: List[Dict[str, Any]] = []
+    all_primary_metrics: List[Dict[str, Any]] = []
     save_every = max(cfg.n_episodes // 10, 1)
 
     for episode in range(1, cfg.n_episodes + 1):
@@ -747,14 +773,21 @@ def train(cfg: Config) -> None:
 
         all_rewards.append(episode_reward)
         kpis = extract_episode_kpis(train_env.base_env)
-        all_kpis.append(kpis)
+        primary_metrics, _daily_primary_df, _comfort_building_df = compute_primary_metric_tables(
+            train_env.base_env,
+            cfg.train_month,
+        )
+        all_primary_metrics.append(primary_metrics)
 
         if episode % 10 == 0 or episode == 1:
+            nmbe = primary_metrics.get("primary/load_tracking/nmbe_pct")
+            cv_rmse = primary_metrics.get("primary/load_tracking/cv_rmse_pct")
             print(
                 f"[train] Ep {episode:4d} | ep_rew {episode_reward:9.2f} | "
                 f"v_loss {train_info['value_loss']:.4f} | "
                 f"p_loss {train_info['policy_loss']:.4f} | "
-                f"entropy {train_info['dist_entropy']:.4f}"
+                f"entropy {train_info['dist_entropy']:.4f} | "
+                f"NMBE {float(nmbe):.3f}% | CV-RMSE {float(cv_rmse):.3f}%"
             )
 
         if use_wandb:
@@ -771,6 +804,9 @@ def train(cfg: Config) -> None:
             for k, info_k in enumerate(actor_group_infos):
                 log[f"train/group_{k}/policy_loss"] = info_k["policy_loss"]
                 log[f"train/group_{k}/dist_entropy"] = info_k["dist_entropy"]
+            for kk, value in primary_metrics.items():
+                if value is not None:
+                    log[f"train/{kk}"] = value
             for kk, value in kpis.items():
                 if value is not None:
                     log[f"train/{kk}"] = value
@@ -787,7 +823,7 @@ def train(cfg: Config) -> None:
                 episode=episode,
                 cfg=cfg,
             )
-            save_plots(all_rewards, all_kpis, save_dir)
+            save_plots(all_rewards, all_primary_metrics, save_dir)
 
     test_result: Optional[Dict[str, Any]] = None
     if cfg.do_test and test_start is not None:
@@ -802,7 +838,7 @@ def train(cfg: Config) -> None:
         export_test_metrics(test_result, cfg, save_dir, test_start, test_end, test_month)
         _run_daily_pipeline(test_result, cfg, save_dir, use_wandb)
 
-    save_plots(all_rewards, all_kpis, save_dir)
+    save_plots(all_rewards, all_primary_metrics, save_dir)
 
     final_metrics: Dict[str, Any] = {
         "algorithm": "mappo_grouped_comm_v2",
@@ -815,6 +851,7 @@ def train(cfg: Config) -> None:
             "last_ep_reward_sum": all_rewards[-1] if all_rewards else None,
             "train_month": train_month,
             "train_steps": f"{train_start}-{train_end}",
+            **(all_primary_metrics[-1] if all_primary_metrics else {}),
         },
     }
     if test_result is not None:
