@@ -255,9 +255,20 @@ class CE1Callback(DefaultCallbacks):
             kpis = {}
         self._ep_kpis.append(kpis)
 
+        try:
+            primary_metrics, _, _ = compute_primary_metric_tables(
+                cl_env.base_env,
+                _infer_month_from_window(getattr(cl_env, "_start_step", None), getattr(cl_env, "_end_step", None)),
+            )
+        except Exception:
+            primary_metrics = {}
+
         # Write into episode custom metrics so RLlib aggregates them
         episode.custom_metrics["portfolio_reward_sum"] = portfolio_reward
         for k, v in kpis.items():
+            if v is not None:
+                episode.custom_metrics[k.replace("/", "_")] = v
+        for k, v in primary_metrics.items():
             if v is not None:
                 episode.custom_metrics[k.replace("/", "_")] = v
         for agent_id, r in agent_rewards.items():
@@ -297,6 +308,11 @@ class CE1Callback(DefaultCallbacks):
             if k.startswith("kpi_") and k.endswith("_mean"):
                 kpi_name = k[len("kpi_"):-len("_mean")].replace("_", "/")
                 log[f"train/kpi/{kpi_name}"] = v
+
+        for k, v in cm.items():
+            if k.startswith("primary_") and k.endswith("_mean"):
+                primary_name = k[len("primary_"):-len("_mean")].replace("_", "/")
+                log[f"train/primary/{primary_name}"] = v
 
         # RLlib SAC-specific loss metrics
         info = result.get("info", {}).get("learner", {})
@@ -460,6 +476,334 @@ def save_plots(rewards: List[float], kpis: List[Dict], save_dir: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Primary-metric overrides for Annex96 CE1 reporting
+# ---------------------------------------------------------------------------
+
+def _safe_pct(value: float, denominator: float) -> float:
+    if abs(float(denominator)) < 1e-9:
+        return float("nan")
+    return float(value / denominator * 100.0)
+
+
+def _safe_scalar(value: Any) -> Optional[float]:
+    if value is None:
+        return None
+    try:
+        value_f = float(value)
+    except (TypeError, ValueError):
+        return None
+    return value_f if np.isfinite(value_f) else None
+
+
+def _infer_month_from_window(start_step: Optional[int], end_step: Optional[int]) -> Optional[int]:
+    for month, month_start in _MONTH_STARTS.items():
+        month_end = _MONTH_ENDS[month]
+        if start_step == month_start and end_step == month_end:
+            return month
+    return None
+
+
+def _get_episode_time_resolution(base_env: Any) -> Tuple[int, float]:
+    seconds_per_step = float(getattr(base_env, "seconds_per_time_step", 3600) or 3600)
+    steps_per_day = max(int(round(24 * 3600 / seconds_per_step)), 1)
+    step_hours = seconds_per_step / 3600.0
+    return steps_per_day, step_hours
+
+
+def _get_reference_baseline_series(base_env: Any) -> np.ndarray:
+    for attr in [
+        "net_electricity_consumption_without_storage_and_partial_load_and_pv",
+        "net_electricity_consumption_without_storage_and_pv",
+        "net_electricity_consumption_without_storage_and_partial_load",
+        "net_electricity_consumption_without_storage",
+    ]:
+        series = getattr(base_env, attr, None)
+        if series is None:
+            continue
+        arr = np.asarray(series, dtype=float)
+        if arr.size > 0:
+            return arr
+    raise AttributeError("Unable to resolve baseline load series for Primary Metrics.")
+
+
+def _get_season_comfort_bounds(month: Optional[int]) -> Tuple[str, float, float]:
+    if month in {5, 6, 7, 8, 9}:
+        return "cooling", 22.0, 26.0
+    return "heating", 20.0, 24.0
+
+
+def compute_primary_metric_tables(
+    base_env: Any,
+    month: Optional[int],
+) -> Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]:
+    steps_per_day, step_hours = _get_episode_time_resolution(base_env)
+
+    actual = np.asarray(base_env.net_electricity_consumption, dtype=float)
+    baseline = _get_reference_baseline_series(base_env)
+    n_steps = min(len(actual), len(baseline))
+    actual = actual[:n_steps]
+    baseline = baseline[:n_steps]
+
+    n_days = n_steps // steps_per_day
+    actual = actual[:n_days * steps_per_day]
+    baseline = baseline[:n_days * steps_per_day]
+
+    daily_rows: List[Dict[str, Any]] = []
+    reference_profile: List[float] = []
+
+    for day_idx in range(n_days):
+        start = day_idx * steps_per_day
+        end = start + steps_per_day
+        actual_day = actual[start:end]
+        baseline_day = baseline[start:end]
+        reference_mean = float(np.nanmean(baseline_day))
+        reference_day = np.full_like(actual_day, reference_mean, dtype=float)
+        diff = actual_day - reference_day
+        rmse = float(np.sqrt(np.nanmean(np.square(diff))))
+
+        daily_rows.append({
+            "day": day_idx + 1,
+            "reference_mean": reference_mean,
+            "actual_mean": float(np.nanmean(actual_day)),
+            "actual_energy": float(np.nansum(actual_day)),
+            "reference_energy": float(reference_mean * len(actual_day)),
+            "nmbe_pct": _safe_pct(float(np.nanmean(diff)), reference_mean),
+            "cv_rmse_pct": _safe_pct(rmse, reference_mean),
+            "rmse": rmse,
+        })
+        reference_profile.extend(reference_day.tolist())
+
+    daily_df = pd.DataFrame(daily_rows)
+    reference_profile_arr = np.asarray(reference_profile, dtype=float)
+    actual_profile_arr = actual[:len(reference_profile_arr)]
+    overall_ref_mean = float(np.nanmean(reference_profile_arr)) if reference_profile_arr.size else float("nan")
+    overall_diff = actual_profile_arr - reference_profile_arr
+    overall_rmse = float(np.sqrt(np.nanmean(np.square(overall_diff)))) if overall_diff.size else float("nan")
+
+    _, comfort_low_c, comfort_high_c = _get_season_comfort_bounds(month)
+    building_rows: List[Dict[str, Any]] = []
+    daily_exceed_hours_total = np.zeros(n_days, dtype=float)
+
+    for building_idx, building in enumerate(base_env.buildings):
+        indoor = np.asarray(building.indoor_dry_bulb_temperature, dtype=float)[:len(reference_profile_arr)]
+        indoor = indoor[:n_days * steps_per_day]
+        exceed_mask = (indoor < comfort_low_c) | (indoor > comfort_high_c)
+        exceed_hours = float(np.sum(exceed_mask) * step_hours)
+        total_hours = len(indoor) * step_hours
+
+        building_rows.append({
+            "building_id": building_idx,
+            "building_name": getattr(building, "name", f"building_{building_idx}"),
+            "temperature_exceedance_hours": exceed_hours,
+            "temperature_exceedance_pct": _safe_pct(exceed_hours, total_hours),
+        })
+
+        if n_days > 0:
+            daily_mask = exceed_mask.reshape(n_days, steps_per_day)
+            daily_exceed_hours_total += daily_mask.sum(axis=1).astype(float) * step_hours
+
+    comfort_df = pd.DataFrame(building_rows)
+    if not daily_df.empty and len(base_env.buildings) > 0:
+        portfolio_hours_per_day = len(base_env.buildings) * steps_per_day * step_hours
+        daily_df["temperature_exceedance_hours_total"] = daily_exceed_hours_total
+        daily_df["temperature_exceedance_pct_portfolio"] = (
+            daily_exceed_hours_total / portfolio_hours_per_day * 100.0
+        )
+
+    total_exceed_hours = (
+        float(comfort_df["temperature_exceedance_hours"].sum())
+        if not comfort_df.empty else 0.0
+    )
+    total_portfolio_hours = len(base_env.buildings) * len(actual_profile_arr) * step_hours
+
+    summary = {
+        "primary/load_tracking/nmbe_pct": _safe_pct(
+            float(np.nanmean(overall_diff)) if overall_diff.size else float("nan"),
+            overall_ref_mean,
+        ),
+        "primary/load_tracking/cv_rmse_pct": _safe_pct(overall_rmse, overall_ref_mean),
+        "primary/load_tracking/reference_mean": overall_ref_mean,
+        "primary/load_tracking/actual_mean": (
+            float(np.nanmean(actual_profile_arr)) if actual_profile_arr.size else float("nan")
+        ),
+        "primary/load_tracking/reference_peak": (
+            float(np.nanmax(reference_profile_arr)) if reference_profile_arr.size else float("nan")
+        ),
+        "primary/load_tracking/actual_peak": (
+            float(np.nanmax(actual_profile_arr)) if actual_profile_arr.size else float("nan")
+        ),
+        "primary/thermal_comfort/temperature_exceedance_hours_total": total_exceed_hours,
+        "primary/thermal_comfort/temperature_exceedance_hours_mean": (
+            float(comfort_df["temperature_exceedance_hours"].mean())
+            if not comfort_df.empty else 0.0
+        ),
+        "primary/thermal_comfort/temperature_exceedance_hours_max": (
+            float(comfort_df["temperature_exceedance_hours"].max())
+            if not comfort_df.empty else 0.0
+        ),
+        "primary/thermal_comfort/portfolio_exceedance_pct": _safe_pct(
+            total_exceed_hours, total_portfolio_hours
+        ),
+        "primary/thermal_comfort/lower_bound_c": comfort_low_c,
+        "primary/thermal_comfort/upper_bound_c": comfort_high_c,
+    }
+
+    return summary, daily_df, comfort_df
+
+
+def save_plots(
+    rewards: List[float],
+    primary_metrics: List[Dict[str, Any]],
+    save_dir: Path,
+) -> None:
+    if not rewards:
+        return
+
+    iters = list(range(1, len(rewards) + 1))
+    fig, axes = plt.subplots(2, 2, figsize=(14, 8))
+    fig.suptitle("RLlib SAC - Primary Metrics", fontsize=14)
+
+    axes[0, 0].plot(iters, rewards, color="#4e79a7")
+    axes[0, 0].set_title("Mean Episode Reward")
+    axes[0, 0].set_xlabel("Iteration")
+    axes[0, 0].grid(True, alpha=0.3)
+
+    metric_specs = [
+        ("primary/load_tracking/nmbe_pct", "Portfolio NMBE", "%", "#e15759"),
+        ("primary/load_tracking/cv_rmse_pct", "Portfolio CV-RMSE", "%", "#f28e2b"),
+        ("primary/thermal_comfort/portfolio_exceedance_pct", "Portfolio Exceedance Hours", "%", "#59a14f"),
+    ]
+    for ax, (key, title, ylabel, color) in zip(axes.flat[1:], metric_specs):
+        values = [_safe_scalar(metrics.get(key)) for metrics in primary_metrics]
+        valid = [(ep, value) for ep, value in zip(iters, values) if value is not None]
+        if valid:
+            x, y = zip(*valid)
+            ax.plot(x, y, color=color, linewidth=1.5)
+        if key.endswith("nmbe_pct"):
+            ax.axhline(0.0, color="black", linestyle="--", linewidth=0.8, alpha=0.7)
+        ax.set_title(title)
+        ax.set_xlabel("Iteration")
+        ax.set_ylabel(ylabel)
+        ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    out = save_dir / "training_curves.png"
+    plt.savefig(str(out), dpi=110)
+    plt.close()
+    print(f"  [plot] saved -> {out}")
+
+
+def save_daily_metrics_plot(
+    daily_df: pd.DataFrame,
+    comfort_df: pd.DataFrame,
+    save_dir: Path,
+    climate: str,
+    month_name: str,
+) -> Path:
+    days = daily_df["day"].tolist()
+    fig, axes = plt.subplots(2, 2, figsize=(14, 9))
+    fig.suptitle(
+        f"RLlib SAC - Primary Metrics | {climate} | {month_name}",
+        fontsize=13,
+    )
+
+    def _line(ax: plt.Axes, column: str, title: str, ylabel: str, color: str) -> None:
+        values = daily_df[column].tolist()
+        ax.plot(days, values, marker="o", markersize=3, color=color, linewidth=1.2)
+        ax.fill_between(days, values, alpha=0.15, color=color)
+        mean_value = float(np.nanmean(values))
+        ax.axhline(
+            mean_value,
+            color=color,
+            linestyle="--",
+            linewidth=0.8,
+            alpha=0.7,
+            label=f"mean={mean_value:.2f}",
+        )
+        ax.set_title(title)
+        ax.set_xlabel("Day of test month")
+        ax.set_ylabel(ylabel)
+        ax.grid(True, alpha=0.3)
+        ax.legend(fontsize=7)
+
+    _line(axes[0, 0], "nmbe_pct", "Daily NMBE", "%", "#e15759")
+    axes[0, 0].axhline(0.0, color="black", linestyle="--", linewidth=0.8, alpha=0.6)
+    _line(axes[0, 1], "cv_rmse_pct", "Daily CV-RMSE", "%", "#f28e2b")
+    _line(
+        axes[1, 0],
+        "temperature_exceedance_pct_portfolio",
+        "Daily Portfolio Exceedance Hours",
+        "%",
+        "#59a14f",
+    )
+
+    ax_box = axes[1, 1]
+    if comfort_df.empty:
+        ax_box.text(0.5, 0.5, "No comfort data", ha="center", va="center")
+        ax_box.axis("off")
+    else:
+        values = comfort_df["temperature_exceedance_hours"].tolist()
+        ax_box.boxplot(
+            values,
+            vert=True,
+            patch_artist=True,
+            boxprops={"facecolor": "#4e79a7", "alpha": 0.45},
+        )
+        ax_box.set_title("Per-Building Exceedance Hours")
+        ax_box.set_ylabel("Hours")
+        ax_box.set_xticks([1])
+        ax_box.set_xticklabels(["Buildings"])
+        ax_box.grid(True, axis="y", alpha=0.3)
+
+    plt.tight_layout()
+    out = Path(save_dir) / "test_daily_metrics.png"
+    plt.savefig(str(out), dpi=120)
+    plt.close()
+    print(f"  [daily] figure -> {out}")
+    return out
+
+
+def _run_daily_pipeline(
+    test_result: Dict,
+    cfg: Config,
+    save_dir: Path,
+    use_wandb: bool,
+) -> Optional[pd.DataFrame]:
+    daily_records = test_result.get("_daily_primary_metrics")
+    comfort_records = test_result.get("_building_comfort_metrics")
+    if not daily_records:
+        print("[warn] No Primary Metrics daily records - skipping daily artifacts.")
+        return None
+
+    daily_df = pd.DataFrame(daily_records)
+    comfort_df = pd.DataFrame(comfort_records or [])
+    month_name = _MONTH_NAMES.get(cfg.test_month, str(cfg.test_month))
+    save_daily_metrics_plot(daily_df, comfort_df, save_dir, cfg.climate, month_name)
+
+    daily_csv = Path(save_dir) / "test_daily_metrics.csv"
+    daily_df.to_csv(daily_csv, index=False)
+    print(f"  [daily] CSV -> {daily_csv}")
+
+    comfort_csv = Path(save_dir) / "test_building_comfort_metrics.csv"
+    comfort_df.to_csv(comfort_csv, index=False)
+    print(f"  [daily] building comfort CSV -> {comfort_csv}")
+
+    if use_wandb:
+        wandb.define_metric("test_day")
+        wandb.define_metric("test/daily_primary/*", step_metric="test_day")
+        for _, row in daily_df.iterrows():
+            wandb.log(_filter_wandb({
+                "test_day": int(row["day"]),
+                "test/daily_primary/nmbe_pct": row["nmbe_pct"],
+                "test/daily_primary/cv_rmse_pct": row["cv_rmse_pct"],
+                "test/daily_primary/temperature_exceedance_pct_portfolio": row["temperature_exceedance_pct_portfolio"],
+                "test/daily_primary/temperature_exceedance_hours_total": row["temperature_exceedance_hours_total"],
+            }))
+
+    return daily_df
+
+
+# ---------------------------------------------------------------------------
 # Test evaluation (no gradient updates)
 # ---------------------------------------------------------------------------
 
@@ -494,6 +838,7 @@ def evaluate_on_test(
     obs_dict, _ = test_env_obj.reset(seed=cfg.seed)
     per_building_rewards: Dict[str, float] = {aid: 0.0 for aid in agent_ids}
     step_portfolio_rewards: List[float] = []
+    step_portfolio_loads: List[float] = []
 
     terminated = False
     while not terminated:
@@ -514,10 +859,23 @@ def evaluate_on_test(
         for aid in agent_ids:
             per_building_rewards[aid] += float(rewards.get(aid, 0.0))
         step_portfolio_rewards.append(sum(rewards.get(aid, 0.0) for aid in agent_ids))
+
+        try:
+            net_load = sum(
+                float(b.net_electricity_consumption[-1])
+                for b in test_env_obj.base_env.buildings
+            )
+            step_portfolio_loads.append(net_load)
+        except Exception:
+            step_portfolio_loads.append(float("nan"))
         obs_dict = next_obs
 
     test_kpis = extract_episode_kpis(test_env_obj.base_env)
     test_soc  = get_soc_stats(test_env_obj.base_env)
+    primary_metrics, daily_primary_df, comfort_building_df = compute_primary_metric_tables(
+        test_env_obj.base_env,
+        cfg.test_month,
+    )
     portfolio_reward = sum(per_building_rewards.values())
 
     def _fmt(v: Optional[float]) -> str:
@@ -530,17 +888,21 @@ def evaluate_on_test(
 
     print(
         f"  reward_sum {portfolio_reward:9.2f} | "
-        f"ramp {_fmt(test_kpis.get('kpi/ramping'))} | "
-        f"peak {_fmt(test_kpis.get('kpi/daily_peak'))} | "
-        f"cost {_fmt(test_kpis.get('kpi/cost'))}"
+        f"NMBE {_fmt(primary_metrics.get('primary/load_tracking/nmbe_pct'))}% | "
+        f"CV-RMSE {_fmt(primary_metrics.get('primary/load_tracking/cv_rmse_pct'))}% | "
+        f"comfort {_fmt(primary_metrics.get('primary/thermal_comfort/portfolio_exceedance_pct'))}%"
     )
 
     result: Dict = {
         "test/portfolio/reward_sum":  portfolio_reward,
         "test/portfolio/reward_mean": float(np.mean(list(per_building_rewards.values()))),
         "test/step_reward_mean":      float(np.mean(step_portfolio_rewards)) if step_portfolio_rewards else 0.0,
+        **{f"test/{k}": v for k, v in primary_metrics.items()},
         **{f"test/{k}": v for k, v in test_kpis.items()},
         **{f"test/{k}": v for k, v in test_soc.items()},
+        "_step_portfolio_loads": step_portfolio_loads,
+        "_daily_primary_metrics": daily_primary_df.to_dict(orient="records"),
+        "_building_comfort_metrics": comfort_building_df.to_dict(orient="records"),
     }
     for aid, r in per_building_rewards.items():
         result[f"test/{aid}/reward"] = r
@@ -571,6 +933,7 @@ def export_test_metrics(
     test_end:    int,
     test_month:  int,
 ) -> None:
+    public_result = {k: v for k, v in test_result.items() if not k.startswith("_")}
     payload = {
         "climate":         cfg.climate,
         "seed":            cfg.seed,
@@ -578,13 +941,13 @@ def export_test_metrics(
         "test_month_name": _MONTH_NAMES.get(test_month, str(test_month)),
         "test_start_step": test_start,
         "test_end_step":   test_end,
-        **test_result,
+        **public_result,
     }
     json_path = save_dir / "test_metrics.json"
     json_path.write_text(json.dumps(payload, indent=2))
     print(f"  [test] metrics JSON → {json_path}")
 
-    flat = {k: v for k, v in payload.items() if v is not None and not isinstance(v, dict)}
+    flat = {k: v for k, v in payload.items() if v is not None and not isinstance(v, (dict, list))}
     csv_path = save_dir / "test_metrics.csv"
     pd.DataFrame([flat]).to_csv(csv_path, index=False)
     print(f"  [test] metrics CSV  → {csv_path}")
@@ -690,8 +1053,8 @@ def train(cfg: Config) -> SAC:
           f"iterations: {cfg.n_iterations}")
     print("=" * 65)
 
-    all_rewards:  List[float] = []
-    all_kpis:     List[Dict]  = []
+    all_rewards:         List[float] = []
+    all_primary_metrics: List[Dict] = []
     ckpt_dir_path: Optional[str] = None
 
     for iteration in range(1, cfg.n_iterations + 1):
@@ -700,20 +1063,22 @@ def train(cfg: Config) -> SAC:
         ep_reward_mean = result.get("episode_reward_mean", float("nan"))
         all_rewards.append(ep_reward_mean)
 
-        # Extract KPI from custom_metrics if available
+        # Extract primary metrics from custom_metrics if available
         cm   = result.get("custom_metrics", {})
-        kpis = {k.replace("kpi_", "kpi/").replace("_mean", ""):
-                cm.get(k) for k in cm if k.startswith("kpi_") and k.endswith("_mean")}
-        all_kpis.append(kpis)
+        primary_metrics = {k.replace("primary_", "primary/").replace("_mean", ""):
+                           cm.get(k) for k in cm if k.startswith("primary_") and k.endswith("_mean")}
+        all_primary_metrics.append(primary_metrics)
 
         if iteration % 10 == 0:
             portfolio_mean = cm.get("portfolio_reward_sum_mean", float("nan"))
-            ramp_val       = cm.get("kpi_ramping_average_mean", float("nan"))
+            nmbe_val       = primary_metrics.get("primary/load_tracking/nmbe_pct", float("nan"))
+            cv_rmse_val    = primary_metrics.get("primary/load_tracking/cv_rmse_pct", float("nan"))
+            nmbe_str       = f"{nmbe_val:.3f}" if isinstance(nmbe_val, float) and np.isfinite(nmbe_val) else "nan"
+            cv_rmse_str    = f"{cv_rmse_val:.3f}" if isinstance(cv_rmse_val, float) and np.isfinite(cv_rmse_val) else "nan"
             print(
                 f"[train] Iter {iteration:4d} | ep_rew_mean {ep_reward_mean:9.2f} | "
                 f"portfolio_sum {portfolio_mean:9.2f} | "
-                f"ramp {ramp_val:.3f}" if np.isfinite(ramp_val) else
-                f"[train] Iter {iteration:4d} | ep_rew_mean {ep_reward_mean:9.2f}"
+                f"NMBE {nmbe_str}% | CV-RMSE {cv_rmse_str}%"
             )
 
         # Periodic checkpoint
@@ -721,7 +1086,7 @@ def train(cfg: Config) -> SAC:
             ckpt = algorithm.save(str(save_dir / "checkpoint"))
             ckpt_dir_path = str(ckpt)
             print(f"  [ckpt] iter {iteration} → {ckpt_dir_path}")
-            save_plots(all_rewards, all_kpis, save_dir)
+            save_plots(all_rewards, all_primary_metrics, save_dir)
 
     # ── Test evaluation ───────────────────────────────────────────────────
     test_result: Optional[Dict] = None
@@ -739,28 +1104,30 @@ def train(cfg: Config) -> SAC:
         export_test_metrics(
             test_result, cfg, save_dir, test_start, test_end, test_month
         )
+        _run_daily_pipeline(test_result, cfg, save_dir, use_wandb)
 
     # ── Final artifacts ───────────────────────────────────────────────────
-    save_plots(all_rewards, all_kpis, save_dir)
+    save_plots(all_rewards, all_primary_metrics, save_dir)
 
     final_metrics: Dict = {
         "train": {
             "n_iterations":       cfg.n_iterations,
             "last_ep_reward_mean": all_rewards[-1] if all_rewards else None,
             "checkpoint":         ckpt_dir_path,
+            "train_month":        train_month,
+            "train_steps":        f"{train_start}-{train_end}",
+            "last_primary_metrics": all_primary_metrics[-1] if all_primary_metrics else {},
         }
     }
     if test_result is not None:
-        final_metrics["test"] = test_result
+        final_metrics["test"] = {k: v for k, v in test_result.items() if not k.startswith("_")}
 
     (save_dir / "latest_metrics.json").write_text(json.dumps(final_metrics, indent=2))
 
     # Backup
     backup_dir = _make_backup_dir(cfg)
     backup_dir.mkdir(parents=True, exist_ok=True)
-    for f in save_dir.glob("*.json"):
-        shutil.copy2(f, backup_dir / f.name)
-    for f in save_dir.glob("*.png"):
+    for f in list(save_dir.glob("*.json")) + list(save_dir.glob("*.png")) + list(save_dir.glob("*.csv")):
         shutil.copy2(f, backup_dir / f.name)
     print(f"  [backup] → {backup_dir}/")
 
