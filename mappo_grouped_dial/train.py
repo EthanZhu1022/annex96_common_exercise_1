@@ -29,7 +29,7 @@ for _p in [str(REPO_DIR), str(ONPOLICY)]:
 from onpolicy.algorithms.r_mappo.r_mappo import R_MAPPO  # noqa: E402
 from onpolicy.algorithms.r_mappo.algorithm.rMAPPOPolicy import R_MAPPOPolicy  # noqa: E402
 
-from mappo.utils import extract_episode_kpis, get_soc_stats  # noqa: E402
+from mappo.utils import extract_episode_kpis, get_soc_stats, resolve_reference_baseline_series  # noqa: E402
 from mappo_grouped_comm.buffer import GroupedSharedReplayBuffer  # noqa: E402
 from mappo_grouped_comm.train import (  # noqa: E402
     _CLIMATE_DEFAULTS,
@@ -334,21 +334,29 @@ def evaluate_on_test(
     result: Dict[str, Any] = {
         "test/portfolio/reward_sum": portfolio_reward,
         "test/portfolio/reward_mean": float(np.mean(list(per_building_rewards.values()))),
-        "test/step_reward_mean": float(np.mean(step_portfolio_rewards)) if step_portfolio_rewards else None,
-        "test/step_reward_std": float(np.std(step_portfolio_rewards)) if step_portfolio_rewards else None,
-        "test/portfolio/load_mean": float(np.nanmean(step_portfolio_loads)) if step_portfolio_loads else None,
-        "test/portfolio/load_std": float(np.nanstd(step_portfolio_loads)) if step_portfolio_loads else None,
-        "_daily_primary_df": daily_primary_df,
-        "_comfort_building_df": comfort_building_df,
+        "test/step_reward_mean": float(np.mean(step_portfolio_rewards)) if step_portfolio_rewards else 0.0,
+        "test/step_reward_std": float(np.std(step_portfolio_rewards)) if step_portfolio_rewards else 0.0,
+        "test/portfolio/load_mean": float(np.nanmean(step_portfolio_loads)) if step_portfolio_loads else 0.0,
+        "test/portfolio/load_std": float(np.nanstd(step_portfolio_loads)) if step_portfolio_loads else 0.0,
+        **{f"test/{k}": v for k, v in primary_metrics.items()},
+        **{f"test/{k}": v for k, v in test_kpis.items()},
+        **{f"test/{k}": v for k, v in test_soc.items()},
+        "_step_portfolio_loads": step_portfolio_loads,
+        "_step_portfolio_loads_baseline": resolve_reference_baseline_series(test_env.base_env)[: len(step_portfolio_loads)].tolist(),
+        "_daily_primary_metrics": daily_primary_df.to_dict(orient="records"),
+        "_building_comfort_metrics": comfort_building_df.to_dict(orient="records"),
     }
-    result.update(primary_metrics)
-    result.update(test_kpis)
-    result.update(test_soc)
+    for bid, reward in per_building_rewards.items():
+        result[f"test/{bid}/reward"] = reward
+    if iteration is not None:
+        result["episode"] = iteration
 
-    if use_wandb:
-        log_payload = {"episode": iteration} if iteration is not None else {}
-        log_payload.update({k: v for k, v in result.items() if not k.startswith("_")})
-        wandb.log(_filter_wandb(log_payload), step=iteration)
+    if use_wandb and not log_per_step:
+        wandb.log(_filter_wandb(result), step=iteration)
+    elif use_wandb and log_per_step:
+        summary = {k: v for k, v in result.items() if not k.startswith("test/building_")}
+        summary["test_step"] = test_step - 1
+        wandb.log(_filter_wandb(summary))
 
     return result
 

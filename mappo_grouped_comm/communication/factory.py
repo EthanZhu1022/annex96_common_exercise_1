@@ -16,6 +16,7 @@ from __future__ import annotations
 from .base    import BaseCommunicationModule
 from .none    import NoCommunicationModule
 from .commnet import CommNetCommunicationModule
+from .powernet import PowerNetCommunicationModule
 
 
 def build_communication_module(
@@ -81,6 +82,18 @@ def build_communication_module(
             dropout         = comm_dropout,
         )
 
+    elif comm_method == "powernet":
+        return PowerNetCommunicationModule(
+            hidden_dim=hidden_dim,
+            comm_hidden_dim=comm_hidden_dim,
+            comm_rounds=comm_rounds,
+            use_residual=comm_use_residual,
+            dropout=comm_dropout,
+            comm_num_agents=kwargs.get("comm_num_agents", 1),
+            comm_topology=kwargs.get("comm_topology", "ring"),
+            comm_neighbors=kwargs.get("comm_neighbors", 1),
+        )
+
     # ── Extension points ────────────────────────────────────────────────────
     # elif comm_method == "attention":
     #     from .attention import AttentionCommunicationModule
@@ -94,7 +107,7 @@ def build_communication_module(
     else:
         raise ValueError(
             f"Unknown comm_method='{comm_method}'. "
-            f"Valid options: 'none', 'commnet'. "
+            f"Valid options: 'none', 'commnet', 'powernet'. "
             f"To add a new method, subclass BaseCommunicationModule and "
             f"add an elif branch in communication/factory.py."
         )

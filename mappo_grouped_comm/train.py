@@ -81,6 +81,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+from annex96_reporting import (
+    compute_secondary_daily_tables,
+    export_secondary_daily_metrics,
+    save_secondary_daily_metrics_plot,
+)
 
 # ---------------------------------------------------------------------------
 # Path setup
@@ -105,7 +110,7 @@ from onpolicy.algorithms.r_mappo.algorithm.rMAPPOPolicy import R_MAPPOPolicy    
 from mappo_grouped_comm.env import CityLearnMAPPOEnv                                      # noqa: E402
 from mappo_grouped_comm.cluster import run_clustering                                      # noqa: E402
 from mappo_grouped_comm.buffer import GroupedSharedReplayBuffer                           # noqa: E402
-from mappo.utils import extract_episode_kpis, get_soc_stats                          # noqa: E402
+from mappo.utils import extract_episode_kpis, get_soc_stats, resolve_reference_baseline_series  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Communication layer imports
@@ -207,6 +212,8 @@ class Config:
     comm_share_within_group_only: bool = True   # reserved; currently only intra-group
     comm_use_residual:           bool  = True   # residual connection in CommNet
     comm_dropout:                float = 0.0    # dropout on CommNet messages
+    comm_topology:               str   = "ring" # PowerNet neighbor graph topology
+    comm_neighbors:              int   = 1      # PowerNet neighbors per side
 
 
 # ---------------------------------------------------------------------------
@@ -375,6 +382,9 @@ def _build_grouped_components(
             comm_use_residual           = cfg.comm_use_residual,
             comm_dropout                = cfg.comm_dropout,
             comm_share_within_group_only= cfg.comm_share_within_group_only,
+            comm_num_agents             = group_sizes[k],
+            comm_topology               = getattr(cfg, "comm_topology", "ring"),
+            comm_neighbors              = getattr(cfg, "comm_neighbors", 1),
         ).to(device)
 
         wrapped = CommActorWrapper(
@@ -889,11 +899,13 @@ def _run_daily_pipeline(
 ) -> Optional[pd.DataFrame]:
     daily_records = test_result.get("_daily_primary_metrics")
     comfort_records = test_result.get("_building_comfort_metrics")
-    if not daily_records:
-        print("[warn] No Primary Metrics daily records - skipping daily artifacts.")
+    step_loads: List[float] = test_result.get("_step_portfolio_loads", [])
+    baseline_loads: List[float] = test_result.get("_step_portfolio_loads_baseline", [])
+    if not daily_records and not step_loads:
+        print("[warn] No daily records - skipping daily artifacts.")
         return None
 
-    daily_df = pd.DataFrame(daily_records)
+    daily_df = pd.DataFrame(daily_records or [])
     comfort_df = pd.DataFrame(comfort_records or [])
     month_name = _MONTH_NAMES.get(cfg.test_month, str(cfg.test_month))
     save_daily_metrics_plot(daily_df, comfort_df, save_dir, cfg.climate, month_name)
@@ -906,7 +918,61 @@ def _run_daily_pipeline(
     comfort_df.to_csv(comfort_csv, index=False)
     print(f"  [daily] building comfort CSV 鈫?{comfort_csv}")
 
+    secondary_flexible_df, secondary_baseline_df = compute_secondary_daily_tables(
+        step_loads,
+        baseline_loads,
+        steps_per_day=24,
+    ) if step_loads and baseline_loads else (
+        compute_secondary_daily_tables(step_loads, [], steps_per_day=24)[0] if step_loads else pd.DataFrame(),
+        pd.DataFrame(),
+    )
+
+    if not secondary_flexible_df.empty or not secondary_baseline_df.empty:
+        secondary_fig = save_secondary_daily_metrics_plot(
+            secondary_flexible_df,
+            secondary_baseline_df,
+            save_dir,
+            cfg.climate,
+            month_name,
+            "Grouped MAPPO (Comm)",
+        )
+        if secondary_fig is not None:
+            print(f"  [daily] secondary figure -> {secondary_fig}")
+        flexible_csv, baseline_csv = export_secondary_daily_metrics(
+            secondary_flexible_df,
+            secondary_baseline_df,
+            save_dir,
+        )
+        if flexible_csv is not None:
+            print(f"  [daily] secondary flexible CSV -> {flexible_csv}")
+        if baseline_csv is not None:
+            print(f"  [daily] secondary baseline CSV -> {baseline_csv}")
+
     if use_wandb:
+        if not secondary_flexible_df.empty:
+            wandb.define_metric("test_day")
+            wandb.define_metric("test/daily/*", step_metric="test_day")
+            for _, row in secondary_flexible_df.iterrows():
+                wandb.log(_filter_wandb({
+                    "test_day": int(row["day"]),
+                    "test/daily/ramping": row["ramping"],
+                    "test/daily/peak": row["daily_peak"],
+                    "test/daily/load_factor": row["load_factor"],
+                    "test/daily/pvr": row["pvr"],
+                    "test/daily/energy": row["energy"],
+                }))
+        if not secondary_baseline_df.empty:
+            wandb.define_metric("test_day")
+            wandb.define_metric("test/daily_baseline/*", step_metric="test_day")
+            for _, row in secondary_baseline_df.iterrows():
+                wandb.log(_filter_wandb({
+                    "test_day": int(row["day"]),
+                    "test/daily_baseline/ramping": row["ramping"],
+                    "test/daily_baseline/peak": row["daily_peak"],
+                    "test/daily_baseline/load_factor": row["load_factor"],
+                    "test/daily_baseline/pvr": row["pvr"],
+                    "test/daily_baseline/energy": row["energy"],
+                }))
         wandb.define_metric("test_day")
         wandb.define_metric("test/daily_primary/*", step_metric="test_day")
         for _, row in daily_df.iterrows():
@@ -1056,6 +1122,8 @@ def _apply_checkpoint_model_config(cfg: Config, ckpt_meta: Dict[str, Any]) -> No
         "comm_share_within_group_only",
         "comm_use_residual",
         "comm_dropout",
+        "comm_topology",
+        "comm_neighbors",
     ]
     for field_name in fields_to_restore:
         if field_name in saved_cfg:
@@ -1212,6 +1280,7 @@ def evaluate_on_test(
         **{f"test/{k}": v for k, v in test_kpis.items()},
         **{f"test/{k}": v for k, v in test_soc.items()},
         "_step_portfolio_loads": step_portfolio_loads,
+        "_step_portfolio_loads_baseline": resolve_reference_baseline_series(test_env.base_env)[: len(step_portfolio_loads)].tolist(),
         "_daily_primary_metrics": daily_primary_df.to_dict(orient="records"),
         "_building_comfort_metrics": comfort_building_df.to_dict(orient="records"),
     }
@@ -1713,6 +1782,9 @@ def run_test_only(cfg: Config) -> Dict:
             comm_use_residual            = cfg.comm_use_residual,
             comm_dropout                 = cfg.comm_dropout,
             comm_share_within_group_only = cfg.comm_share_within_group_only,
+            comm_num_agents              = group_sizes[k],
+            comm_topology                = getattr(cfg, "comm_topology", "ring"),
+            comm_neighbors               = getattr(cfg, "comm_neighbors", 1),
         ).to(device)
         wrapped = CommActorWrapper(
             actor    = policies[k].actor,

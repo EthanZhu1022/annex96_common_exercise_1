@@ -1,8 +1,8 @@
 """
-Grouped MAPPO with weighted same-group / other-group communication.
+Grouped MAPPO with global PowerNet-style communication and grouped actor heads.
 
 Actor path:
-  obs(group_k) -> encoder_k -> weighted message MLP -> action_head_k
+  obs(group_k) -> encoder_k -> global PowerNet-style communication -> action_head_k
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -31,6 +31,7 @@ from onpolicy.algorithms.r_mappo.algorithm.rMAPPOPolicy import R_MAPPOPolicy  # 
 
 from mappo.utils import extract_episode_kpis, get_soc_stats, resolve_reference_baseline_series  # noqa: E402
 from mappo_grouped_comm.buffer import GroupedSharedReplayBuffer  # noqa: E402
+from mappo_grouped_comm.communication.powernet import PowerNetCommunicationModule  # noqa: E402
 from mappo_grouped_comm.train import (  # noqa: E402
     _CLIMATE_DEFAULTS,
     _MONTH_ENDS,
@@ -45,17 +46,18 @@ from mappo_grouped_comm.train import (  # noqa: E402
     save_run_config,
     seed_everything,
 )
+from mappo_grouped_comm_v2.global_actor import GlobalCommActorController  # noqa: E402
 from mappo_grouped_comm_v2.train import (  # noqa: E402
     _train_global_actor,
     load_checkpoint,
     save_checkpoint,
 )
-from mappo_grouped_comm_weighted.cluster import run_clustering  # noqa: E402
-from mappo_grouped_comm_weighted.env import CityLearnMAPPOEnv  # noqa: E402
-from mappo_grouped_comm_weighted.global_actor import WeightedGlobalCommActorController  # noqa: E402
+from mappo_grouped_powernet_global.cluster import run_clustering  # noqa: E402
+from mappo_grouped_powernet_global.env import CityLearnMAPPOEnv  # noqa: E402
 
 try:
     import wandb
+
     _WANDB_OK = True
 except ImportError:
     _WANDB_OK = False
@@ -97,25 +99,18 @@ class Config:
 
     seed: int = 42
     wandb_project: str = "annex96-ce1"
-    wandb_name: str = "mappo-grouped-comm-weighted"
-    save_dir: str = "results/mappo_grouped_comm_weighted"
+    wandb_name: str = "mappo-grouped-powernet-global"
+    save_dir: str = "results/mappo_grouped_powernet_global"
     backup_dir: Optional[str] = None
 
+    comm_method: str = "powernet"
     comm_hidden_dim: int = 64
-    comm_alpha: float = 0.75
-    comm_beta: float = 0.25
+    comm_rounds: int = 1
     comm_use_residual: bool = True
     comm_dropout: float = 0.0
-    comm_method: str = "weighted"
-    comm_rounds: int = 1
     comm_scope: str = "global"
-
-
-def _validate_comm_weights(alpha: float, beta: float) -> None:
-    if alpha <= beta:
-        raise ValueError(f"Expected alpha > beta, got alpha={alpha}, beta={beta}.")
-    if alpha < 0.0 or beta < 0.0:
-        raise ValueError(f"Expected alpha and beta to be non-negative, got alpha={alpha}, beta={beta}.")
+    comm_topology: str = "full"
+    comm_neighbors: int = 1
 
 
 def _build_grouped_components(
@@ -129,13 +124,14 @@ def _build_grouped_components(
     List[R_MAPPO],
     List[GroupedSharedReplayBuffer],
     List[np.ndarray],
-    WeightedGlobalCommActorController,
+    GlobalCommActorController,
     torch.optim.Optimizer,
 ]:
     K = int(group_assignments.max()) + 1
     group_indices = [np.where(group_assignments == k)[0] for k in range(K)]
     group_sizes = [int(len(idx)) for idx in group_indices]
     episode_length = env._base_env.episode_time_steps
+    n_agents_total = int(sum(group_sizes))
 
     mappo_args = build_mappo_args(cfg, env.obs_dim, env.act_dim, env.cent_obs_dim)
     mappo_args.episode_length = episode_length
@@ -158,14 +154,20 @@ def _build_grouped_components(
         policies[k].critic = shared_critic
         policies[k].critic_optimizer = shared_critic_opt
 
-    controller = WeightedGlobalCommActorController(
-        actors=[policy.actor for policy in policies],
-        group_indices=group_indices,
+    global_comm = PowerNetCommunicationModule(
+        hidden_dim=cfg.hidden_size,
         comm_hidden_dim=cfg.comm_hidden_dim,
-        alpha=cfg.comm_alpha,
-        beta=cfg.comm_beta,
+        comm_rounds=cfg.comm_rounds,
         use_residual=cfg.comm_use_residual,
         dropout=cfg.comm_dropout,
+        comm_num_agents=n_agents_total,
+        comm_topology=cfg.comm_topology,
+        comm_neighbors=cfg.comm_neighbors,
+    ).to(device)
+    controller = GlobalCommActorController(
+        actors=[policy.actor for policy in policies],
+        comm=global_comm,
+        group_indices=group_indices,
     ).to(device)
     actor_optimizer = torch.optim.Adam(
         controller.parameters(),
@@ -210,20 +212,20 @@ def _apply_checkpoint_model_config(cfg: Config, ckpt_meta: Dict[str, Any]) -> No
         "layer_N",
         "lr",
         "critic_lr",
-        "comm_hidden_dim",
         "comm_method",
+        "comm_hidden_dim",
         "comm_rounds",
-        "comm_alpha",
-        "comm_beta",
         "comm_use_residual",
         "comm_dropout",
+        "comm_topology",
+        "comm_neighbors",
     ]:
         if field_name in saved_cfg:
             setattr(cfg, field_name, saved_cfg[field_name])
 
 
 def evaluate_on_test(
-    controller: WeightedGlobalCommActorController,
+    controller: GlobalCommActorController,
     cfg: Config,
     test_start: int,
     test_end: int,
@@ -234,7 +236,7 @@ def evaluate_on_test(
     month_name = _MONTH_NAMES.get(cfg.test_month, str(cfg.test_month))
     print("\n" + "=" * 65)
     print(
-        f"TEST EVALUATION (weighted grouped comm) | {cfg.climate} | {month_name} "
+        f"TEST EVALUATION (global PowerNet) | {cfg.climate} | {month_name} "
         f"(steps {test_start}-{test_end})"
     )
     print("=" * 65)
@@ -335,8 +337,6 @@ def evaluate_on_test(
         "test/step_reward_std": float(np.std(step_portfolio_rewards)) if step_portfolio_rewards else 0.0,
         "test/portfolio/load_mean": float(np.nanmean(step_portfolio_loads)) if step_portfolio_loads else 0.0,
         "test/portfolio/load_std": float(np.nanstd(step_portfolio_loads)) if step_portfolio_loads else 0.0,
-        "test/alpha": float(cfg.comm_alpha),
-        "test/beta": float(cfg.comm_beta),
         **{f"test/{k}": v for k, v in primary_metrics.items()},
         **{f"test/{k}": v for k, v in test_kpis.items()},
         **{f"test/{k}": v for k, v in test_soc.items()},
@@ -361,8 +361,6 @@ def evaluate_on_test(
 
 
 def train(cfg: Config) -> None:
-    _validate_comm_weights(cfg.comm_alpha, cfg.comm_beta)
-
     defaults = _CLIMATE_DEFAULTS.get(cfg.climate, {})
     train_month = cfg.train_month or defaults.get("train_month")
     test_month = cfg.test_month or defaults.get("test_month")
@@ -408,10 +406,8 @@ def train(cfg: Config) -> None:
                 "train_end_step": train_end,
                 "test_start_step": test_start,
                 "test_end_step": test_end,
-                "algorithm": "mappo_grouped_comm_weighted",
-                "comm_method": cfg.comm_method,
+                "algorithm": "mappo_grouped_powernet_global",
                 "comm_scope": cfg.comm_scope,
-                "comm_rounds": cfg.comm_rounds,
                 "n_groups": K,
                 "group_sizes": cluster_result["sizes"],
             }
@@ -445,7 +441,7 @@ def train(cfg: Config) -> None:
     hidden_size = mappo_args.hidden_size
     group_sizes = [len(idx) for idx in group_indices]
 
-    print("\nWeighted grouped MAPPO components built:")
+    print("\nGrouped MAPPO global PowerNet components built:")
     print(f"  n_agents={n_agents} K={K} group_sizes={group_sizes}")
     print(f"  comm_method={cfg.comm_method} comm_scope={cfg.comm_scope} comm_rounds={cfg.comm_rounds}")
 
@@ -456,8 +452,6 @@ def train(cfg: Config) -> None:
                 "train/comm/scope": cfg.comm_scope,
                 "train/comm/rounds": cfg.comm_rounds,
                 "train/comm/hidden_dim": cfg.comm_hidden_dim,
-                "train/comm/alpha": cfg.comm_alpha,
-                "train/comm/beta": cfg.comm_beta,
                 "train/comm/use_residual": int(cfg.comm_use_residual),
             },
             step=0,
@@ -612,8 +606,6 @@ def train(cfg: Config) -> None:
                 "train/loss/actor_grad_norm": train_info["actor_grad_norm"],
                 "train/loss/critic_grad_norm": train_info["critic_grad_norm"],
                 "train/loss/ratio": train_info["ratio"],
-                "train/comm/alpha": cfg.comm_alpha,
-                "train/comm/beta": cfg.comm_beta,
             }
             for k, info_k in enumerate(actor_group_infos):
                 log[f"train/group_{k}/policy_loss"] = info_k["policy_loss"]
@@ -655,11 +647,9 @@ def train(cfg: Config) -> None:
     save_plots(all_rewards, all_primary_metrics, save_dir)
 
     final_metrics: Dict[str, Any] = {
-        "algorithm": "mappo_grouped_comm_weighted",
+        "algorithm": "mappo_grouped_powernet_global",
         "comm_method": cfg.comm_method,
         "comm_scope": cfg.comm_scope,
-        "comm_alpha": cfg.comm_alpha,
-        "comm_beta": cfg.comm_beta,
         "n_groups": K,
         "group_sizes": group_sizes,
         "train": {
@@ -693,13 +683,11 @@ def train(cfg: Config) -> None:
     if use_wandb:
         wandb.finish()
 
-    print("\nWeighted grouped MAPPO training complete.")
+    print("\nGrouped MAPPO global PowerNet training complete.")
     print(f"  Artifacts: {save_dir}/")
 
 
 def run_test_only(cfg: Config) -> Dict[str, Any]:
-    _validate_comm_weights(cfg.comm_alpha, cfg.comm_beta)
-
     defaults = _CLIMATE_DEFAULTS.get(cfg.climate, {})
     test_month = cfg.test_month or defaults.get("test_month")
     train_month = cfg.train_month or defaults.get("train_month")
@@ -728,7 +716,6 @@ def run_test_only(cfg: Config) -> Dict[str, Any]:
 
     ckpt_meta = torch.load(ckpt_path, map_location=device, weights_only=False)
     _apply_checkpoint_model_config(cfg, ckpt_meta)
-    _validate_comm_weights(cfg.comm_alpha, cfg.comm_beta)
     group_assignments = np.array(ckpt_meta.get("group_assignments", list(range(cfg.n_buildings))))
 
     probe_env = CityLearnMAPPOEnv(
@@ -781,7 +768,7 @@ def run_test_only(cfg: Config) -> Dict[str, Any]:
 
 def parse_args() -> Config:
     parser = argparse.ArgumentParser(
-        description="Grouped MAPPO with simple weighted same-group / other-group communication."
+        description="Grouped MAPPO with global PowerNet-style communication and grouped actor heads."
     )
     parser.add_argument("--climate", default="VT", choices=["VT", "TX"])
     parser.add_argument("--n_buildings", type=int, default=25)
@@ -811,8 +798,8 @@ def parse_args() -> Config:
 
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--wandb_project", default="annex96-ce1")
-    parser.add_argument("--wandb_name", default="mappo-grouped-comm-weighted")
-    parser.add_argument("--save_dir", default="results/mappo_grouped_comm_weighted")
+    parser.add_argument("--wandb_name", default="mappo-grouped-powernet-global")
+    parser.add_argument("--save_dir", default="results/mappo_grouped_powernet_global")
     parser.add_argument("--backup_dir", default=None)
 
     parser.add_argument("--no_test", action="store_true")
@@ -821,14 +808,13 @@ def parse_args() -> Config:
     parser.add_argument("--test_save_dir", default=None)
 
     parser.add_argument("--comm_hidden_dim", type=int, default=64)
-    parser.add_argument("--comm_alpha", type=float, default=0.75)
-    parser.add_argument("--comm_beta", type=float, default=0.25)
+    parser.add_argument("--comm_rounds", type=int, default=1)
+    parser.add_argument("--comm_topology", default="full", choices=["ring", "chain", "full"])
+    parser.add_argument("--comm_neighbors", type=int, default=1)
     parser.add_argument("--no_comm_residual", action="store_true", default=False)
     parser.add_argument("--comm_dropout", type=float, default=0.0)
 
     args = parser.parse_args()
-    _validate_comm_weights(args.comm_alpha, args.comm_beta)
-
     return Config(
         climate=args.climate,
         n_buildings=args.n_buildings,
@@ -860,13 +846,12 @@ def parse_args() -> Config:
         wandb_name=args.wandb_name,
         save_dir=args.save_dir,
         backup_dir=args.backup_dir,
-        comm_method="weighted",
-        comm_rounds=1,
         comm_hidden_dim=args.comm_hidden_dim,
-        comm_alpha=args.comm_alpha,
-        comm_beta=args.comm_beta,
+        comm_rounds=args.comm_rounds,
         comm_use_residual=not args.no_comm_residual,
         comm_dropout=args.comm_dropout,
+        comm_topology=args.comm_topology,
+        comm_neighbors=args.comm_neighbors,
     )
 
 

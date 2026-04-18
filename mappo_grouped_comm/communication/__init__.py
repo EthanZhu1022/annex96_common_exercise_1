@@ -17,11 +17,13 @@ To add a new communication method:
 from .base    import BaseCommunicationModule
 from .none    import NoCommunicationModule
 from .commnet import CommNetCommunicationModule
+from .powernet import PowerNetCommunicationModule
 from .factory import build_communication_module
 
 __all__ = [
     "BaseCommunicationModule",
     "NoCommunicationModule",
     "CommNetCommunicationModule",
+    "PowerNetCommunicationModule",
     "build_communication_module",
 ]

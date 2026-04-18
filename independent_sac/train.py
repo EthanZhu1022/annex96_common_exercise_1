@@ -63,6 +63,11 @@ import numpy as np
 import pandas as pd
 import torch
 from gymnasium import spaces
+from annex96_reporting import (
+    compute_secondary_daily_tables,
+    export_secondary_daily_metrics,
+    save_secondary_daily_metrics_plot,
+)
 
 # Ensure the local CityLearn copy is used (not any pip-installed version)
 REPO_DIR = Path(__file__).resolve().parent.parent
@@ -73,7 +78,7 @@ from citylearn.wrappers import NormalizedObservationWrapper
 
 from independent_sac.agent import SACAgent
 # Reuse KPI extraction and SOC utilities from mappo to keep outputs comparable
-from mappo.utils import extract_episode_kpis, get_soc_stats
+from mappo.utils import extract_episode_kpis, get_soc_stats, resolve_reference_baseline_series
 
 try:
     import wandb
@@ -753,11 +758,13 @@ def _run_daily_pipeline(
 ) -> Optional[pd.DataFrame]:
     daily_records = test_result.get("_daily_primary_metrics")
     comfort_records = test_result.get("_building_comfort_metrics")
-    if not daily_records:
-        print("[warn] No Primary Metrics daily records - skipping daily artifacts.")
+    step_loads: List[float] = test_result.get("_step_portfolio_loads", [])
+    baseline_loads: List[float] = test_result.get("_step_portfolio_loads_baseline", [])
+    if not daily_records and not step_loads:
+        print("[warn] No daily records - skipping daily artifacts.")
         return None
 
-    daily_df = pd.DataFrame(daily_records)
+    daily_df = pd.DataFrame(daily_records or [])
     comfort_df = pd.DataFrame(comfort_records or [])
     month_name = _MONTH_NAMES.get(cfg.test_month, str(cfg.test_month))
     save_daily_metrics_plot(daily_df, comfort_df, save_dir, cfg.climate, month_name)
@@ -770,7 +777,61 @@ def _run_daily_pipeline(
     comfort_df.to_csv(comfort_csv, index=False)
     print(f"  [daily] building comfort CSV -> {comfort_csv}")
 
+    secondary_flexible_df, secondary_baseline_df = compute_secondary_daily_tables(
+        step_loads,
+        baseline_loads,
+        steps_per_day=24,
+    ) if step_loads and baseline_loads else (
+        compute_secondary_daily_tables(step_loads, [], steps_per_day=24)[0] if step_loads else pd.DataFrame(),
+        pd.DataFrame(),
+    )
+
+    if not secondary_flexible_df.empty or not secondary_baseline_df.empty:
+        secondary_fig = save_secondary_daily_metrics_plot(
+            secondary_flexible_df,
+            secondary_baseline_df,
+            save_dir,
+            cfg.climate,
+            month_name,
+            "Independent SAC",
+        )
+        if secondary_fig is not None:
+            print(f"  [daily] secondary figure -> {secondary_fig}")
+        flexible_csv, baseline_csv = export_secondary_daily_metrics(
+            secondary_flexible_df,
+            secondary_baseline_df,
+            save_dir,
+        )
+        if flexible_csv is not None:
+            print(f"  [daily] secondary flexible CSV -> {flexible_csv}")
+        if baseline_csv is not None:
+            print(f"  [daily] secondary baseline CSV -> {baseline_csv}")
+
     if use_wandb:
+        if not secondary_flexible_df.empty:
+            wandb.define_metric("test_day")
+            wandb.define_metric("test/daily/*", step_metric="test_day")
+            for _, row in secondary_flexible_df.iterrows():
+                wandb.log({
+                    "test_day": int(row["day"]),
+                    "test/daily/ramping": row["ramping"],
+                    "test/daily/peak": row["daily_peak"],
+                    "test/daily/load_factor": row["load_factor"],
+                    "test/daily/pvr": row["pvr"],
+                    "test/daily/energy": row["energy"],
+                })
+        if not secondary_baseline_df.empty:
+            wandb.define_metric("test_day")
+            wandb.define_metric("test/daily_baseline/*", step_metric="test_day")
+            for _, row in secondary_baseline_df.iterrows():
+                wandb.log({
+                    "test_day": int(row["day"]),
+                    "test/daily_baseline/ramping": row["ramping"],
+                    "test/daily_baseline/peak": row["daily_peak"],
+                    "test/daily_baseline/load_factor": row["load_factor"],
+                    "test/daily_baseline/pvr": row["pvr"],
+                    "test/daily_baseline/energy": row["energy"],
+                })
         wandb.define_metric("test_day")
         wandb.define_metric("test/daily_primary/*", step_metric="test_day")
         for _, row in daily_df.iterrows():
@@ -1022,9 +1083,10 @@ def evaluate_on_test(
         **{f"test/{k}": v for k, v in primary_metrics.items()},
         **{f"test/{k}": v for k, v in test_kpis.items()},
         **{f"test/{k}": v for k, v in test_soc.items()},
-        # Private key (prefix _) — step-level loads for daily-metric computation;
+        # Private key (prefix _) - step-level loads for daily-metric computation;
         # filtered out of W&B logs by _filter_log_values and _export_test_metrics.
         "_step_portfolio_loads": step_portfolio_loads,
+        "_step_portfolio_loads_baseline": resolve_reference_baseline_series(test_base_env)[: len(step_portfolio_loads)].tolist(),
         "_daily_primary_metrics": daily_primary_df.to_dict(orient="records"),
         "_building_comfort_metrics": comfort_building_df.to_dict(orient="records"),
     }

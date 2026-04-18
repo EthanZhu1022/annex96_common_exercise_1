@@ -35,7 +35,7 @@ for _p in [str(REPO_DIR), str(ONPOLICY)]:
 from onpolicy.algorithms.r_mappo.r_mappo import R_MAPPO  # noqa: E402
 from onpolicy.algorithms.r_mappo.algorithm.rMAPPOPolicy import R_MAPPOPolicy  # noqa: E402
 
-from mappo.utils import extract_episode_kpis, get_soc_stats  # noqa: E402
+from mappo.utils import extract_episode_kpis, get_soc_stats, resolve_reference_baseline_series  # noqa: E402
 from mappo_grouped_comm.buffer import GroupedSharedReplayBuffer  # noqa: E402
 from mappo_grouped_comm.communication import build_communication_module  # noqa: E402
 from mappo_grouped_comm.train import (  # noqa: E402
@@ -538,6 +538,7 @@ def evaluate_on_test(
         **{f"test/{k}": v for k, v in test_kpis.items()},
         **{f"test/{k}": v for k, v in test_soc.items()},
         "_step_portfolio_loads": step_portfolio_loads,
+        "_step_portfolio_loads_baseline": resolve_reference_baseline_series(test_env.base_env)[: len(step_portfolio_loads)].tolist(),
         "_daily_primary_metrics": daily_primary_df.to_dict(orient="records"),
         "_building_comfort_metrics": comfort_building_df.to_dict(orient="records"),
     }
