@@ -203,3 +203,8 @@ outputs/
 # Wandb
 wandb/
 
+# Reference files
+reference/
+
+# reports
+report/
