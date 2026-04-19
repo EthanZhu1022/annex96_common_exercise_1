@@ -1,0 +1,66 @@
+\chapter{Introduction}\label{ch:intro}
+
+Buildings are becoming active participants in power-system operation. Modern
+homes can contain photovoltaic generation, batteries, heat pumps, and other
+controllable loads. When these devices are coordinated across a portfolio, the
+aggregate demand can be shifted to reduce peak stress, follow a contracted
+reference profile, and support the integration of renewable generation. The
+same flexibility also creates a difficult control problem: each building has
+local dynamics and private observations, while the objective is measured at the
+portfolio level.
+
+This midterm report studies that problem in CityLearn, an open benchmark for
+reinforcement learning control of grid-interactive communities
+\cite{citylearn2019,citylearn2020,citylearnv2}. The project uses the IEA EBC
+Annex 96 Common Exercise 1 setting. In this task, a portfolio of 25
+single-family homes must track a daily portfolio-level reference load profile.
+The controller can adjust battery operation and heat-pump-related flexibility,
+and the final evaluation must consider not only tracking error but also comfort,
+cost, carbon emissions, ramping, peak demand, and fairness.
+
+The core research question is:
+\begin{quote}
+How can structured communication between building agents improve scalable
+multi-agent reinforcement learning for CityLearn portfolio load tracking?
+\end{quote}
+
+The question sits between three existing approaches. Independent reinforcement
+learning is scalable and privacy-friendly, but the agents have no explicit
+coordination mechanism. A fully centralized controller can optimize the
+portfolio directly, but it scales poorly and becomes harder to interpret as the
+number of buildings grows. Centralized training with decentralized execution
+(CTDE), used by methods such as MADDPG, COMA, QMIX, FACMAC, and MAPPO, provides
+a stronger compromise by using global information during training while keeping
+execution decentralized \cite{maddpg2017,coma2018,qmix2018,mappo2022}. This
+project builds on that CTDE direction and adds structured communication between
+actors.
+
+The current stage of the project has produced a working research codebase and a
+clear experimental plan. The completed work includes:
+
+\begin{itemize}
+  \item implementation of CityLearn wrappers for independent PPO/SAC and MAPPO
+  training;
+  \item implementation of standard MAPPO and grouped MAPPO baselines;
+  \item implementation of grouped actor policies using K-means clustering over
+  building flexibility features;
+  \item implementation of several differentiable communication modules,
+  including CommNet-style mean pooling, PowerNet-style neighbor communication,
+  TarMAC-style attention, DIAL-inspired global communication, and weighted
+  same-group/other-group communication;
+  \item implementation of logging, checkpointing, testing, and Annex 96 metric
+  export utilities.
+\end{itemize}
+
+The major remaining work is experimental: run the full training budget for all
+baselines, evaluate on the unseen test month, and analyse the trade-off between
+tracking accuracy and secondary energy metrics. Therefore, this report presents
+the literature review, research gap, method, implementation progress, and
+planned evaluation, while deliberately leaving final data analysis and method
+comparison for the completed report.
+
+Chapter~\ref{ch:background} reviews the relevant literature and explains where
+the project fits. Chapter~\ref{ch:method} describes the implemented method and
+current progress. Chapter~\ref{ch:eval} gives the planned evaluation and result
+analysis structure. Chapter~\ref{ch:concl} summarizes the midterm outcomes and
+next steps.

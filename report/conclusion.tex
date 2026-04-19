@@ -1,0 +1,44 @@
+\chapter{Conclusion and Work Plan}\label{ch:concl}
+
+This midterm report has defined the research problem, reviewed the relevant
+literature, and described the current implementation of a structured
+communication MARL controller for CityLearn. The project fits into a clear gap:
+CityLearn provides a strong building-energy benchmark, MAPPO provides a
+practical CTDE backbone, and communication methods provide coordination tools,
+but the effect of structured communication for portfolio-level CityLearn load
+tracking still needs systematic study.
+
+Significant implementation work has been completed. The codebase now includes
+independent PPO/SAC baselines, standard MAPPO, grouped MAPPO, K-means-based
+building grouping, and several communication-aware grouped MAPPO variants. The
+communication modules are integrated into the actor pipeline and can be trained
+through the standard PPO objective. The evaluation pipeline can export Annex 96
+metrics and is ready for final test-month analysis.
+
+The main conclusion at this stage is architectural rather than numerical:
+grouped MAPPO with modular communication is a feasible and well-supported
+research direction for the CityLearn portfolio. The final conclusion about
+performance will depend on the remaining experiments.
+
+\section{Next Steps}
+
+The work plan for the next stage is:
+
+\begin{itemize}
+  \item complete full training runs for independent PPO, independent SAC,
+  standard MAPPO, grouped MAPPO, and communication-aware grouped MAPPO;
+  \item run deterministic test evaluation on the unseen month for Vermont and
+  Texas;
+  \item fill the primary and communication-ablation tables using exported
+  \texttt{test\_metrics.csv} files;
+  \item analyse aggregate load tracking, comfort, cost, emissions, ramping,
+  battery behaviour, and fairness;
+  \item identify the best communication method and explain its trade-offs;
+  \item refine the final report with plots, numerical results, and a concise
+  discussion of limitations.
+\end{itemize}
+
+If time allows, additional work will test sensitivity to the number of clusters,
+communication rounds, and weighted communication coefficients. A further
+extension is to learn building embeddings for grouping instead of relying only
+on static flexibility features.

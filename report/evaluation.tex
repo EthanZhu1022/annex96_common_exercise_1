@@ -1,0 +1,183 @@
+\chapter{Planned Evaluation and Analysis}\label{ch:eval}
+
+This chapter describes the evaluation that will be completed after the remaining
+training runs. Since this is a midterm report, final numerical results,
+statistical comparison, and result interpretation are intentionally left for the
+final report. The purpose of this chapter is to define a rigorous and
+reproducible analysis plan.
+
+\section{Experimental Setting}
+
+The experiments use the Annex 96 Common Exercise 1 CityLearn portfolios. Each
+portfolio contains 25 single-family homes with photovoltaic generation and
+battery storage. Two climates are available: Vermont, which is
+heating-dominated, and Texas, which is cooling-dominated. The train/test split
+follows the exercise specification:
+
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+Climate & Training month & Testing month \\
+\hline
+Vermont & January & February \\
+Texas & August & September \\
+\hline
+\end{tabular}
+\end{center}
+\caption{Annex 96 train/test split.}
+\label{tab:split}
+\end{table}
+
+All final metrics will be reported on the testing month. The training month may
+be repeated for multiple episodes until the assigned training budget is reached.
+To keep the comparison fair, all methods will use the same train/test split,
+episode count, random seed policy, network size, and optimizer settings unless
+an ablation explicitly changes one of these variables.
+
+\section{Methods to Compare}
+
+The final comparison will include the following methods:
+
+\begin{itemize}
+  \item RBC or Common Exercise baseline;
+  \item independent PPO;
+  \item independent SAC;
+  \item standard MAPPO with full parameter sharing;
+  \item grouped MAPPO without communication;
+  \item grouped MAPPO with CommNet-style communication;
+  \item grouped MAPPO with PowerNet-style neighbor communication;
+  \item grouped MAPPO with TarMAC-style attention;
+  \item grouped MAPPO with weighted same-group/other-group communication.
+\end{itemize}
+
+The key ablation is grouped MAPPO without communication versus grouped MAPPO
+with communication. This isolates the contribution of message passing after
+accounting for the effect of selective parameter sharing.
+
+\section{Primary Metrics}
+
+The primary objective is portfolio-level reference tracking. Let $y_t$ be the
+actual aggregate portfolio load and $r_t$ be the reference load. The two primary
+metrics are:
+
+\begin{equation}
+\mathrm{NMBE} =
+\frac{\frac{1}{T}\sum_{t=1}^{T}(y_t-r_t)}
+{\frac{1}{T}\sum_{t=1}^{T}r_t} \times 100\%,
+\end{equation}
+
+\begin{equation}
+\mathrm{CV\mbox{-}RMSE} =
+\frac{\sqrt{\frac{1}{T}\sum_{t=1}^{T}(y_t-r_t)^2}}
+{\frac{1}{T}\sum_{t=1}^{T}r_t} \times 100\%.
+\end{equation}
+
+NMBE measures systematic bias relative to the target. CV-RMSE measures overall
+tracking error and is expected to be the most important single number for the
+load-following objective.
+
+\section{Secondary Metrics}
+
+Secondary metrics will be used to determine whether tracking improvement is
+achieved responsibly. They include:
+
+\begin{itemize}
+  \item temperature exceedance hours for thermal comfort;
+  \item operational cost;
+  \item carbon emissions;
+  \item site energy consumption change;
+  \item peak demand;
+  \item peak-to-valley ratio;
+  \item load factor;
+  \item total ramping;
+  \item fairness of flexibility activation across buildings.
+\end{itemize}
+
+This distinction is important because a controller could reduce tracking error
+by overusing a small subset of buildings or by violating comfort. Such a result
+would not be considered successful even if reward improves.
+
+\section{Data Analysis to be Completed}
+
+The final report will include the following analysis:
+
+\begin{itemize}
+  \item training curves for portfolio reward and primary metrics;
+  \item testing-month aggregate load versus reference profile plots;
+  \item daily box plots for NMBE and CV-RMSE;
+  \item building-level comfort and reward distributions;
+  \item battery state-of-charge trajectories for representative buildings;
+  \item fairness analysis showing whether flexibility is concentrated or
+  distributed across the portfolio;
+  \item comparison of communication methods under the same grouped MAPPO
+  backbone.
+\end{itemize}
+
+\section{Result Tables for Final Report}
+
+Table~\ref{tab:primary-results} will be filled after test evaluation has been
+completed.
+
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{|l|l|r|r|r|}
+\hline
+Controller & Climate & NMBE (\%) & CV-RMSE (\%) & Comfort hours \\
+\hline
+RBC baseline & VT & TBD & TBD & TBD \\
+Independent PPO & VT & TBD & TBD & TBD \\
+Independent SAC & VT & TBD & TBD & TBD \\
+Standard MAPPO & VT & TBD & TBD & TBD \\
+Grouped MAPPO & VT & TBD & TBD & TBD \\
+Grouped MAPPO + best communication & VT & TBD & TBD & TBD \\
+\hline
+RBC baseline & TX & TBD & TBD & TBD \\
+Independent PPO & TX & TBD & TBD & TBD \\
+Independent SAC & TX & TBD & TBD & TBD \\
+Standard MAPPO & TX & TBD & TBD & TBD \\
+Grouped MAPPO & TX & TBD & TBD & TBD \\
+Grouped MAPPO + best communication & TX & TBD & TBD & TBD \\
+\hline
+\end{tabular}
+\end{center}
+\caption{Primary testing-month performance to be reported in the final report.}
+\label{tab:primary-results}
+\end{table}
+
+Table~\ref{tab:comm-ablation} will isolate communication design choices.
+
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{|l|l|r|r|r|}
+\hline
+Communication method & Scope & NMBE (\%) & CV-RMSE (\%) & Notes \\
+\hline
+None & group & TBD & TBD & grouped baseline \\
+CommNet mean pooling & group & TBD & TBD & uniform messages \\
+PowerNet-style graph & group/global & TBD & TBD & sparse topology \\
+TarMAC attention & global & TBD & TBD & learned receivers \\
+Weighted same/other group & global & TBD & TBD & structured weights \\
+\hline
+\end{tabular}
+\end{center}
+\caption{Communication ablation to be completed after training.}
+\label{tab:comm-ablation}
+\end{table}
+
+\section{Expected Interpretation Criteria}
+
+The final method will be considered successful if it improves testing-month
+CV-RMSE and reduces absolute NMBE compared with grouped MAPPO without
+communication, while keeping comfort violations and secondary metrics within a
+reasonable range. If a communication method improves reward but worsens comfort
+or concentrates flexibility unfairly, it will be treated as a trade-off rather
+than a clear improvement.
+
+The expected qualitative outcome is that communication should help most when
+the portfolio target requires coordinated simultaneous action. The weighted
+same-group/other-group method is expected to be stable because it combines a
+strong prior from clustering with weaker global context. TarMAC may be more
+expressive, but it may require more data to learn useful attention patterns.
+PowerNet-style communication may be attractive if sparse topology reduces noise
+without losing important coordination information.

@@ -1,0 +1,187 @@
+\chapter{Method and Progress}\label{ch:method}
+
+This chapter describes the implemented method and the progress completed by the
+midterm stage. The project is not yet at the final result-analysis stage. The
+conclusive outcomes so far are implementation and design outcomes: the training
+pipeline is operational, multiple baselines have been implemented, and the
+communication variants have been integrated into a common MAPPO framework.
+
+\section{Problem Definition}
+
+The CityLearn Annex 96 task is formulated as a cooperative partially observable
+stochastic game. There are $N=25$ building agents. At time step $t$, building
+$i$ observes a local vector $o_i^t$ and selects a continuous action $a_i^t$ for
+its flexible devices. The joint action changes building states, battery states,
+thermal conditions, and aggregate portfolio load. The portfolio should track a
+daily reference load profile $r_t$ while avoiding excessive comfort violations
+and negative secondary impacts.
+
+The project objective is not only to maximize training reward. The practical
+objective is to reduce testing-month tracking error, measured by NMBE and
+CV-RMSE, while keeping comfort, cost, carbon, ramping, and fairness within
+acceptable ranges. This objective motivates the use of a centralized critic and
+structured actor communication.
+
+\section{Environment and Baseline Pipeline}
+
+The first completed component is the environment interface. CityLearn is wrapped
+for several learning backends:
+
+\begin{itemize}
+  \item independent PPO and independent SAC baselines, where each building
+  learns without communication;
+  \item standard MAPPO, where all buildings use a shared policy and a
+  centralized critic;
+  \item grouped MAPPO, where clusters of buildings share group-specific actors;
+  \item communication-aware grouped MAPPO, where a communication layer is
+  inserted between actor encoders and action heads.
+\end{itemize}
+
+The MAPPO wrapper returns local observations, centralized observations,
+continuous action spaces, rewards, done masks, and episode lengths in the tensor
+format expected by the on-policy MAPPO implementation. Reusing the established
+MAPPO optimizer reduces implementation risk and keeps the research focus on
+CityLearn adaptation, grouping, and communication.
+
+\section{Grouped Actor Architecture}
+
+The grouped actor design is based on selective parameter sharing. Full sharing
+is sample efficient but may be too restrictive for a heterogeneous portfolio.
+Fully independent actors are expressive but require more data and weaken
+coordination. The implemented grouped actor architecture balances these two
+extremes.
+
+Buildings are clustered using K-means over flexibility-related features. The
+current implementation uses features such as battery energy storage capacity
+and aggregate HVAC capacity. After clustering, buildings in group $G_k$ share
+the same actor network. All groups share one centralized critic. The critic
+observes the concatenated portfolio state, while each actor receives local
+building observations plus any communication-enhanced hidden features.
+
+This architecture has been implemented in the \texttt{mappo\_grouped} package.
+The same grouping information is reused by communication-aware variants so that
+communication effects can be compared against a consistent grouped baseline.
+
+\section{MAPPO Learning Structure}
+
+The learning structure follows centralized training and decentralized
+execution. For each group, the actor maps observations to a continuous action
+distribution. The centralized critic estimates the value of the portfolio state.
+After each rollout episode, generalized advantage estimation is computed and
+the PPO clipped objective updates the policies.
+
+The grouped replay buffer preserves the agent dimension during PPO mini-batch
+sampling. This detail is important: if group-agent samples are flattened too
+early, communication layers cannot reconstruct the correct set of agents for
+message passing. The implemented buffer therefore keeps tensors in a shape that
+supports both MAPPO updates and communication over group members.
+
+\section{Communication Modules}
+
+The communication layer is inserted between the actor encoder and action head:
+\[
+o_i \rightarrow \mathrm{encoder}_k \rightarrow h_i
+\rightarrow \mathrm{communication} \rightarrow \tilde{h}_i
+\rightarrow \mathrm{action\ head}_k \rightarrow a_i .
+\]
+Because the communication module is registered as part of the actor, its
+parameters are optimized by the same PPO actor loss.
+
+\subsection{No Communication}
+
+The identity module is used as the no-communication baseline:
+\[
+\tilde{h}_i = h_i .
+\]
+This isolates the effect of message passing from the effect of grouping.
+
+\subsection{CommNet-Style Mean Communication}
+
+For each group, the CommNet-style module computes the mean hidden feature of
+the other agents:
+\[
+m_i = \frac{1}{|G_k|-1}\sum_{j \in G_k, j \ne i} h_j .
+\]
+The message is transformed by an MLP and added through a residual connection:
+\[
+\tilde{h}_i = h_i + f_\theta(m_i).
+\]
+This is the simplest differentiable communication baseline.
+
+\subsection{PowerNet-Style Neighbor Communication}
+
+The PowerNet-style module restricts communication to a graph. The implemented
+topologies are ring, chain, and full graph. For adjacency matrix $A$, the
+neighbor message is
+\[
+m_i = \frac{1}{\max(1,\sum_j A_{ij})}\sum_j A_{ij}g_\theta(h_j).
+\]
+This tests whether sparse local communication can preserve coordination while
+reducing noisy all-to-all message passing.
+
+\subsection{TarMAC-Style Attention}
+
+The TarMAC-style module computes query, key, and value projections for all
+agents. Attention weights are
+\[
+\alpha_{ij} =
+\frac{\exp(q_i^\top k_j / \sqrt{d})}
+{\sum_l \exp(q_i^\top k_l / \sqrt{d})},
+\]
+and the received context is
+\[
+c_i = \sum_j \alpha_{ij}v_j .
+\]
+The updated feature is computed from $h_i$ and $c_i$. This module tests whether
+learned receiver selection is beneficial for CityLearn coordination.
+
+\subsection{Weighted Same-Group and Other-Group Communication}
+
+The project-specific communication module separates same-group and other-group
+messages. For group $G_k$,
+\[
+m^{same}_k = \frac{1}{|G_k|}\sum_{j \in G_k} h_j,
+\qquad
+m^{other}_k = \frac{1}{N-|G_k|}\sum_{j \notin G_k} h_j .
+\]
+The combined message is
+\[
+m_k = \alpha m^{same}_k + \beta m^{other}_k,
+\qquad \alpha > \beta \geq 0.
+\]
+The default implementation uses $\alpha=0.75$ and $\beta=0.25$. The purpose is
+to encode a clear inductive bias: buildings with similar flexibility should
+communicate more strongly, but portfolio-level tracking still requires some
+global context.
+
+\section{Completed Implementation}
+
+At the midterm stage, the following implementation work has been completed:
+
+\begin{itemize}
+  \item independent PPO and SAC training scripts;
+  \item standard MAPPO training and testing scripts;
+  \item grouped MAPPO with K-means clustering;
+  \item communication-aware grouped MAPPO with CommNet, PowerNet-style,
+  TarMAC-style, DIAL-style, and weighted communication variants;
+  \item shared centralized critic and shared value normalizer for grouped
+  policies;
+  \item grouped replay buffer preserving communication structure during PPO
+  updates;
+  \item checkpoint loading and saving for test-only evaluation;
+  \item Annex 96 metric export, daily metric tables, and plotting utilities.
+\end{itemize}
+
+The most important conclusion from the completed work is that the project has a
+common experimental interface for all planned methods. The remaining
+uncertainty is empirical performance, not whether the methods can be trained
+and evaluated in the CityLearn pipeline.
+
+\section{Current Limitations}
+
+The current limitation is that full training runs have not yet been completed.
+Therefore, the report does not claim that one communication method is superior
+to another. The final comparison will require consistent training budgets,
+multiple seeds where possible, and testing on the unseen month. Another current
+limitation is that K-means uses static flexibility features; future work may
+replace or augment this with learned embeddings based on building trajectories.
