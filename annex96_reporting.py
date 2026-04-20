@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional, Sequence, Tuple
+from typing import Any, Dict, Optional, Sequence, Tuple
 
 import matplotlib
 matplotlib.use("Agg")
@@ -28,6 +28,29 @@ def compute_secondary_daily_tables(
     flexible_df = compute_daily_power_metrics(flexible_loads, steps_per_day)
     baseline_df = compute_daily_power_metrics(baseline_loads, steps_per_day)
     return flexible_df, baseline_df
+
+
+def build_readme_secondary_daily_log(row: Any, prefix: str) -> Dict[str, Optional[float]]:
+    """Return README-aligned W&B aliases for one daily secondary row."""
+
+    def _value(column: str) -> Optional[float]:
+        try:
+            value = float(row[column])
+        except (KeyError, TypeError, ValueError):
+            return None
+        return value if np.isfinite(value) else None
+
+    def _pct(column: str) -> Optional[float]:
+        value = _value(column)
+        return None if value is None else float(value * 100.0)
+
+    return {
+        f"{prefix}/system_ramping_kw": _value("ramping"),
+        f"{prefix}/peak_demand_kw": _value("daily_peak"),
+        f"{prefix}/load_factor_pct": _pct("load_factor"),
+        f"{prefix}/peak_to_valley_ratio_pct": _pct("pvr"),
+        f"{prefix}/site_total_energy_kwh": _value("energy"),
+    }
 
 
 def save_secondary_daily_metrics_plot(

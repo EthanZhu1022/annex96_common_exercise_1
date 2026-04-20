@@ -127,6 +127,28 @@ def _safe_percent_change(ratio_value: Optional[float]) -> Optional[float]:
     return float((ratio_f - 1.0) * 100.0)
 
 
+def _safe_percent_savings(ratio_value: Optional[float]) -> Optional[float]:
+    ratio_f = _safe_float(ratio_value)
+    if ratio_f is None:
+        return None
+    return float((1.0 - ratio_f) * 100.0)
+
+
+def _safe_ratio_to_pct(ratio_value: Optional[float]) -> Optional[float]:
+    ratio_f = _safe_float(ratio_value)
+    if ratio_f is None:
+        return None
+    return float(ratio_f * 100.0)
+
+
+def _safe_ratio_from_totals(actual: Optional[float], baseline: Optional[float]) -> Optional[float]:
+    actual_f = _safe_float(actual)
+    baseline_f = _safe_float(baseline)
+    if actual_f is None or baseline_f is None or abs(baseline_f) <= 1e-12:
+        return None
+    return float(actual_f / baseline_f)
+
+
 def _resolve_series(entity: Any, candidates: Sequence[str]) -> Optional[np.ndarray]:
     for attr in candidates:
         series = getattr(entity, attr, None)
@@ -281,7 +303,7 @@ def _daily_summary(prefix: str, daily_df: Any) -> Dict[str, Optional[float]]:
     }
 
 
-def extract_episode_kpis(env_unwrapped: Any) -> Dict[str, Optional[float]]:
+def extract_episode_kpis(env_unwrapped: Any) -> Dict[str, Any]:
     """Extract scalar KPIs and README-aligned secondary metrics."""
     try:
         df = env_unwrapped.evaluate()
@@ -338,7 +360,7 @@ def extract_episode_kpis(env_unwrapped: Any) -> Dict[str, Optional[float]]:
             else None
         )
 
-        result: Dict[str, Optional[float]] = {
+        result: Dict[str, Any] = {
             "kpi/electricity_consumption": _get("electricity_consumption_total"),
             "kpi/carbon_emissions": _get("carbon_emissions_total"),
             "kpi/cost": _get("cost_total"),
@@ -385,6 +407,62 @@ def extract_episode_kpis(env_unwrapped: Any) -> Dict[str, Optional[float]]:
             **_daily_summary("secondary/daily/flexible", actual_daily_df),
             **_daily_summary("secondary/daily/baseline", baseline_daily_df),
         }
+        cost_ratio = result["secondary/cost/normalized_ratio"]
+        if cost_ratio is None:
+            cost_ratio = _safe_ratio_from_totals(
+                result["secondary/cost/absolute"],
+                result["secondary/cost/baseline"],
+            )
+        carbon_ratio = result["secondary/carbon_emissions/normalized_ratio"]
+        if carbon_ratio is None:
+            carbon_ratio = _safe_ratio_from_totals(
+                result["secondary/carbon_emissions/absolute"],
+                result["secondary/carbon_emissions/baseline"],
+            )
+        site_energy_ratio = result["secondary/site_energy/normalized_ratio"]
+        if site_energy_ratio is None:
+            site_energy_ratio = _safe_ratio_from_totals(
+                result["secondary/site_energy/absolute"],
+                result["secondary/site_energy/baseline"],
+            )
+        result.update(
+            {
+                # README Secondary Metrics aliases. Legacy secondary/* paths above
+                # are kept for backward compatibility with existing W&B panels.
+                "secondary/cost_changes_pct": _safe_percent_savings(cost_ratio),
+                "secondary/cost_change_pct": _safe_percent_change(cost_ratio),
+                "secondary/cost_flexible": result["secondary/cost/absolute"],
+                "secondary/cost_baseline": result["secondary/cost/baseline"],
+                "secondary/carbon_emissions_kgco2e": result["secondary/carbon_emissions/absolute"],
+                "secondary/carbon_emissions_baseline_kgco2e": result["secondary/carbon_emissions/baseline"],
+                "secondary/carbon_emissions_change_pct": _safe_percent_change(carbon_ratio),
+                "secondary/site_total_energy_change_pct": _safe_percent_change(site_energy_ratio),
+                "secondary/site_total_energy_kwh": result["secondary/site_energy/absolute"],
+                "secondary/site_total_energy_baseline_kwh": result["secondary/site_energy/baseline"],
+                "secondary/peak_demand_kw": result["secondary/peak/flexible"],
+                "secondary/peak_demand_baseline_kw": result["secondary/peak/baseline"],
+                "secondary/peak_demand_change_pct": result["secondary/peak/change_pct"],
+                "secondary/peak_demand_time": result["secondary/peak/flexible_time"],
+                "secondary/peak_demand_baseline_time": result["secondary/peak/baseline_time"],
+                "secondary/peak_to_valley_ratio_pct": _safe_ratio_to_pct(
+                    result.get("secondary/daily/flexible/pvr_mean")
+                ),
+                "secondary/peak_to_valley_ratio_baseline_pct": _safe_ratio_to_pct(
+                    result.get("secondary/daily/baseline/pvr_mean")
+                ),
+                "secondary/load_factor_pct": _safe_ratio_to_pct(
+                    result.get("secondary/daily/flexible/load_factor_mean")
+                ),
+                "secondary/load_factor_baseline_pct": _safe_ratio_to_pct(
+                    result.get("secondary/daily/baseline/load_factor_mean")
+                ),
+                "secondary/system_ramping_kw": result.get("secondary/daily/flexible/ramping_mean"),
+                "secondary/system_ramping_baseline_kw": result.get("secondary/daily/baseline/ramping_mean"),
+                "secondary/fairness_flexibility_gini": result["secondary/fairness/flexibility_gini"],
+                "secondary/fairness_flexibility_entropy": result["secondary/fairness/flexibility_entropy"],
+                "secondary/fairness_max_share_pct": result["secondary/fairness/max_share_pct"],
+            }
+        )
         return result
     except Exception as exc:
         print(f"[warn] KPI extraction failed: {exc}")

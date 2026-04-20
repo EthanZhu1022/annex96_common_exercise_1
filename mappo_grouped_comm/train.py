@@ -82,6 +82,7 @@ import numpy as np
 import pandas as pd
 import torch
 from annex96_reporting import (
+    build_readme_secondary_daily_log,
     compute_secondary_daily_tables,
     export_secondary_daily_metrics,
     save_secondary_daily_metrics_plot,
@@ -596,6 +597,7 @@ def _run_daily_pipeline(
     if use_wandb:
         wandb.define_metric("test_day")
         wandb.define_metric("test/daily/*", step_metric="test_day")
+        wandb.define_metric("test/daily_secondary/*", step_metric="test_day")
         for _, row in daily_df.iterrows():
             wandb.log({
                 "test_day":               int(row["day"]),
@@ -604,6 +606,7 @@ def _run_daily_pipeline(
                 "test/daily/load_factor": row["load_factor"],
                 "test/daily/pvr":         row["pvr"],
                 "test/daily/energy":      row["energy"],
+                **build_readme_secondary_daily_log(row, "test/daily_secondary"),
             })
 
     return daily_df
@@ -952,6 +955,7 @@ def _run_daily_pipeline(
         if not secondary_flexible_df.empty:
             wandb.define_metric("test_day")
             wandb.define_metric("test/daily/*", step_metric="test_day")
+            wandb.define_metric("test/daily_secondary/*", step_metric="test_day")
             for _, row in secondary_flexible_df.iterrows():
                 wandb.log(_filter_wandb({
                     "test_day": int(row["day"]),
@@ -960,10 +964,12 @@ def _run_daily_pipeline(
                     "test/daily/load_factor": row["load_factor"],
                     "test/daily/pvr": row["pvr"],
                     "test/daily/energy": row["energy"],
+                    **build_readme_secondary_daily_log(row, "test/daily_secondary"),
                 }))
         if not secondary_baseline_df.empty:
             wandb.define_metric("test_day")
             wandb.define_metric("test/daily_baseline/*", step_metric="test_day")
+            wandb.define_metric("test/daily_secondary_baseline/*", step_metric="test_day")
             for _, row in secondary_baseline_df.iterrows():
                 wandb.log(_filter_wandb({
                     "test_day": int(row["day"]),
@@ -972,6 +978,7 @@ def _run_daily_pipeline(
                     "test/daily_baseline/load_factor": row["load_factor"],
                     "test/daily_baseline/pvr": row["pvr"],
                     "test/daily_baseline/energy": row["energy"],
+                    **build_readme_secondary_daily_log(row, "test/daily_secondary_baseline"),
                 }))
         wandb.define_metric("test_day")
         wandb.define_metric("test/daily_primary/*", step_metric="test_day")
