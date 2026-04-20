@@ -1,6 +1,6 @@
-"""
-Independent PPO Baseline — Training + Evaluation Script
-========================================================
+﻿"""
+RLlib Independent PPO Baseline - Training + Evaluation Script
+=============================================================
 
 Uses RLlib's standard PPO algorithm with one independent policy per building.
 No PPO logic is reimplemented; RLlib's PPOConfig/PPO handles rollout
@@ -9,48 +9,52 @@ function optimisation.
 
 Architecture
 ------------
-- Environment : CityLearnPPOEnv (see env.py) — wraps CityLearnEnv so RLlib
+- Environment : CityLearnPPOEnv (see env.py) 鈥?wraps CityLearnEnv so RLlib
   can drive it as a MultiAgentEnv.  Action space is Box(-1,1,...) so PPO's
   Gaussian policy operates in the same normalised range as all other baselines.
 - Policies    : one policy per building ("building_i"), mapped by name.
-  Each policy sees only its own obs/reward — truly independent per-building
+  Each policy sees only its own obs/reward 鈥?truly independent per-building
   training; no communication, no shared weights.
 - PPO config  : standard RLlib PPOConfig.  See build_ppo_config() for details.
 
 W&B logging
 -----------
-- CE1Callback logs per-building episode rewards and district-level CityLearn
-  KPIs at the end of every episode.
-- on_train_result logs PPO loss metrics (policy_loss, vf_loss, entropy).
+- CE1Callback records per-building rewards and district-level CityLearn KPIs
+  as RLlib custom metrics.
+- train() logs README-aligned primary/secondary metrics and PPO loss metrics
+  using the same public W&B keys as the SB3 and MAPPO baselines.
 - test-only runs log per-step curves (test_step axis) so charts render as
   real time series, not a single ambiguous point.
 
 Output artifacts (in save_dir/):
-    checkpoint/             — RLlib checkpoint directory
-    run_config.json         — full hyperparameter snapshot
-    latest_metrics.json     — training summary
-    test_metrics.json       — test-episode KPIs (compare.py compatible)
+    checkpoint/             鈥?RLlib checkpoint directory
+    run_config.json         鈥?full hyperparameter snapshot
+    latest_metrics.json     鈥?training summary
+    test_metrics.json       鈥?test-episode KPIs (compare.py compatible)
     test_metrics.csv
-    test_daily_metrics.png  — per-day ramping / peak / load-factor curves
+    test_daily_metrics.png  鈥?per-day primary metrics
     test_daily_metrics.csv
-    training_curves.png     — reward + KPI trends across iterations
+    test_daily_secondary_metrics.png
+    test_daily_secondary_flexible_metrics.csv
+    test_daily_secondary_baseline_metrics.csv
+    training_curves.png     鈥?reward + KPI trends across iterations
 
 Run:
     # VT: January train, February test (default)
-    python -m independent_ppo.train
+    python -m rllib_independent_ppo.train
 
     # TX: August train, September test
-    python -m independent_ppo.train --climate TX
+    python -m rllib_independent_ppo.train --climate TX
 
     # Custom options
-    python -m independent_ppo.train --climate TX --n_iterations 50 --seed 0
+    python -m rllib_independent_ppo.train --climate TX --n_iterations 50 --seed 0
 
     # Skip test after training
-    python -m independent_ppo.train --no_test
+    python -m rllib_independent_ppo.train --no_test
 
     # Test-only (load saved checkpoint, skip training)
-    python -m independent_ppo.train --test_only
-    python -m independent_ppo.train --test_only --checkpoint_dir results/independent_ppo_vt
+    python -m rllib_independent_ppo.train --test_only
+    python -m rllib_independent_ppo.train --test_only --checkpoint_dir results/rllib_independent_ppo/checkpoint
 
 Dependencies: ray[rllib]>=2.10, gymnasium>=0.28.1
 """
@@ -92,7 +96,7 @@ from ray.rllib.evaluation import RolloutWorker
 from ray.rllib.evaluation.episode import Episode
 from ray.rllib.policy import Policy
 
-from independent_ppo.env import CityLearnPPOEnv
+from rllib_independent_ppo.env import CityLearnPPOEnv
 from mappo.utils import extract_episode_kpis, get_soc_stats, resolve_reference_baseline_series
 
 try:
@@ -100,11 +104,11 @@ try:
     _WANDB_OK = True
 except ImportError:
     _WANDB_OK = False
-    print("[warn] wandb not installed — W&B logging disabled.")
+    print("[warn] wandb not installed 鈥?W&B logging disabled.")
 
 
 # ---------------------------------------------------------------------------
-# Month → hourly time-step index mapping (non-leap year, 8 760 h total)
+# Month 鈫?hourly time-step index mapping (non-leap year, 8 760 h total)
 # Identical across all baselines to ensure comparable train/test windows.
 # ---------------------------------------------------------------------------
 
@@ -127,6 +131,7 @@ _CLIMATE_DEFAULTS: Dict[str, Dict[str, int]] = {
     "VT": {"train_month": 1, "test_month": 2},   # January  / February
     "TX": {"train_month": 8, "test_month": 9},   # August   / September
 }
+ALGORITHM_LABEL = "RLlib Independent PPO"
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +164,7 @@ class Config:
     train_batch_size:     int = 5000    # total timesteps per PPO update cycle
     num_workers:          int = 0       # 0 = local worker (no subprocess forking)
 
-    # Time windows (None → filled from _CLIMATE_DEFAULTS)
+    # Time windows (None 鈫?filled from _CLIMATE_DEFAULTS)
     train_month:        Optional[int] = None
     test_month:         Optional[int] = None
 
@@ -172,8 +177,8 @@ class Config:
     # Logging & output
     seed:          int          = 42
     wandb_project: str          = "annex96-ce1"
-    wandb_name:    str          = "independent-ppo"
-    save_dir:      str          = "results/independent_ppo"
+    wandb_name:    str          = "rllib-independent-ppo"
+    save_dir:      str          = "results/rllib_independent_ppo"
     backup_dir:    Optional[str] = None
 
     def __post_init__(self):
@@ -238,16 +243,47 @@ def _filter_wandb(d: Dict) -> Dict:
     return out
 
 
+def _extract_rllib_loss_metrics(result: Dict[str, Any]) -> Dict[str, float]:
+    """Return one representative policy's RLlib PPO learner losses."""
+    learner = result.get("info", {}).get("learner", {})
+    for policy_stats in learner.values():
+        if not isinstance(policy_stats, dict):
+            continue
+        stats = policy_stats.get("learner_stats", policy_stats)
+        if not isinstance(stats, dict):
+            continue
+        losses: Dict[str, float] = {}
+        for stat_key in ["total_loss", "policy_loss", "vf_loss", "entropy", "kl"]:
+            if stat_key not in stats:
+                continue
+            value = _safe_scalar(stats[stat_key])
+            if value is not None:
+                losses[stat_key] = value
+        if losses:
+            return losses
+    return {}
+
+
+def _collect_rllib_custom_metrics(custom_metrics: Dict[str, Any], prefix: str) -> Dict[str, Any]:
+    metric_prefix = f"{prefix}/"
+    suffix = "_mean"
+    return {
+        key[:-len(suffix)]: value
+        for key, value in custom_metrics.items()
+        if key.startswith(metric_prefix) and key.endswith(suffix)
+    }
+
+
 # ---------------------------------------------------------------------------
-# RLlib Callback — per-episode KPI + per-building reward logging
+# RLlib Callback 鈥?per-episode KPI + per-building reward logging
 # ---------------------------------------------------------------------------
 
 class CE1Callback(DefaultCallbacks):
-    """Log per-episode rewards, KPIs, and PPO loss metrics to W&B.
+    """Record per-episode rewards, KPIs, and primary metrics for RLlib.
 
     Hooks:
-      on_episode_end  — per-building rewards and district-level KPIs.
-      on_train_result — PPO loss metrics (policy_loss, vf_loss, entropy).
+      on_episode_end  - per-building rewards and district-level metrics.
+      on_train_result - intentionally no-op; W&B logging is centralized.
     """
 
     def on_episode_end(
@@ -288,7 +324,7 @@ class CE1Callback(DefaultCallbacks):
             kpis = extract_episode_kpis(cl_env.base_env)
             for k, v in kpis.items():
                 if v is not None:
-                    episode.custom_metrics[k.replace("/", "_")] = v
+                    episode.custom_metrics[k] = v
         except Exception:
             pass
 
@@ -299,7 +335,7 @@ class CE1Callback(DefaultCallbacks):
             )
             for k, v in primary_metrics.items():
                 if v is not None:
-                    episode.custom_metrics[k.replace("/", "_")] = v
+                    episode.custom_metrics[k] = v
         except Exception:
             pass
 
@@ -313,51 +349,9 @@ class CE1Callback(DefaultCallbacks):
         result:    Dict,
         **kwargs,
     ) -> None:
-        if not _WANDB_OK:
-            return
-
-        iteration = result.get("training_iteration", 0)
-        log: Dict[str, Any] = {"episode": iteration}
-
-        cm = result.get("custom_metrics", {})
-
-        # Portfolio reward
-        for key in ["portfolio_reward_sum_mean", "portfolio_reward_sum_max"]:
-            if key in cm:
-                log[f"train/portfolio/{key}"] = cm[key]
-
-        # Per-building rewards
-        for k, v in cm.items():
-            if k.endswith("_reward_mean") and k.startswith("building_"):
-                log[f"train/{k.replace('_reward_mean', '')}/reward"] = v
-
-        # CityLearn KPIs
-        for k, v in cm.items():
-            if k.startswith("kpi_") and k.endswith("_mean"):
-                kpi_name = k[len("kpi_"):-len("_mean")].replace("_", "/")
-                log[f"train/kpi/{kpi_name}"] = v
-
-        for k, v in cm.items():
-            if k.startswith("primary_") and k.endswith("_mean"):
-                primary_name = k[len("primary_"):-len("_mean")].replace("_", "/")
-                log[f"train/primary/{primary_name}"] = v
-
-        # PPO-specific loss metrics from RLlib result
-        info = result.get("info", {}).get("learner", {})
-        for policy_id, policy_stats in info.items():
-            if not isinstance(policy_stats, dict):
-                continue
-            for stat_key in ["policy_loss", "vf_loss", "entropy", "kl", "total_loss"]:
-                if stat_key in policy_stats:
-                    log[f"train/loss/{stat_key}"] = policy_stats[stat_key]
-            break  # log first policy to keep W&B tidy
-
-        # RLlib aggregated episode stats
-        for key in ["episode_reward_mean", "episode_len_mean", "episodes_this_iter"]:
-            if key in result:
-                log[f"train/{key}"] = result[key]
-
-        wandb.log(_filter_wandb(log), step=iteration)
+        # W&B logging is centralized in train() so RLlib PPO uses the same
+        # public metric keys as the SB3 and MAPPO baselines.
+        return
 
 
 # ---------------------------------------------------------------------------
@@ -374,7 +368,7 @@ def build_ppo_config(
     """Assemble an RLlib PPOConfig for independent per-building PPO.
 
     One policy is registered per building.  The policy_mapping_fn routes each
-    agent's rollout exclusively to its own policy — no shared weights, no
+    agent's rollout exclusively to its own policy 鈥?no shared weights, no
     cross-agent communication.
 
     PPO-specific design notes
@@ -386,8 +380,8 @@ def build_ppo_config(
                            collects data until train_batch_size is reached.
     - num_sgd_iter       : number of complete SGD epochs over the collected
                            on-policy batch.
-    - clip_param         : PPO surrogate clip ratio (ε in the paper).
-    - entropy_coeff      : coefficient on the entropy bonus — encourages
+    - clip_param         : PPO surrogate clip ratio (蔚 in the paper).
+    - entropy_coeff      : coefficient on the entropy bonus 鈥?encourages
                            exploration and prevents premature convergence.
     """
     from ray.rllib.policy.policy import PolicySpec
@@ -447,173 +441,6 @@ def build_ppo_config(
     )
 
     return ppo_cfg
-
-
-# ---------------------------------------------------------------------------
-# Plotting
-# ---------------------------------------------------------------------------
-
-def save_plots(rewards: List[float], kpis: List[Dict], save_dir: Path) -> None:
-    if not rewards:
-        return
-    iters = list(range(1, len(rewards) + 1))
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-    fig.suptitle("Independent PPO — CityLearn CE1", fontsize=14)
-
-    axes[0].plot(iters, rewards)
-    axes[0].set_title("Mean Episode Reward (train)")
-    axes[0].set_xlabel("Iteration")
-
-    for ax, key, title in [
-        (axes[1], "kpi/ramping",    "Ramping (avg)"),
-        (axes[2], "kpi/daily_peak", "Daily Peak (avg)"),
-    ]:
-        vals  = [k.get(key) for k in kpis]
-        valid = [(e, v) for e, v in zip(iters, vals) if v is not None]
-        if valid:
-            ev, vv = zip(*valid)
-            ax.plot(ev, vv, label="PPO")
-        ax.axhline(1.0, color="red", linestyle="--", alpha=0.6, label="No-control (=1)")
-        ax.set_title(f"KPI: {title}")
-        ax.set_xlabel("Iteration")
-        ax.legend(fontsize=7)
-
-    plt.tight_layout()
-    out = save_dir / "training_curves.png"
-    plt.savefig(str(out), dpi=100)
-    plt.close()
-    print(f"  [plot] saved → {out}")
-
-
-# ---------------------------------------------------------------------------
-# Daily metrics helpers  (identical to independent_sac/train.py)
-# ---------------------------------------------------------------------------
-
-def compute_daily_metrics(
-    step_loads:    List[float],
-    steps_per_day: int = 24,
-) -> pd.DataFrame:
-    arr    = np.array(step_loads, dtype=float)
-    n_days = len(arr) // steps_per_day
-    rows: List[Dict] = []
-
-    for d in range(n_days):
-        sl  = d * steps_per_day
-        el  = sl + steps_per_day
-        day = arr[sl:el]
-
-        peak = float(day.max())
-        low  = float(day.min())
-        mean = float(day.mean())
-
-        diffs   = np.abs(np.diff(day))
-        ramping = float(diffs.sum()) if len(diffs) > 0 else 0.0
-
-        load_factor = mean / peak if peak > 0 else float("nan")
-        pvr         = peak / low  if low  > 0 else float("nan")
-
-        rows.append({
-            "day":         d + 1,
-            "ramping":     ramping,
-            "daily_peak":  peak,
-            "daily_min":   low,
-            "load_factor": load_factor,
-            "pvr":         pvr,
-            "energy":      float(day.sum()),
-        })
-
-    return pd.DataFrame(rows)
-
-
-def save_daily_metrics_plot(
-    daily_df:   pd.DataFrame,
-    save_dir:   Path,
-    climate:    str,
-    month_name: str,
-) -> Path:
-    days = daily_df["day"].tolist()
-    fig, axes = plt.subplots(2, 3, figsize=(16, 8))
-    fig.suptitle(
-        f"Independent PPO — Daily Test Metrics | {climate} | {month_name}",
-        fontsize=13,
-    )
-
-    def _plot(ax, col: str, title: str, ylabel: str, color: str) -> None:
-        vals = daily_df[col].tolist()
-        ax.plot(days, vals, marker="o", markersize=3, color=color, linewidth=1.2)
-        ax.fill_between(days, vals, alpha=0.15, color=color)
-        mean_v = float(np.nanmean(vals))
-        ax.axhline(mean_v, color=color, linestyle="--", linewidth=0.8, alpha=0.7,
-                   label=f"mean={mean_v:.2f}")
-        ax.set_title(title, fontsize=10)
-        ax.set_xlabel("Day of test month")
-        ax.set_ylabel(ylabel)
-        ax.legend(fontsize=7)
-        ax.grid(True, alpha=0.3)
-
-    _plot(axes[0, 0], "ramping",     "Daily Ramping (∑|Δload|)",  "kW", "#e15759")
-    _plot(axes[0, 1], "daily_peak",  "Daily Peak Load",            "kW", "#f28e2b")
-    _plot(axes[0, 2], "load_factor", "Load Factor (mean/peak)",    "—",  "#4e79a7")
-    _plot(axes[1, 0], "pvr",         "Peak-to-Valley Ratio",       "—",  "#76b7b2")
-    _plot(axes[1, 1], "energy",      "Daily Energy Consumption",   "kWh","#59a14f")
-
-    ax_s = axes[1, 2]
-    ax_s.axis("off")
-    summary_cols = ["ramping", "daily_peak", "load_factor", "pvr", "energy"]
-    col_labels   = ["Metric", "Mean", "Std", "Min", "Max"]
-    cell_text    = []
-    for col in summary_cols:
-        v = daily_df[col].dropna()
-        cell_text.append([col, f"{v.mean():.3f}", f"{v.std():.3f}",
-                          f"{v.min():.3f}", f"{v.max():.3f}"])
-    tbl = ax_s.table(cellText=cell_text, colLabels=col_labels,
-                     loc="center", cellLoc="center")
-    tbl.auto_set_font_size(False)
-    tbl.set_fontsize(8)
-    tbl.scale(1.0, 1.4)
-    ax_s.set_title("Summary Statistics", fontsize=10)
-
-    plt.tight_layout()
-    out = Path(save_dir) / "test_daily_metrics.png"
-    plt.savefig(str(out), dpi=120)
-    plt.close()
-    print(f"  [daily] figure → {out}")
-    return out
-
-
-def _run_daily_pipeline(
-    test_result: Dict,
-    cfg:         Config,
-    save_dir:    Path,
-    use_wandb:   bool,
-) -> Optional[pd.DataFrame]:
-    step_loads: List[float] = test_result.get("_step_portfolio_loads", [])
-    if not step_loads:
-        print("[warn] No step-level load data — skipping daily metrics.")
-        return None
-
-    daily_df   = compute_daily_metrics(step_loads, steps_per_day=24)
-    month_name = _MONTH_NAMES.get(cfg.test_month, str(cfg.test_month))
-    save_daily_metrics_plot(daily_df, save_dir, cfg.climate, month_name)
-
-    csv_out = Path(save_dir) / "test_daily_metrics.csv"
-    daily_df.to_csv(csv_out, index=False)
-    print(f"  [daily] CSV → {csv_out}")
-
-    if use_wandb:
-        wandb.define_metric("test_day")
-        wandb.define_metric("test/daily/*", step_metric="test_day")
-        for _, row in daily_df.iterrows():
-            wandb.log({
-                "test_day":               int(row["day"]),
-                "test/daily/ramping":     row["ramping"],
-                "test/daily/peak":        row["daily_peak"],
-                "test/daily/load_factor": row["load_factor"],
-                "test/daily/pvr":         row["pvr"],
-                "test/daily/energy":      row["energy"],
-            })
-
-    return daily_df
 
 
 # ---------------------------------------------------------------------------
@@ -802,7 +629,7 @@ def save_plots(
 
     episodes = list(range(1, len(rewards) + 1))
     fig, axes = plt.subplots(2, 2, figsize=(14, 8))
-    fig.suptitle("Independent PPO - Primary Metrics", fontsize=14)
+    fig.suptitle(f"{ALGORITHM_LABEL} - Primary Metrics", fontsize=14)
 
     axes[0, 0].plot(episodes, rewards, color="#4e79a7")
     axes[0, 0].set_title("Mean Episode Reward")
@@ -844,7 +671,7 @@ def save_daily_metrics_plot(
     days = daily_df["day"].tolist()
     fig, axes = plt.subplots(2, 2, figsize=(14, 9))
     fig.suptitle(
-        f"Independent PPO - Primary Metrics | {climate} | {month_name}",
+        f"{ALGORITHM_LABEL} - Primary Metrics | {climate} | {month_name}",
         fontsize=13,
     )
 
@@ -947,7 +774,7 @@ def _run_daily_pipeline(
             save_dir,
             cfg.climate,
             month_name,
-            "Independent PPO",
+            ALGORITHM_LABEL,
         )
         if secondary_fig is not None:
             print(f"  [daily] secondary figure -> {secondary_fig}")
@@ -1025,17 +852,17 @@ def export_test_metrics(
 
     json_path = save_dir / "test_metrics.json"
     json_path.write_text(json.dumps(payload, indent=2))
-    print(f"  [test] metrics JSON → {json_path}")
+    print(f"  [test] metrics JSON 鈫?{json_path}")
 
     flat     = {k: v for k, v in payload.items()
                 if v is not None and not isinstance(v, (dict, list))}
     csv_path = save_dir / "test_metrics.csv"
     pd.DataFrame([flat]).to_csv(csv_path, index=False)
-    print(f"  [test] metrics CSV  → {csv_path}")
+    print(f"  [test] metrics CSV  鈫?{csv_path}")
 
 
 # ---------------------------------------------------------------------------
-# Test evaluation — runs one deterministic episode on the test window
+# Test evaluation 鈥?runs one deterministic episode on the test window
 # ---------------------------------------------------------------------------
 
 def evaluate_on_test(
@@ -1057,7 +884,7 @@ def evaluate_on_test(
     month_name = _MONTH_NAMES.get(cfg.test_month, str(cfg.test_month))
     print(f"\n{'='*65}")
     print(f"TEST EVALUATION | {cfg.climate} | {month_name} "
-          f"(steps {test_start}–{test_end})")
+          f"(steps {test_start}-{test_end})")
     print(f"{'='*65}")
 
     test_env = CityLearnPPOEnv({
@@ -1187,7 +1014,7 @@ def evaluate_on_test(
 def save_run_config(cfg: Config, save_dir: Path) -> None:
     p = save_dir / "run_config.json"
     p.write_text(json.dumps(vars(cfg), indent=2))
-    print(f"  [cfg] run_config.json → {p}")
+    print(f"  [cfg] run_config.json 鈫?{p}")
 
 
 def _make_backup_dir(cfg: Config) -> Path:
@@ -1206,11 +1033,11 @@ def run_test_only(cfg: Config) -> Dict:
 
     Skips training entirely.  The checkpoint directory must contain an RLlib
     checkpoint produced by algorithm.save().  The default checkpoint directory
-    is results/independent_ppo_{climate.lower()}/checkpoint.
+    is results/rllib_independent_ppo/checkpoint.
 
     Returns the test-result dict (same schema as export_test_metrics).
     """
-    # ── Resolve time window ───────────────────────────────────────────────
+    # 鈹€鈹€ Resolve time window 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     defaults   = _CLIMATE_DEFAULTS.get(cfg.climate, {})
     test_month = cfg.test_month or defaults.get("test_month")
 
@@ -1226,7 +1053,7 @@ def run_test_only(cfg: Config) -> Dict:
     if cfg.train_month is None:
         cfg.train_month = defaults.get("train_month", test_month)
 
-    # ── Directories ───────────────────────────────────────────────────────
+    # 鈹€鈹€ Directories 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     climate_lower = cfg.climate.lower()
     default_ckpt  = Path(cfg.save_dir).resolve() / "checkpoint"
     checkpoint_dir = Path(cfg.checkpoint_dir or str(default_ckpt)).resolve()
@@ -1234,9 +1061,9 @@ def run_test_only(cfg: Config) -> Dict:
     test_save_dir.mkdir(parents=True, exist_ok=True)
 
     print("\n" + "=" * 65)
-    print("INDEPENDENT PPO — TEST-ONLY MODE")
+    print(f"{ALGORITHM_LABEL.upper()} - TEST-ONLY MODE")
     print(f"  Climate:        {cfg.climate}")
-    print(f"  Test window:    {month_name} (steps {test_start}–{test_end})")
+    print(f"  Test window:    {month_name} (steps {test_start}-{test_end})")
     print(f"  Checkpoint dir: {checkpoint_dir}")
     print(f"  Output dir:     {test_save_dir}")
     print("=" * 65)
@@ -1247,11 +1074,11 @@ def run_test_only(cfg: Config) -> Dict:
             f"Run training first or pass --checkpoint_dir <path>."
         )
 
-    # ── Seed & Ray init ───────────────────────────────────────────────────
+    # 鈹€鈹€ Seed & Ray init 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     seed_everything(cfg.seed)
     ray.init(ignore_reinit_error=True, log_to_driver=False)
 
-    # ── Probe environment to get spaces ──────────────────────────────────
+    # 鈹€鈹€ Probe environment to get spaces 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     train_start = _MONTH_STARTS[cfg.train_month]
     train_end   = _MONTH_ENDS[cfg.train_month]
 
@@ -1274,7 +1101,7 @@ def run_test_only(cfg: Config) -> Dict:
     print(f"  agents: {len(agent_ids)} | obs_dim: {obs_space.shape[0]} | "
           f"act_dim: {act_space.shape[0]}")
 
-    # ── Rebuild PPO config and restore checkpoint ─────────────────────────
+    # 鈹€鈹€ Rebuild PPO config and restore checkpoint 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     ppo_cfg = build_ppo_config(
         cfg         = cfg,
         env_config  = probe_env_config,
@@ -1288,7 +1115,7 @@ def run_test_only(cfg: Config) -> Dict:
     algorithm.restore(str(checkpoint_dir))
     print("  Checkpoint loaded.")
 
-    # ── W&B init (test-only) ──────────────────────────────────────────────
+    # 鈹€鈹€ W&B init (test-only) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     use_wandb = _WANDB_OK
     if use_wandb:
         cfg_dict = vars(cfg).copy()
@@ -1305,7 +1132,7 @@ def run_test_only(cfg: Config) -> Dict:
         wandb.define_metric("test_step")
         wandb.define_metric("test/*", step_metric="test_step")
 
-    # ── Deterministic evaluation with per-step W&B logging ───────────────
+    # 鈹€鈹€ Deterministic evaluation with per-step W&B logging 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     test_result = evaluate_on_test(
         algorithm    = algorithm,
         cfg          = cfg,
@@ -1317,7 +1144,7 @@ def run_test_only(cfg: Config) -> Dict:
         log_per_step = True,
     )
 
-    # ── Export metrics + daily figure ─────────────────────────────────────
+    # 鈹€鈹€ Export metrics + daily figure 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     export_test_metrics(test_result, cfg, test_save_dir, test_start, test_end, test_month)
     _run_daily_pipeline(test_result, cfg, test_save_dir, use_wandb)
 
@@ -1338,7 +1165,7 @@ def run_test_only(cfg: Config) -> Dict:
 def train(cfg: Config) -> PPO:
     """Full RLlib PPO training loop followed by optional test evaluation."""
 
-    # ── Resolve time windows ──────────────────────────────────────────────
+    # 鈹€鈹€ Resolve time windows 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     defaults    = _CLIMATE_DEFAULTS.get(cfg.climate, {})
     train_month = cfg.train_month or defaults.get("train_month")
     test_month  = cfg.test_month  or defaults.get("test_month")
@@ -1354,25 +1181,25 @@ def train(cfg: Config) -> PPO:
     cfg.train_month = train_month
     cfg.test_month  = test_month
 
-    # ── Seed ─────────────────────────────────────────────────────────────
+    # 鈹€鈹€ Seed 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     seed_everything(cfg.seed)
     print_repro_metadata(cfg, train_start, train_end, test_start, test_end)
 
     # Print training and test window clearly
     print(f"Training window : {cfg.climate} | "
           f"{_MONTH_NAMES.get(train_month, str(train_month))} "
-          f"(steps {train_start}–{train_end})")
+          f"(steps {train_start}-{train_end})")
     if test_start is not None:
         print(f"Test window     : {cfg.climate} | "
               f"{_MONTH_NAMES.get(test_month, str(test_month))} "
-              f"(steps {test_start}–{test_end})")
+              f"(steps {test_start}-{test_end})")
 
-    # ── Output directory ──────────────────────────────────────────────────
+    # 鈹€鈹€ Output directory 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     save_dir = Path(cfg.save_dir).resolve()
     save_dir.mkdir(parents=True, exist_ok=True)
     save_run_config(cfg, save_dir)
 
-    # ── W&B init ──────────────────────────────────────────────────────────
+    # 鈹€鈹€ W&B init 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     use_wandb = _WANDB_OK
     if use_wandb:
         cfg_dict = vars(cfg).copy()
@@ -1387,7 +1214,7 @@ def train(cfg: Config) -> PPO:
         wandb.define_metric("train/*", step_metric="episode")
         wandb.define_metric("test/*",  step_metric="episode")
 
-    # ── Probe environment to get spaces ──────────────────────────────────
+    # 鈹€鈹€ Probe environment to get spaces 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     probe_env_config: Dict = {
         "climate":     cfg.climate,
         "n_buildings": cfg.n_buildings,
@@ -1407,7 +1234,7 @@ def train(cfg: Config) -> PPO:
           f"obs_dim: {obs_space.shape[0]} | act_dim: {act_space.shape[0]}")
     probe_env.close()
 
-    # ── Build and initialise algorithm ───────────────────────────────────
+    # 鈹€鈹€ Build and initialise algorithm 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     ppo_cfg = build_ppo_config(
         cfg         = cfg,
         env_config  = probe_env_config,
@@ -1419,9 +1246,9 @@ def train(cfg: Config) -> PPO:
     ray.init(ignore_reinit_error=True, log_to_driver=False)
     algorithm: PPO = ppo_cfg.build()
 
-    # ── Training loop ─────────────────────────────────────────────────────
+    # 鈹€鈹€ Training loop 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     print("=" * 65)
-    print(f"Independent PPO | Climate: {cfg.climate} | agents: {len(agent_ids)} | "
+    print(f"{ALGORITHM_LABEL} | Climate: {cfg.climate} | agents: {len(agent_ids)} | "
           f"iterations: {cfg.n_iterations}")
     print("=" * 65)
 
@@ -1438,16 +1265,9 @@ def train(cfg: Config) -> PPO:
 
         # Extract primary metrics and KPIs from custom_metrics logged by CE1Callback
         cm   = result.get("custom_metrics", {})
-        kpis = {
-            k.replace("kpi_", "kpi/").replace("_mean", ""): cm.get(k)
-            for k in cm
-            if k.startswith("kpi_") and k.endswith("_mean")
-        }
-        primary_metrics = {
-            k.replace("primary_", "primary/").replace("_mean", ""): cm.get(k)
-            for k in cm
-            if k.startswith("primary_") and k.endswith("_mean")
-        }
+        kpis = _collect_rllib_custom_metrics(cm, "kpi")
+        primary_metrics = _collect_rllib_custom_metrics(cm, "primary")
+        secondary_metrics = _collect_rllib_custom_metrics(cm, "secondary")
         all_primary_metrics.append(primary_metrics)
 
         if iteration % 10 == 0:
@@ -1467,19 +1287,25 @@ def train(cfg: Config) -> PPO:
                 "episode": iteration,
                 "train/portfolio/reward_sum": cm.get("portfolio_reward_sum_mean"),
                 "train/portfolio/reward_max": cm.get("portfolio_reward_sum_max"),
+                "train/episode_reward_mean": result.get("episode_reward_mean"),
+                "train/episode_len_mean": result.get("episode_len_mean"),
+                "train/episodes_this_iter": result.get("episodes_this_iter"),
                 **{f"train/{k}": v for k, v in primary_metrics.items()},
+                **{f"train/{k}": v for k, v in secondary_metrics.items()},
                 **{f"train/{k}": v for k, v in kpis.items()},
             }
+            for key, value in _extract_rllib_loss_metrics(result).items():
+                train_log[f"train/loss/{key}"] = value
             wandb.log(_filter_wandb(train_log), step=iteration)
 
         # Periodic checkpoint
         if iteration % save_every == 0 or iteration == cfg.n_iterations:
             ckpt = algorithm.save(str(save_dir / "checkpoint"))
             ckpt_dir_path = str(ckpt)
-            print(f"  [ckpt] iter {iteration} → {ckpt_dir_path}")
+            print(f"  [ckpt] iter {iteration} 鈫?{ckpt_dir_path}")
             save_plots(all_rewards, all_primary_metrics, save_dir)
 
-    # ── Test evaluation ───────────────────────────────────────────────────
+    # 鈹€鈹€ Test evaluation 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     test_result: Optional[Dict] = None
     if cfg.do_test and test_start is not None:
         test_result = evaluate_on_test(
@@ -1496,10 +1322,11 @@ def train(cfg: Config) -> PPO:
         )
         _run_daily_pipeline(test_result, cfg, save_dir, use_wandb)
 
-    # ── Final artifacts ───────────────────────────────────────────────────
+    # 鈹€鈹€ Final artifacts 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     save_plots(all_rewards, all_primary_metrics, save_dir)
 
     final_metrics: Dict = {
+        "algorithm": ALGORITHM_LABEL,
         "train": {
             "n_iterations":        cfg.n_iterations,
             "last_ep_reward_mean": all_rewards[-1] if all_rewards else None,
@@ -1524,7 +1351,7 @@ def train(cfg: Config) -> PPO:
     backup_dir.mkdir(parents=True, exist_ok=True)
     for f in list(save_dir.glob("*.json")) + list(save_dir.glob("*.png")) + list(save_dir.glob("*.csv")):
         shutil.copy2(f, backup_dir / f.name)
-    print(f"  [backup] → {backup_dir}/")
+    print(f"  [backup] 鈫?{backup_dir}/")
 
     if use_wandb:
         wandb.finish()
@@ -1543,7 +1370,7 @@ def train(cfg: Config) -> PPO:
 
 def parse_args() -> Config:
     parser = argparse.ArgumentParser(
-        description="Independent PPO Baseline for CityLearn Annex96-CE1"
+        description="RLlib Independent PPO Baseline for CityLearn Annex96-CE1"
     )
 
     # Dataset
@@ -1578,8 +1405,8 @@ def parse_args() -> Config:
     # Logging
     parser.add_argument("--seed",          type=int, default=42)
     parser.add_argument("--wandb_project", default="annex96-ce1")
-    parser.add_argument("--wandb_name",    default="independent-ppo")
-    parser.add_argument("--save_dir",      default="results/independent_ppo")
+    parser.add_argument("--wandb_name",    default="rllib-independent-ppo")
+    parser.add_argument("--save_dir",      default="results/rllib_independent_ppo")
     parser.add_argument("--backup_dir",    default=None)
 
     # Workflow

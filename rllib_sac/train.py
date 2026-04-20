@@ -17,20 +17,27 @@ Architecture
 
 W&B logging
 -----------
-- RLlib result dicts are logged at every training iteration.
-- Custom WandBCallback (below) also logs per-building episode rewards and
-  district-level CityLearn KPIs extracted after each episode ends.
+- CE1Callback records per-building rewards and CityLearn KPIs as RLlib custom
+  metrics.
+- train() logs README-aligned primary/secondary metrics and SAC loss metrics
+  using the same public W&B keys as SB3 Independent SAC and MAPPO.
 
 Output artifacts (in save_dir/):
     checkpoint/        — RLlib checkpoint (actor/critic weights for all agents)
     run_config.json    — full hyperparameter snapshot
+    latest_metrics.json
     test_metrics.json  — test-episode KPIs (comparable with other baselines)
     test_metrics.csv
+    test_daily_metrics.png
+    test_daily_metrics.csv
+    test_daily_secondary_metrics.png
+    test_daily_secondary_flexible_metrics.csv
+    test_daily_secondary_baseline_metrics.csv
     training_curves.png
 
 Run:
-    python -m rllib_sac.train                        # TX: Aug train, Sep test
-    python -m rllib_sac.train --climate VT           # VT: Jan train, Feb test
+    python -m rllib_sac.train                        # VT: Jan train, Feb test
+    python -m rllib_sac.train --climate TX           # TX: Aug train, Sep test
     python -m rllib_sac.train --climate TX --n_iterations 20 --seed 0
     python -m rllib_sac.train --no_test
 
@@ -56,6 +63,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+from annex96_reporting import (
+    compute_secondary_daily_tables,
+    export_secondary_daily_metrics,
+    save_secondary_daily_metrics_plot,
+)
 
 # Ensure local CityLearn copy takes precedence
 REPO_DIR = Path(__file__).resolve().parent.parent
@@ -72,7 +84,7 @@ from ray.rllib.policy import Policy
 from ray.rllib.utils.typing import PolicyID
 
 from rllib_sac.env import CityLearnMultiAgentEnv, _build_citylearn
-from mappo.utils import extract_episode_kpis, get_soc_stats
+from mappo.utils import extract_episode_kpis, get_soc_stats, resolve_reference_baseline_series
 
 try:
     import wandb
@@ -105,6 +117,7 @@ _CLIMATE_DEFAULTS: Dict[str, Dict[str, int]] = {
     "VT": {"train_month": 1, "test_month": 2},
     "TX": {"train_month": 8, "test_month": 9},
 }
+ALGORITHM_LABEL = "RLlib Independent SAC"
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +127,7 @@ _CLIMATE_DEFAULTS: Dict[str, Dict[str, int]] = {
 @dataclass
 class Config:
     # Dataset
-    climate:     str = "TX"
+    climate:     str = "VT"
     n_buildings: int = 25
 
     # RLlib SAC hyperparameters (native RLlib names preserved for clarity)
@@ -145,7 +158,7 @@ class Config:
     # Logging
     seed:          int          = 42
     wandb_project: str          = "annex96-ce1"
-    wandb_name:    str          = "rllib-sac"
+    wandb_name:    str          = "rllib-independent-sac"
     save_dir:      str          = "results/rllib_sac"
     backup_dir:    Optional[str] = None
 
@@ -195,7 +208,7 @@ def print_repro_metadata(
 # ---------------------------------------------------------------------------
 
 class CE1Callback(DefaultCallbacks):
-    """RLlib callback that logs per-episode rewards, KPIs, and portfolio sums.
+    """Record per-episode rewards, KPIs, and primary metrics for RLlib.
 
     Hooks used:
       on_episode_end   — log per-building rewards and district-level KPIs
@@ -267,10 +280,10 @@ class CE1Callback(DefaultCallbacks):
         episode.custom_metrics["portfolio_reward_sum"] = portfolio_reward
         for k, v in kpis.items():
             if v is not None:
-                episode.custom_metrics[k.replace("/", "_")] = v
+                episode.custom_metrics[k] = v
         for k, v in primary_metrics.items():
             if v is not None:
-                episode.custom_metrics[k.replace("/", "_")] = v
+                episode.custom_metrics[k] = v
         for agent_id, r in agent_rewards.items():
             episode.custom_metrics[f"{agent_id}_reward"] = r
 
@@ -281,58 +294,8 @@ class CE1Callback(DefaultCallbacks):
         result: Dict,
         **kwargs,
     ) -> None:
-        """Called after each training iteration with the aggregated result.
-
-        Logs everything to W&B if available.
-        """
-        if not _WANDB_OK:
-            return
-
-        iteration = result.get("training_iteration", 0)
-
-        log: Dict[str, Any] = {"episode": iteration}
-
-        # Portfolio reward aggregated by RLlib from custom_metrics
-        cm = result.get("custom_metrics", {})
-        for key in ["portfolio_reward_sum_mean", "portfolio_reward_sum_max"]:
-            if key in cm:
-                log[f"train/portfolio/{key}"] = cm[key]
-
-        # Per-building rewards from custom_metrics
-        for k, v in cm.items():
-            if k.endswith("_reward_mean") and k.startswith("building_"):
-                log[f"train/{k.replace('_reward_mean', '')}/reward"] = v
-
-        # KPIs
-        for k, v in cm.items():
-            if k.startswith("kpi_") and k.endswith("_mean"):
-                kpi_name = k[len("kpi_"):-len("_mean")].replace("_", "/")
-                log[f"train/kpi/{kpi_name}"] = v
-
-        for k, v in cm.items():
-            if k.startswith("primary_") and k.endswith("_mean"):
-                primary_name = k[len("primary_"):-len("_mean")].replace("_", "/")
-                log[f"train/primary/{primary_name}"] = v
-
-        # RLlib SAC-specific loss metrics
-        info = result.get("info", {}).get("learner", {})
-        for policy_id, policy_stats in info.items():
-            if not isinstance(policy_stats, dict):
-                continue
-            for stat_key in ["actor_loss", "critic_loss", "alpha_value", "entropy"]:
-                if stat_key in policy_stats:
-                    log[f"train/loss/{policy_id}/{stat_key}"] = policy_stats[stat_key]
-            break  # log first policy only to keep W&B tidy
-
-        # Episode stats from result
-        if "episode_reward_mean" in result:
-            log["train/episode_reward_mean"] = result["episode_reward_mean"]
-        if "episodes_this_iter" in result:
-            log["train/episodes_this_iter"] = result["episodes_this_iter"]
-
-        wandb.log(_filter_wandb(log), step=iteration)
-
-        # Clear accumulator
+        # W&B logging is centralized in train() so public keys stay aligned
+        # with SB3 Independent SAC and MAPPO baselines.
         self._ep_portfolio_rewards.clear()
         self._ep_kpis.clear()
 
@@ -341,12 +304,54 @@ def _filter_wandb(d: Dict) -> Dict:
     """Drop None / NaN / inf values before logging."""
     out: Dict = {}
     for k, v in d.items():
-        if v is None:
+        if v is None or k.startswith("_"):
+            continue
+        if isinstance(v, (dict, list, tuple)):
             continue
         if isinstance(v, (float, np.floating)) and not np.isfinite(v):
             continue
         out[k] = v
     return out
+
+
+def _collect_rllib_custom_metrics(custom_metrics: Dict[str, Any], prefix: str) -> Dict[str, Any]:
+    metric_prefix = f"{prefix}/"
+    suffix = "_mean"
+    return {
+        key[:-len(suffix)]: value
+        for key, value in custom_metrics.items()
+        if key.startswith(metric_prefix) and key.endswith(suffix)
+    }
+
+
+def _extract_rllib_sac_loss_metrics(result: Dict[str, Any]) -> Dict[str, float]:
+    learner = result.get("info", {}).get("learner", {})
+    aliases = {
+        "actor_loss": "actor_loss",
+        "policy_loss": "actor_loss",
+        "critic_loss": "critic_loss",
+        "qf_loss": "critic_loss",
+        "alpha_value": "ent_coef",
+        "alpha": "ent_coef",
+        "alpha_loss": "ent_coef_loss",
+        "entropy": "entropy",
+    }
+    for policy_stats in learner.values():
+        if not isinstance(policy_stats, dict):
+            continue
+        stats = policy_stats.get("learner_stats", policy_stats)
+        if not isinstance(stats, dict):
+            continue
+        losses: Dict[str, float] = {}
+        for source_key, target_key in aliases.items():
+            if source_key not in stats:
+                continue
+            value = _safe_scalar(stats[source_key])
+            if value is not None:
+                losses[target_key] = value
+        if losses:
+            return losses
+    return {}
 
 
 # ---------------------------------------------------------------------------
@@ -437,42 +442,6 @@ def build_sac_config(
     )
 
     return sac_cfg
-
-
-# ---------------------------------------------------------------------------
-# Plotting
-# ---------------------------------------------------------------------------
-
-def save_plots(rewards: List[float], kpis: List[Dict], save_dir: Path) -> None:
-    if not rewards:
-        return
-    iters = list(range(1, len(rewards) + 1))
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-    fig.suptitle("RLlib SAC — CityLearn CE1", fontsize=14)
-
-    axes[0].plot(iters, rewards)
-    axes[0].set_title("Mean Episode Reward (train)")
-    axes[0].set_xlabel("Iteration")
-
-    for ax, key, title in [
-        (axes[1], "kpi/ramping",    "Ramping (avg)"),
-        (axes[2], "kpi/daily_peak", "Daily Peak (avg)"),
-    ]:
-        vals  = [k.get(key) for k in kpis]
-        valid = [(e, v) for e, v in zip(iters, vals) if v is not None]
-        if valid:
-            ev, vv = zip(*valid)
-            ax.plot(ev, vv)
-        ax.axhline(1.0, color="red", linestyle="--", alpha=0.6, label="No-control (=1)")
-        ax.set_title(f"KPI: {title}")
-        ax.set_xlabel("Iteration")
-        ax.legend(fontsize=7)
-
-    plt.tight_layout()
-    out = save_dir / "training_curves.png"
-    plt.savefig(str(out), dpi=100)
-    plt.close()
-    print(f"  [plot] saved → {out}")
 
 
 # ---------------------------------------------------------------------------
@@ -661,7 +630,7 @@ def save_plots(
 
     iters = list(range(1, len(rewards) + 1))
     fig, axes = plt.subplots(2, 2, figsize=(14, 8))
-    fig.suptitle("RLlib SAC - Primary Metrics", fontsize=14)
+    fig.suptitle(f"{ALGORITHM_LABEL} - Primary Metrics", fontsize=14)
 
     axes[0, 0].plot(iters, rewards, color="#4e79a7")
     axes[0, 0].set_title("Mean Episode Reward")
@@ -703,7 +672,7 @@ def save_daily_metrics_plot(
     days = daily_df["day"].tolist()
     fig, axes = plt.subplots(2, 2, figsize=(14, 9))
     fig.suptitle(
-        f"RLlib SAC - Primary Metrics | {climate} | {month_name}",
+        f"{ALGORITHM_LABEL} - Primary Metrics | {climate} | {month_name}",
         fontsize=13,
     )
 
@@ -771,14 +740,17 @@ def _run_daily_pipeline(
 ) -> Optional[pd.DataFrame]:
     daily_records = test_result.get("_daily_primary_metrics")
     comfort_records = test_result.get("_building_comfort_metrics")
-    if not daily_records:
-        print("[warn] No Primary Metrics daily records - skipping daily artifacts.")
+    step_loads: List[float] = test_result.get("_step_portfolio_loads", [])
+    baseline_loads: List[float] = test_result.get("_step_portfolio_loads_baseline", [])
+    if not daily_records and not step_loads:
+        print("[warn] No daily records - skipping daily artifacts.")
         return None
 
-    daily_df = pd.DataFrame(daily_records)
+    daily_df = pd.DataFrame(daily_records or [])
     comfort_df = pd.DataFrame(comfort_records or [])
     month_name = _MONTH_NAMES.get(cfg.test_month, str(cfg.test_month))
-    save_daily_metrics_plot(daily_df, comfort_df, save_dir, cfg.climate, month_name)
+    if not daily_df.empty:
+        save_daily_metrics_plot(daily_df, comfort_df, save_dir, cfg.climate, month_name)
 
     daily_csv = Path(save_dir) / "test_daily_metrics.csv"
     daily_df.to_csv(daily_csv, index=False)
@@ -788,17 +760,70 @@ def _run_daily_pipeline(
     comfort_df.to_csv(comfort_csv, index=False)
     print(f"  [daily] building comfort CSV -> {comfort_csv}")
 
+    secondary_flexible_df, secondary_baseline_df = compute_secondary_daily_tables(
+        step_loads,
+        baseline_loads,
+        steps_per_day=24,
+    ) if step_loads and baseline_loads else (
+        compute_secondary_daily_tables(step_loads, [], steps_per_day=24)[0] if step_loads else pd.DataFrame(),
+        pd.DataFrame(),
+    )
+
+    if not secondary_flexible_df.empty or not secondary_baseline_df.empty:
+        secondary_fig = save_secondary_daily_metrics_plot(
+            secondary_flexible_df,
+            secondary_baseline_df,
+            save_dir,
+            cfg.climate,
+            month_name,
+            ALGORITHM_LABEL,
+        )
+        if secondary_fig is not None:
+            print(f"  [daily] secondary figure -> {secondary_fig}")
+        flexible_csv, baseline_csv = export_secondary_daily_metrics(
+            secondary_flexible_df,
+            secondary_baseline_df,
+            save_dir,
+        )
+        if flexible_csv is not None:
+            print(f"  [daily] secondary flexible CSV -> {flexible_csv}")
+        if baseline_csv is not None:
+            print(f"  [daily] secondary baseline CSV -> {baseline_csv}")
+
     if use_wandb:
         wandb.define_metric("test_day")
-        wandb.define_metric("test/daily_primary/*", step_metric="test_day")
-        for _, row in daily_df.iterrows():
-            wandb.log(_filter_wandb({
-                "test_day": int(row["day"]),
-                "test/daily_primary/nmbe_pct": row["nmbe_pct"],
-                "test/daily_primary/cv_rmse_pct": row["cv_rmse_pct"],
-                "test/daily_primary/temperature_exceedance_pct_portfolio": row["temperature_exceedance_pct_portfolio"],
-                "test/daily_primary/temperature_exceedance_hours_total": row["temperature_exceedance_hours_total"],
-            }))
+        if not secondary_flexible_df.empty:
+            wandb.define_metric("test/daily/*", step_metric="test_day")
+            for _, row in secondary_flexible_df.iterrows():
+                wandb.log(_filter_wandb({
+                    "test_day": int(row["day"]),
+                    "test/daily/ramping": row["ramping"],
+                    "test/daily/peak": row["daily_peak"],
+                    "test/daily/load_factor": row["load_factor"],
+                    "test/daily/pvr": row["pvr"],
+                    "test/daily/energy": row["energy"],
+                }))
+        if not secondary_baseline_df.empty:
+            wandb.define_metric("test/daily_baseline/*", step_metric="test_day")
+            for _, row in secondary_baseline_df.iterrows():
+                wandb.log(_filter_wandb({
+                    "test_day": int(row["day"]),
+                    "test/daily_baseline/ramping": row["ramping"],
+                    "test/daily_baseline/peak": row["daily_peak"],
+                    "test/daily_baseline/load_factor": row["load_factor"],
+                    "test/daily_baseline/pvr": row["pvr"],
+                    "test/daily_baseline/energy": row["energy"],
+                }))
+        if not daily_df.empty:
+            wandb.define_metric("test/daily_primary/*", step_metric="test_day")
+            for _, row in daily_df.iterrows():
+                wandb.log(_filter_wandb({
+                    "test_day": int(row["day"]),
+                    "test/daily_primary/nmbe_pct": row["nmbe_pct"],
+                    "test/daily_primary/cv_rmse_pct": row["cv_rmse_pct"],
+                    "test/daily_primary/temperature_exceedance_pct_portfolio": row["temperature_exceedance_pct_portfolio"],
+                    "test/daily_primary/temperature_exceedance_hours_total": row["temperature_exceedance_hours_total"],
+                }))
 
     return daily_df
 
@@ -824,7 +849,7 @@ def evaluate_on_test(
     """
     month_name = _MONTH_NAMES.get(cfg.test_month, str(cfg.test_month))
     print(f"\n{'='*65}")
-    print(f"TEST EVALUATION | {cfg.climate} | {month_name} (steps {test_start}–{test_end})")
+    print(f"TEST EVALUATION | {cfg.climate} | {month_name} (steps {test_start}-{test_end})")
     print(f"{'='*65}")
 
     test_env_obj = CityLearnMultiAgentEnv({
@@ -901,6 +926,7 @@ def evaluate_on_test(
         **{f"test/{k}": v for k, v in test_kpis.items()},
         **{f"test/{k}": v for k, v in test_soc.items()},
         "_step_portfolio_loads": step_portfolio_loads,
+        "_step_portfolio_loads_baseline": resolve_reference_baseline_series(test_env_obj.base_env)[: len(step_portfolio_loads)].tolist(),
         "_daily_primary_metrics": daily_primary_df.to_dict(orient="records"),
         "_building_comfort_metrics": comfort_building_df.to_dict(orient="records"),
     }
@@ -1049,7 +1075,7 @@ def train(cfg: Config) -> SAC:
 
     # ── Training loop ─────────────────────────────────────────────────────
     print("=" * 65)
-    print(f"RLlib SAC | Climate: {cfg.climate} | agents: {len(agent_ids)} | "
+    print(f"{ALGORITHM_LABEL} | Climate: {cfg.climate} | agents: {len(agent_ids)} | "
           f"iterations: {cfg.n_iterations}")
     print("=" * 65)
 
@@ -1063,10 +1089,10 @@ def train(cfg: Config) -> SAC:
         ep_reward_mean = result.get("episode_reward_mean", float("nan"))
         all_rewards.append(ep_reward_mean)
 
-        # Extract primary metrics from custom_metrics if available
         cm   = result.get("custom_metrics", {})
-        primary_metrics = {k.replace("primary_", "primary/").replace("_mean", ""):
-                           cm.get(k) for k in cm if k.startswith("primary_") and k.endswith("_mean")}
+        kpis = _collect_rllib_custom_metrics(cm, "kpi")
+        primary_metrics = _collect_rllib_custom_metrics(cm, "primary")
+        secondary_metrics = _collect_rllib_custom_metrics(cm, "secondary")
         all_primary_metrics.append(primary_metrics)
 
         if iteration % 10 == 0:
@@ -1080,6 +1106,25 @@ def train(cfg: Config) -> SAC:
                 f"portfolio_sum {portfolio_mean:9.2f} | "
                 f"NMBE {nmbe_str}% | CV-RMSE {cv_rmse_str}%"
             )
+
+        if use_wandb:
+            train_log: Dict[str, Any] = {
+                "episode": iteration,
+                "train/portfolio/reward_sum": cm.get("portfolio_reward_sum_mean"),
+                "train/portfolio/reward_max": cm.get("portfolio_reward_sum_max"),
+                "train/episode_reward_mean": result.get("episode_reward_mean"),
+                "train/episode_len_mean": result.get("episode_len_mean"),
+                "train/episodes_this_iter": result.get("episodes_this_iter"),
+                **{f"train/{k}": v for k, v in primary_metrics.items()},
+                **{f"train/{k}": v for k, v in secondary_metrics.items()},
+                **{f"train/{k}": v for k, v in kpis.items()},
+            }
+            for key, value in _extract_rllib_sac_loss_metrics(result).items():
+                train_log[f"train/loss/{key}"] = value
+            for key, value in cm.items():
+                if key.endswith("_reward_mean") and key.startswith("building_"):
+                    train_log[f"train/{key.replace('_reward_mean', '')}/reward"] = value
+            wandb.log(_filter_wandb(train_log), step=iteration)
 
         # Periodic checkpoint
         if iteration % max(cfg.n_iterations // 10, 1) == 0 or iteration == cfg.n_iterations:
@@ -1110,6 +1155,7 @@ def train(cfg: Config) -> SAC:
     save_plots(all_rewards, all_primary_metrics, save_dir)
 
     final_metrics: Dict = {
+        "algorithm": ALGORITHM_LABEL,
         "train": {
             "n_iterations":       cfg.n_iterations,
             "last_ep_reward_mean": all_rewards[-1] if all_rewards else None,
@@ -1148,7 +1194,7 @@ def parse_args() -> Config:
     parser = argparse.ArgumentParser(
         description="RLlib SAC Baseline for CityLearn Annex96-CE1"
     )
-    parser.add_argument("--climate",      default="TX", choices=["VT", "TX"])
+    parser.add_argument("--climate",      default="VT", choices=["VT", "TX"])
     parser.add_argument("--n_buildings",  type=int,   default=25)
 
     # SAC hyperparameters
@@ -1169,7 +1215,7 @@ def parse_args() -> Config:
     # Logging
     parser.add_argument("--seed",          type=int,   default=42)
     parser.add_argument("--wandb_project", default="annex96-ce1")
-    parser.add_argument("--wandb_name",    default="rllib-sac")
+    parser.add_argument("--wandb_name",    default="rllib-independent-sac")
     parser.add_argument("--save_dir",      default="results/rllib_sac")
     parser.add_argument("--backup_dir",    default=None)
 

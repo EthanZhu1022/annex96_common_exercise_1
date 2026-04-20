@@ -27,7 +27,7 @@ Train/test windows (strict — set in code, not schema files)
   VT: train 0-743   (January),   test 744-1415  (February)
   TX: train 5088-5831 (August),  test 5832-6551 (September)
 
-W&B fields (aligned with independent_ppo for side-by-side comparison)
+W&B fields (aligned with rllib_independent_ppo for side-by-side comparison)
 ----------------------------------------------------------------------
   train/portfolio/reward_sum   train/kpi/ramping   train/kpi/daily_peak
   train/loss/value_loss        train/loss/policy_loss   train/loss/dist_entropy
@@ -393,7 +393,7 @@ def _collect_rollout(
 
 
 # ---------------------------------------------------------------------------
-# Plotting (mirrors independent_ppo style)
+# Plotting (mirrors rllib_independent_ppo style)
 # ---------------------------------------------------------------------------
 
 def save_plots(
@@ -433,7 +433,7 @@ def save_plots(
 
 
 # ---------------------------------------------------------------------------
-# Daily metrics helpers (same as independent_ppo/train.py)
+# Daily metrics helpers (same as rllib_independent_ppo/train.py)
 # ---------------------------------------------------------------------------
 
 def compute_daily_metrics(
@@ -944,7 +944,7 @@ def _run_daily_pipeline(
 
 
 # ---------------------------------------------------------------------------
-# Test metrics export (same schema as independent_ppo)
+# Test metrics export (same schema as rllib_independent_ppo)
 # ---------------------------------------------------------------------------
 
 def export_test_metrics(

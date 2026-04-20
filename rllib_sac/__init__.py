@@ -1,1 +1,1 @@
-# RLlib SAC baseline for Annex96-CE1
+# RLlib Independent SAC baseline for Annex96-CE1

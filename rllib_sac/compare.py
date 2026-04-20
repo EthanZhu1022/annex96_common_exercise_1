@@ -1,6 +1,6 @@
 """
 Baseline Comparison Utility — extends independent_sac/compare.py to include
-RLlib SAC results alongside MAPPO and Independent SAC.
+RLlib Independent SAC results alongside MAPPO and SB3/custom Independent SAC.
 
 Usage:
     python -m rllib_sac.compare \\
@@ -22,10 +22,10 @@ from independent_sac.compare import compare, METRIC_COLS  # reuse shared logic
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Compare RLlib SAC + other baselines for Annex96-CE1"
+        description="Compare RLlib Independent SAC + other baselines for Annex96-CE1"
     )
     parser.add_argument("--rllib",  default=None, metavar="CSV",
-                        help="Path to RLlib SAC test_metrics.csv")
+                        help="Path to RLlib Independent SAC test_metrics.csv")
     parser.add_argument("--sac",    default=None, metavar="CSV",
                         help="Path to Independent SAC test_metrics.csv")
     parser.add_argument("--mappo",  default=None, metavar="CSV",
@@ -40,7 +40,7 @@ def main() -> None:
 
     files: Dict[str, str] = {}
     if args.rllib:
-        files["RLlib-SAC"] = args.rllib
+        files["RLlib-Independent-SAC"] = args.rllib
     if args.sac:
         files["Independent-SAC"] = args.sac
     if args.mappo:

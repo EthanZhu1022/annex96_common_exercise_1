@@ -10,7 +10,7 @@ Key design choices
 ------------------
 - Action space convention : normalized (-1, 1), scaled to native CityLearn bounds
   inside step() — identical to the convention used across all other baselines
-  (independent_ppo, rllib_sac, mappo).
+  (rllib_independent_ppo, rllib_sac, mappo).
   Formula: scaled = low + (raw + 1) * 0.5 * (high - low)
 
 - Centralized observation : concatenation of all N=25 buildings' local observations.
@@ -52,7 +52,7 @@ from citylearn.wrappers import NormalizedObservationWrapper
 
 
 # ---------------------------------------------------------------------------
-# Internal builder (mirrors independent_ppo/env.py::_build_citylearn)
+# Internal builder (mirrors rllib_independent_ppo/env.py::_build_citylearn)
 # ---------------------------------------------------------------------------
 
 def _build_citylearn(

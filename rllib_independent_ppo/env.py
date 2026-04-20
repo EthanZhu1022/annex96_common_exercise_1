@@ -16,7 +16,7 @@ the same scaling logic applies unchanged.
 
 Usage
 -----
-    from independent_ppo.env import CityLearnPPOEnv
+    from rllib_independent_ppo.env import CityLearnPPOEnv
     env = CityLearnPPOEnv({
         "climate":     "TX",
         "n_buildings": 25,
