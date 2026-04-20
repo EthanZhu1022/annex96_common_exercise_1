@@ -1,59 +1,62 @@
-\chapter{Planned Evaluation and Analysis}\label{ch:eval}
+\chapter{Preliminary Evaluation and Planned Analysis}\label{ch:eval}
 
-This chapter describes the evaluation that will be completed after the remaining
-training runs. Since this is a midterm report, final numerical results,
-statistical comparison, and result interpretation are intentionally left for the
-final report. The purpose of this chapter is to define a rigorous and
-reproducible analysis plan.
+This chapter reports the current partial results and the remaining evaluation
+plan. The results should be treated as preliminary because they are based on
+Vermont only, one random seed, and 200 training episodes. They are useful for
+debugging, early comparison, and identifying promising directions, but they are
+not sufficient for final claims.
 
 \section{Experimental Setting}
 
 The experiments use the Annex 96 Common Exercise 1 CityLearn portfolios. Each
 portfolio contains 25 single-family homes with photovoltaic generation and
 battery storage. Two climates are available: Vermont, which is
-heating-dominated, and Texas, which is cooling-dominated. The train/test split
-follows the exercise specification:
+heating-dominated, and Texas, which is cooling-dominated. The current completed
+test results are for Vermont only.
 
 \begin{table}[h]
 \begin{center}
-\begin{tabular}{|l|l|l|}
+\begin{tabular}{|l|l|l|l|}
 \hline
-Climate & Training month & Testing month \\
+Climate & Training month & Testing month & Current status \\
 \hline
-Vermont & January & February \\
-Texas & August & September \\
+Vermont & January & February & 200-episode partial results available \\
+Texas & August & September & full runs still pending \\
 \hline
 \end{tabular}
 \end{center}
-\caption{Annex 96 train/test split.}
+\caption{Annex 96 train/test split and current experiment status.}
 \label{tab:split}
 \end{table}
 
-All final metrics will be reported on the testing month. The training month may
-be repeated for multiple episodes until the assigned training budget is reached.
-To keep the comparison fair, all methods will use the same train/test split,
-episode count, random seed policy, network size, and optimizer settings unless
-an ablation explicitly changes one of these variables.
+The available runs use seed 42 and 200 training episodes or iterations. Most
+MAPPO variants share the same hyperparameters: hidden size 256, two network
+layers, learning rate $3\times10^{-4}$, discount factor $0.99$, GAE parameter
+$0.95$, PPO clip parameter $0.2$, 10 PPO epochs, and four mini-batches. The
+K-means grouped variants use four groups with group sizes 8, 7, 6, and 4.
 
-\section{Methods to Compare}
+\section{Available Runs}
 
-The final comparison will include the following methods:
+The local \texttt{results} and \texttt{wandb} folders contain completed
+testing-month metrics for the following runs:
 
 \begin{itemize}
-  \item RBC or Common Exercise baseline;
-  \item RLlib independent PPO;
-  \item independent SAC;
-  \item standard MAPPO with full parameter sharing;
-  \item grouped MAPPO without communication;
-  \item grouped MAPPO with CommNet-style communication;
-  \item grouped MAPPO with PowerNet-style neighbor communication;
-  \item grouped MAPPO with TarMAC-style attention;
-  \item grouped MAPPO with weighted same-group/other-group communication.
+  \item SB3 independent PPO;
+  \item standard MAPPO;
+  \item grouped MAPPO;
+  \item grouped MAPPO without communication through the communication wrapper;
+  \item grouped MAPPO with global CommNet communication;
+  \item grouped MAPPO with weighted same-group/other-group communication;
+  \item grouped MAPPO with DIAL-style communication;
+  \item grouped MAPPO with intra-group PowerNet-style communication;
+  \item grouped MAPPO with global PowerNet-style communication;
+  \item grouped MAPPO with TarMAC-style attention.
 \end{itemize}
 
-The key ablation is grouped MAPPO without communication versus grouped MAPPO
-with communication. This isolates the contribution of message passing after
-accounting for the effect of selective parameter sharing.
+RLlib independent PPO, RLlib SAC, and SB3 independent SAC currently have run
+configuration files but no complete exported test metrics in the local results
+folder. They should therefore remain excluded from numerical comparison until
+their test metrics are exported.
 
 \section{Primary Metrics}
 
@@ -74,110 +77,128 @@ metrics are:
 \end{equation}
 
 NMBE measures systematic bias relative to the target. CV-RMSE measures overall
-tracking error and is expected to be the most important single number for the
-load-following objective.
+tracking error and is the most important single number for the load-following
+objective. Comfort exceedance hours are also included because tracking
+improvement is not useful if it is achieved by sacrificing indoor comfort.
+
+\section{Preliminary Test Results}
+
+Table~\ref{tab:prelim-primary-results} summarizes the current February Vermont
+test results. Lower absolute NMBE, lower CV-RMSE, lower comfort hours, and a
+less negative reward are preferred. The table is intentionally labelled as
+preliminary because it uses a limited training budget.
+
+\begin{table}[h]
+\small
+\begin{center}
+\begin{tabular}{|l|r|r|r|r|}
+\hline
+Controller & Reward sum & NMBE (\%) & CV-RMSE (\%) & Comfort hours \\
+\hline
+SB3 Independent PPO & -1371654.6 & -15.15 & 50.06 & 14421 \\
+Standard MAPPO & -32154.6 & -21.59 & 58.57 & 8626 \\
+Grouped MAPPO & -37403.5 & -24.12 & 57.10 & 9275 \\
+Grouped MAPPO, no comm & -41856.6 & -21.09 & 55.71 & 9367 \\
+CommNet global & -36186.4 & -21.64 & 53.05 & 9332 \\
+Weighted group comm & -40332.5 & -25.21 & 58.12 & 10284 \\
+DIAL-style global & -114475.0 & -29.12 & 60.58 & 10982 \\
+PowerNet intra-group & -58907.3 & -23.27 & 57.25 & 9431 \\
+PowerNet global & -41486.5 & -23.70 & 57.93 & 9659 \\
+TarMAC global & -41342.9 & -23.25 & 55.88 & 9486 \\
+\hline
+\end{tabular}
+\end{center}
+\caption{Preliminary Vermont test results after 200 training episodes.}
+\label{tab:prelim-primary-results}
+\end{table}
+
+The early results show several useful patterns. SB3 independent PPO has the
+lowest CV-RMSE, but its portfolio reward and comfort performance are much
+worse than the MAPPO variants. This suggests that its tracking improvement is
+not currently balanced with comfort or reward. Standard MAPPO has the best
+reward sum and lowest comfort exceedance among the available MAPPO-style runs,
+but its CV-RMSE is not the best. This indicates that the reward and the Annex
+96 tracking metric are related but not identical.
+
+Among the communication variants, global CommNet is currently the most
+promising. It improves CV-RMSE from 55.71\% for the no-communication wrapper to
+53.05\%, while also improving reward from -41856.6 to -36186.4. TarMAC also
+improves CV-RMSE relative to the no-communication wrapper, but not as strongly
+as CommNet at 200 episodes. DIAL-style communication performs poorly in the
+current run. The weighted group communication method does not yet show the
+expected benefit; it may need more training, coefficient tuning, or a different
+message normalization.
 
 \section{Secondary Metrics}
 
-Secondary metrics will be used to determine whether tracking improvement is
-achieved responsibly. They include:
-
-\begin{itemize}
-  \item temperature exceedance hours for thermal comfort;
-  \item operational cost;
-  \item carbon emissions;
-  \item site energy consumption change;
-  \item peak demand;
-  \item peak-to-valley ratio;
-  \item load factor;
-  \item total ramping;
-  \item fairness of flexibility activation across buildings.
-\end{itemize}
-
-This distinction is important because a controller could reduce tracking error
-by overusing a small subset of buildings or by violating comfort. Such a result
-would not be considered successful even if reward improves.
-
-\section{Data Analysis to be Completed}
-
-The final report will include the following analysis:
-
-\begin{itemize}
-  \item training curves for portfolio reward and primary metrics;
-  \item testing-month aggregate load versus reference profile plots;
-  \item daily box plots for NMBE and CV-RMSE;
-  \item building-level comfort and reward distributions;
-  \item battery state-of-charge trajectories for representative buildings;
-  \item fairness analysis showing whether flexibility is concentrated or
-  distributed across the portfolio;
-  \item comparison of communication methods under the same grouped MAPPO
-  backbone.
-\end{itemize}
-
-\section{Result Tables for Final Report}
-
-Table~\ref{tab:primary-results} will be filled after test evaluation has been
-completed.
+Table~\ref{tab:prelim-secondary-results} reports selected secondary metrics.
+Site energy change is relative to the baseline. Peak change is the percentage
+change in all-time peak demand. Ramping is reported as the CityLearn normalized
+ramping KPI. Fairness is represented by the flexibility Gini coefficient and
+maximum building share.
 
 \begin{table}[h]
+\small
 \begin{center}
-\begin{tabular}{|l|l|r|r|r|}
+\begin{tabular}{|l|r|r|r|r|r|}
 \hline
-Controller & Climate & NMBE (\%) & CV-RMSE (\%) & Comfort hours \\
+Controller & Energy \% & Peak \% & Ramping & Gini & Max share \% \\
 \hline
-RBC baseline & VT & TBD & TBD & TBD \\
-RLlib Independent PPO & VT & TBD & TBD & TBD \\
-Independent SAC & VT & TBD & TBD & TBD \\
-Standard MAPPO & VT & TBD & TBD & TBD \\
-Grouped MAPPO & VT & TBD & TBD & TBD \\
-Grouped MAPPO + best communication & VT & TBD & TBD & TBD \\
-\hline
-RBC baseline & TX & TBD & TBD & TBD \\
-RLlib Independent PPO & TX & TBD & TBD & TBD \\
-Independent SAC & TX & TBD & TBD & TBD \\
-Standard MAPPO & TX & TBD & TBD & TBD \\
-Grouped MAPPO & TX & TBD & TBD & TBD \\
-Grouped MAPPO + best communication & TX & TBD & TBD & TBD \\
+SB3 Independent PPO & 4.22 & -17.14 & 1.253 & 0.334 & 13.91 \\
+Standard MAPPO & 9.53 & -7.34 & 1.370 & 0.189 & 8.08 \\
+Grouped MAPPO & 5.47 & -3.35 & 1.267 & 0.170 & 6.51 \\
+Grouped MAPPO, no comm & 7.82 & -1.60 & 1.369 & 0.152 & 6.42 \\
+CommNet global & 6.98 & -10.61 & 1.247 & 0.154 & 6.47 \\
+Weighted group comm & 5.73 & -10.23 & 1.242 & 0.155 & 6.64 \\
+DIAL-style global & -0.39 & -8.09 & 1.412 & 0.145 & 6.23 \\
+PowerNet intra-group & 6.49 & -5.01 & 1.389 & 0.177 & 6.86 \\
+PowerNet global & 7.56 & -7.34 & 1.387 & 0.207 & 8.05 \\
+TarMAC global & 7.87 & -11.90 & 1.487 & 0.162 & 7.00 \\
 \hline
 \end{tabular}
 \end{center}
-\caption{Primary testing-month performance to be reported in the final report.}
-\label{tab:primary-results}
+\caption{Selected preliminary secondary metrics for the Vermont test month.}
+\label{tab:prelim-secondary-results}
 \end{table}
 
-Table~\ref{tab:comm-ablation} will isolate communication design choices.
+The secondary metrics add important context. CommNet global currently gives the
+best communication result on CV-RMSE and also reduces peak demand by 10.61\%.
+Weighted group communication has similar peak and ramping benefits but worse
+tracking and comfort. TarMAC gives the largest peak reduction among MAPPO-style
+runs, but its ramping KPI is worse. The fairness metrics for grouped MAPPO
+variants are generally more balanced than SB3 independent PPO, whose Gini and
+maximum share are much larger.
 
-\begin{table}[h]
-\begin{center}
-\begin{tabular}{|l|l|r|r|r|}
-\hline
-Communication method & Scope & NMBE (\%) & CV-RMSE (\%) & Notes \\
-\hline
-None & group & TBD & TBD & grouped baseline \\
-CommNet mean pooling & group & TBD & TBD & uniform messages \\
-PowerNet-style graph & group/global & TBD & TBD & sparse topology \\
-TarMAC attention & global & TBD & TBD & learned receivers \\
-Weighted same/other group & global & TBD & TBD & structured weights \\
-\hline
-\end{tabular}
-\end{center}
-\caption{Communication ablation to be completed after training.}
-\label{tab:comm-ablation}
-\end{table}
+Cost and carbon metrics are not interpretable in the current exports because
+the corresponding values are null or zero. They should be revisited after the
+data pipeline confirms that price and carbon signals are correctly included.
 
-\section{Expected Interpretation Criteria}
+\section{Remaining Data Analysis}
 
-The final method will be considered successful if it improves testing-month
-CV-RMSE and reduces absolute NMBE compared with grouped MAPPO without
-communication, while keeping comfort violations and secondary metrics within a
-reasonable range. If a communication method improves reward but worsens comfort
-or concentrates flexibility unfairly, it will be treated as a trade-off rather
-than a clear improvement.
+The final report will expand the analysis in four ways:
 
-The expected qualitative outcome is that communication should help most when
-the portfolio target requires coordinated simultaneous action. The weighted
-same-group/other-group method is expected to be stable because it combines a
-strong prior from clustering with weaker global context. TarMAC may be more
-expressive, but it may require more data to learn useful attention patterns.
-PowerNet-style communication may be attractive if sparse topology reduces noise
-without losing important coordination information.
+\begin{itemize}
+  \item rerun the most important methods with a larger training budget and, if
+  time allows, multiple seeds;
+  \item complete Texas experiments to test whether conclusions generalize from
+  heating-dominated to cooling-dominated operation;
+  \item plot training curves, testing-month aggregate load versus reference
+  profile, daily NMBE/CV-RMSE distributions, comfort distributions, and battery
+  state-of-charge trajectories;
+  \item compare reward, tracking, comfort, ramping, peak, and fairness jointly
+  rather than selecting a method from one metric alone.
+\end{itemize}
+
+\section{Current Interpretation}
+
+The current evidence supports three cautious conclusions. First, the MAPPO
+pipeline is functioning and produces substantially better reward and comfort
+than the available SB3 independent PPO run. Second, communication is not
+automatically beneficial: different communication mechanisms produce different
+trade-offs, and DIAL-style or weighted communication are not better under the
+current 200-episode configuration. Third, global CommNet is the strongest
+communication candidate at this stage because it improves both reward and
+CV-RMSE relative to the no-communication wrapper.
+
+These are not final conclusions. The 200-episode runs should be treated as
+evidence for selecting next experiments, not as proof of algorithm superiority.

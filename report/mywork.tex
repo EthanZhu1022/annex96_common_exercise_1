@@ -1,10 +1,12 @@
 \chapter{Method and Progress}\label{ch:method}
 
 This chapter describes the implemented method and the progress completed by the
-midterm stage. The project is not yet at the final result-analysis stage. The
-conclusive outcomes so far are implementation and design outcomes: the training
-pipeline is operational, multiple baselines have been implemented, and the
-communication variants have been integrated into a common MAPPO framework.
+midterm stage. The project is not yet at the final result-analysis stage, but
+the first 200-episode Vermont runs have been completed. The strongest outcomes
+so far are implementation and design outcomes: the training pipeline is
+operational, multiple baselines have been implemented, and the communication
+variants have been integrated into a common MAPPO framework. The current
+numerical results are treated as preliminary reference points.
 
 \section{Problem Definition}
 
@@ -173,15 +175,19 @@ At the midterm stage, the following implementation work has been completed:
 \end{itemize}
 
 The most important conclusion from the completed work is that the project has a
-common experimental interface for all planned methods. The remaining
-uncertainty is empirical performance, not whether the methods can be trained
-and evaluated in the CityLearn pipeline.
+common experimental interface for the main planned methods. The 200-episode
+Vermont results also provide early evidence that communication changes the
+tracking, comfort, and secondary-metric trade-offs. At this stage, global
+CommNet is the most promising communication variant, but this is only a
+preliminary observation.
 
 \section{Current Limitations}
 
-The current limitation is that full training runs have not yet been completed.
-Therefore, the report does not claim that one communication method is superior
-to another. The final comparison will require consistent training budgets,
-multiple seeds where possible, and testing on the unseen month. Another current
-limitation is that K-means uses static flexibility features; future work may
-replace or augment this with learned embeddings based on building trajectories.
+The current limitation is that the available numerical results are incomplete:
+they cover Vermont only, use one seed, and are based on 200 training episodes.
+Therefore, the report does not claim that one communication method is
+definitively superior to another. The final comparison will require longer
+training, Texas experiments, multiple seeds where possible, and a deeper
+analysis of daily load trajectories. Another current limitation is that K-means
+uses static flexibility features; future work may replace or augment this with
+learned embeddings based on building trajectories.

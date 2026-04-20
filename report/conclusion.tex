@@ -12,25 +12,30 @@ Significant implementation work has been completed. The codebase now includes
 independent PPO/SAC baselines, standard MAPPO, grouped MAPPO, K-means-based
 building grouping, and several communication-aware grouped MAPPO variants. The
 communication modules are integrated into the actor pipeline and can be trained
-through the standard PPO objective. The evaluation pipeline can export Annex 96
-metrics and is ready for final test-month analysis.
+through the standard PPO objective. The evaluation pipeline exports Annex 96
+metrics, and a first set of 200-episode Vermont test results has been produced.
 
-The main conclusion at this stage is architectural rather than numerical:
-grouped MAPPO with modular communication is a feasible and well-supported
-research direction for the CityLearn portfolio. The final conclusion about
-performance will depend on the remaining experiments.
+The main conclusion at this stage is still cautious. Architecturally, grouped
+MAPPO with modular communication is a feasible and well-supported research
+direction for the CityLearn portfolio. Numerically, the early Vermont results
+suggest that communication can change the trade-off between tracking, reward,
+comfort, and secondary metrics. Global CommNet is currently the strongest
+communication candidate, but this observation must be validated with longer
+training and additional experiments.
 
 \section{Next Steps}
 
 The work plan for the next stage is:
 
 \begin{itemize}
-  \item complete full training runs for independent PPO, independent SAC,
+  \item complete longer training runs for independent PPO, independent SAC,
   standard MAPPO, grouped MAPPO, and communication-aware grouped MAPPO;
-  \item run deterministic test evaluation on the unseen month for Vermont and
-  Texas;
-  \item fill the primary and communication-ablation tables using exported
-  \texttt{test\_metrics.csv} files;
+  \item export missing test metrics for RLlib PPO/SAC and SB3 SAC if those
+  baselines are kept in the final comparison;
+  \item run deterministic test evaluation on the unseen month for both Vermont
+  and Texas;
+  \item update the primary and communication-ablation tables using exported
+  \texttt{test\_metrics.csv} files from the final runs;
   \item analyse aggregate load tracking, comfort, cost, emissions, ramping,
   battery behaviour, and fairness;
   \item identify the best communication method and explain its trade-offs;
