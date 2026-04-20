@@ -1,0 +1,45 @@
+{
+  "os": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "python": "CPython 3.11.14",
+  "startedAt": "2026-04-19T12:40:05.699250Z",
+  "args": [
+    "--climate",
+    "VT",
+    "--n_episodes",
+    "200",
+    "--save_dir",
+    "results/sb3_independent_ppo_vt_200"
+  ],
+  "program": "-m sb3_independent_ppo.train",
+  "git": {
+    "remote": "https://github.com/EthanZhu1022/annex96_common_exercise_1.git",
+    "commit": "502ddb567adbd29369df294f5f78b6e06a210ebf"
+  },
+  "email": "z5610836@ad.unsw.edu.au",
+  "root": "/home/yue/EthanZhu/annex96_common_exercise_1",
+  "host": "MetaBook14",
+  "executable": "/home/yue/EthanZhu/annex96_common_exercise_1/.venv/bin/python",
+  "cpu_count": 8,
+  "cpu_count_logical": 16,
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "1081101176832",
+      "used": "27102650368"
+    }
+  },
+  "memory": {
+    "total": "16402018304"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA GeForce RTX 3090",
+      "memoryTotal": "25769803776",
+      "architecture": "Ampere",
+      "uuid": "GPU-5a921a1d-c334-2cd6-9e6f-c47d6ae92867"
+    }
+  ],
+  "cudaVersion": "13.1",
+  "writerId": "c2dfmk79gistnhxi1syua1q71194j5nu"
+}

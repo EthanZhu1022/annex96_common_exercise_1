@@ -1,0 +1,193 @@
+_wandb:
+    value:
+        cli_version: 0.25.1
+        e:
+            jc3nh30n74symjuzvftz2wlz34wxegb6:
+                args:
+                    - --climate
+                    - VT
+                    - --n_episodes
+                    - "200"
+                    - --save_dir
+                    - results/mappo_grouped_comm_weighted_vt_200
+                cpu_count: 8
+                cpu_count_logical: 16
+                cudaVersion: "13.1"
+                disk:
+                    /:
+                        total: "1081101176832"
+                        used: "27023630336"
+                email: z5610836@ad.unsw.edu.au
+                executable: /home/yue/EthanZhu/annex96_common_exercise_1/.venv/bin/python
+                git:
+                    commit: 502ddb567adbd29369df294f5f78b6e06a210ebf
+                    remote: https://github.com/EthanZhu1022/annex96_common_exercise_1.git
+                gpu: NVIDIA GeForce RTX 3090
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      memoryTotal: "25769803776"
+                      name: NVIDIA GeForce RTX 3090
+                      uuid: GPU-5a921a1d-c334-2cd6-9e6f-c47d6ae92867
+                host: MetaBook14
+                memory:
+                    total: "16402018304"
+                os: Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39
+                program: -m mappo_grouped_comm_weighted.train
+                python: CPython 3.11.14
+                root: /home/yue/EthanZhu/annex96_common_exercise_1
+                startedAt: "2026-04-18T22:24:54.659451Z"
+                writerId: jc3nh30n74symjuzvftz2wlz34wxegb6
+        m:
+            - "1": episode
+              "6":
+                - 3
+              "7": []
+            - "1": test_day
+              "6":
+                - 3
+              "7": []
+            - "2": test/*
+              "5": 1
+              "6":
+                - 1
+              "7": []
+            - "2": test/daily/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+            - "2": test/daily_baseline/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+            - "2": test/daily_primary/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+            - "2": train/*
+              "5": 1
+              "6":
+                - 1
+              "7": []
+        python_version: 3.11.14
+        t:
+            "1":
+                - 1
+                - 5
+                - 30
+                - 53
+            "2":
+                - 1
+                - 5
+                - 30
+                - 53
+            "3":
+                - 2
+                - 7
+                - 13
+                - 16
+                - 41
+                - 61
+            "4": 3.11.14
+            "5": 0.25.1
+            "12": 0.25.1
+            "13": linux-x86_64
+algorithm:
+    value: mappo_grouped_comm_weighted
+backup_dir:
+    value: null
+checkpoint_dir:
+    value: null
+climate:
+    value: VT
+clip_param:
+    value: 0.2
+cluster_artifact_dir:
+    value: null
+cluster_retries:
+    value: 10
+cluster_seed:
+    value: 0
+comm_alpha:
+    value: 0.75
+comm_beta:
+    value: 0.25
+comm_dropout:
+    value: 0
+comm_hidden_dim:
+    value: 64
+comm_method:
+    value: weighted
+comm_rounds:
+    value: 1
+comm_scope:
+    value: global
+comm_use_residual:
+    value: true
+critic_lr:
+    value: 0.0003
+do_test:
+    value: true
+entropy_coef:
+    value: 0.01
+gae_lambda:
+    value: 0.95
+gamma:
+    value: 0.99
+group_k_candidates:
+    value:
+        - 4
+        - 5
+group_sizes:
+    value:
+        - 8
+        - 7
+        - 6
+        - 4
+hidden_size:
+    value: 256
+layer_N:
+    value: 2
+lr:
+    value: 0.0003
+max_grad_norm:
+    value: 10
+n_buildings:
+    value: 25
+n_episodes:
+    value: 200
+n_groups:
+    value: 4
+num_mini_batch:
+    value: 4
+ppo_epoch:
+    value: 10
+save_dir:
+    value: results/mappo_grouped_comm_weighted_vt_200
+seed:
+    value: 42
+test_end_step:
+    value: 1415
+test_month:
+    value: 2
+test_only:
+    value: false
+test_save_dir:
+    value: null
+test_start_step:
+    value: 744
+train_end_step:
+    value: 743
+train_month:
+    value: 1
+train_start_step:
+    value: 0
+value_loss_coef:
+    value: 1
+wandb_name:
+    value: mappo-grouped-comm-weighted
+wandb_project:
+    value: annex96-ce1
