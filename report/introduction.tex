@@ -48,16 +48,16 @@ communication between building agents further improve performance?
 在此基础上，建筑智能体之间加入结构化通信，能不能进一步提升性能？
 
 This project is organized around three comparisons. First, it compares
-independent building control with MARL-based coordination to test whether
-coordination is actually useful for CE1. Second, using the stable on-policy
-method MAPPO as the current example, it compares different MARL structures,
-including grouped and ungrouped policies, communication and no-communication
-variants, and intra-group and inter-group communication. Third, it will compare
-different types of MARL, such as MAPPO, MASAC, or value-based methods, to
-understand which learning style is more suitable for this task.
+rule-based control and independent building control with MARL-based coordination
+to test whether learned coordination is actually useful for CE1. Second, using
+the stable on-policy method MAPPO as the current example, it compares different
+MARL structures, including grouped and ungrouped policies, communication and
+no-communication variants, and intra-group and inter-group communication. Third,
+it will compare different types of MARL, such as MAPPO, MASAC, or value-based
+methods, to understand which learning style is more suitable for this task.
 
 中文：因此，本项目围绕三类比较展开。
-第一，比较每栋建筑独立控制和 MARL 协同控制，判断协同控制对 CE1 是否真的有帮助。
+第一，比较规则控制、每栋建筑独立控制和 MARL 协同控制，判断学习型协同控制对 CE1 是否真的有帮助。
 第二，以稳定的onpolicy方法（MAPPO）为例，比较不同结构的的MARL，例如分组和未分组，有通信和无通信的，组间通讯和组内通讯的版本，并进一步比较不同通信结构。
 第三，比较不同类型的 MARL，例如 MAPPO、MASAC 或基于价值函数的方法，判断哪类学习方式更适合这个任务。
 
@@ -92,6 +92,8 @@ clear experimental plan. The completed work includes:
 中文：目前项目已经形成了可运行的研究代码和清晰的实验计划。已经完成的工作包括：
 
 \begin{itemize}
+  \item an RBC notebook baseline for non-learning comparison in Texas and
+  Vermont;
   \item implementation of CityLearn wrappers for independent PPO/SAC and MAPPO
   training;
   \item implementation of standard MAPPO and grouped MAPPO baselines;
@@ -105,26 +107,26 @@ clear experimental plan. The completed work includes:
   export utilities.
 \end{itemize}
 
-中文：具体来说，已经实现了 CityLearn 到 PPO/SAC/MAPPO 的环境封装，
+中文：具体来说，已经完成了 Texas 和 Vermont 的 RBC notebook 基线对比，
+并实现了 CityLearn 到 PPO/SAC/MAPPO 的环境封装，
 标准 MAPPO 和分组 MAPPO 基线，
 基于 K-means 的建筑分组策略，
 多种通信模块，以及日志、模型保存、测试和 Annex 96 指标导出工具。
 
-The project now also has a first set of Vermont 200-episode runs. These runs
-are useful as partial evidence: they show that the MAPPO and communication
-pipelines execute end-to-end and reveal early trade-offs between tracking,
-comfort, peak demand, and fairness. They are not treated as final results
-because the training budget is limited, Texas has not yet been completed, and
-additional seeds are still needed for stronger conclusions. Therefore, this
-report presents the literature review, research gap, method, implementation
-progress, preliminary results, and the remaining evaluation plan.
+The project now also has a first set of Vermont 200-episode runs and a separate
+RBC baseline comparison. These results are useful as partial evidence: they show
+that the MAPPO and communication pipelines execute end-to-end and reveal early
+trade-offs between tracking, comfort, peak demand, and fairness. They are not
+treated as final results because the training budget is limited, Texas has not
+yet been completed for the RL methods, and additional seeds are still needed for
+stronger conclusions. Therefore, this report presents the literature review,
+research gap, method, implementation progress, preliminary results, and the
+remaining evaluation plan.
 
-！！！！！
-
-中文：目前项目也已经有第一批 Vermont 场景下 200 轮训练的结果。
+中文：目前项目也已经有第一批 Vermont 场景下 200 轮训练的结果，以及单独的 RBC 基线对比。
 这些结果可以作为阶段性参考，说明 MAPPO 和通信方法的流程能够完整跑通，
 也初步展示了负荷跟踪、舒适性、峰值负荷和公平性之间的取舍。
-但这些还不是最终结果，因为训练轮数有限，Texas 场景还没完成，也还需要更多随机种子来支持更可靠的结论。
+但这些还不是最终结果，因为训练轮数有限，Texas 场景下的 RL 实验还没完成，也还需要更多随机种子来支持更可靠的结论。
 因此，本报告主要展示文献综述、研究空白、方法、实现进展、初步结果和后续评估计划。
 
 Chapter~\ref{ch:background} reviews the relevant literature and explains where

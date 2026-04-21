@@ -111,9 +111,22 @@ Charbonnier 等人研究了住宅能源灵活性的可扩展协同控制，说�
 物理信息 MARL 在配电网电压控制中的研究也表明，图结构和物理结构可以提升鲁棒性和样本效率 \cite{physicsMADRL2024}。
 这些工作支持了本项目的基本思路：能源 MARL 不应该把智能体当作没有结构的一组对象，而应该利用建筑相似性、图结构或通信结构。
 
-\section{Single-Agent Baselines: PPO and SAC}
+\section{Rule-Based and Single-Agent Baselines}
 
-Independent single-agent baselines are still important. PPO is a robust
+Rule-based control (RBC) is an important non-learning baseline in CityLearn.
+An RBC controller uses fixed rules, often based on hour-of-day schedules, to
+charge or discharge storage and to set heating or cooling device availability.
+It is simple, transparent, and cheap to run, but it cannot adapt its policy to
+the CE1 reference profile or to interactions between buildings. In this project,
+RBC is therefore used as a practical reference point: a MARL method should
+eventually do more than repeat a fixed schedule.
+
+中文：规则控制（RBC）是 CityLearn 中重要的非学习基线。
+RBC 控制器使用固定规则，通常根据一天中的小时来决定储能充放电，以及供暖或制冷设备的可用功率。
+它简单、透明、运行成本低，但不能根据 CE1 的目标负荷曲线或建筑之间的相互影响自适应调整策略。
+因此，本项目把 RBC 作为一个实际参考点：一个有效的 MARL 方法最终应该不只是重复固定时段规则。
+
+Independent single-agent RL baselines are also important. PPO is a robust
 on-policy policy-gradient method that limits destructive policy updates through
 a clipped surrogate objective \cite{ppo2017}. It is often used as a stable
 baseline because it is comparatively simple and reliable. SAC is an off-policy
@@ -131,7 +144,7 @@ store past experience in a replay buffer and reuse it for many updates. This can
 be more sample-efficient and exploratory, but it can also be more sensitive to
 distribution shift between old data and the current policy.
 
-中文：独立单智能体基线仍然很重要。
+中文：独立单智能体 RL 基线也很重要。
 PPO 是一种 on-policy 的策略梯度方法，通过裁剪目标函数限制每次策略更新的幅度，因此训练通常比较稳定 \cite{ppo2017}。
 SAC 是一种 off-policy 的最大熵 actor-critic 方法，通过熵正则鼓励探索并学习随机策略 \cite{sac2018,sacApplications2018}。
 在本项目中，独立 PPO 和 SAC 用来回答一个基础问题：如果建筑之间不显式协同，仅靠每栋建筑独立学习，最多能做到什么程度？
