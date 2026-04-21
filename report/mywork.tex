@@ -8,6 +8,7 @@ operational, multiple baselines have been implemented, and the communication
 variants have been integrated into a common MAPPO framework. The current
 numerical results are treated as preliminary reference points.
 
+
 \section{Problem Definition}
 
 The CityLearn Annex 96 task is formulated as a cooperative partially observable
@@ -18,16 +19,22 @@ thermal conditions, and aggregate portfolio load. The portfolio should track a
 daily reference load profile $r_t$ while avoiding excessive comfort violations
 and negative secondary impacts.
 
+
 The project objective is not only to maximize training reward. The practical
 objective is to reduce testing-month tracking error, measured by NMBE and
-CV-RMSE, while keeping comfort, cost, carbon, ramping, and fairness within
-acceptable ranges. This objective motivates the use of a centralized critic and
-structured actor communication.
+CV-RMSE, while keeping comfort, ramping, peak demand, and fairness within
+acceptable ranges. Cost and carbon emissions are part of the Annex 96 secondary
+metric set, but the CE1 schemas used here do not provide pricing or
+carbon-intensity time series, so those two metrics are reported as unavailable
+in the current experiments. This objective motivates the use of a centralized
+critic and structured actor communication.
+
 
 \section{Environment and Baseline Pipeline}
 
 The first completed component is the environment interface. CityLearn is wrapped
 for several learning backends:
+
 
 \begin{itemize}
   \item independent PPO and independent SAC baselines, where each building
@@ -45,6 +52,7 @@ format expected by the on-policy MAPPO implementation. Reusing the established
 MAPPO optimizer reduces implementation risk and keeps the research focus on
 CityLearn adaptation, grouping, and communication.
 
+
 \section{Grouped Actor Architecture}
 
 The grouped actor design is based on selective parameter sharing. Full sharing
@@ -53,6 +61,7 @@ Fully independent actors are expressive but require more data and weaken
 coordination. The implemented grouped actor architecture balances these two
 extremes.
 
+
 Buildings are clustered using K-means over flexibility-related features. The
 current implementation uses features such as battery energy storage capacity
 and aggregate HVAC capacity. After clustering, buildings in group $G_k$ share
@@ -60,9 +69,11 @@ the same actor network. All groups share one centralized critic. The critic
 observes the concatenated portfolio state, while each actor receives local
 building observations plus any communication-enhanced hidden features.
 
+
 This architecture has been implemented in the \texttt{mappo\_grouped} package.
 The same grouping information is reused by communication-aware variants so that
 communication effects can be compared against a consistent grouped baseline.
+
 
 \section{MAPPO Learning Structure}
 
@@ -72,11 +83,13 @@ distribution. The centralized critic estimates the value of the portfolio state.
 After each rollout episode, generalized advantage estimation is computed and
 the PPO clipped objective updates the policies.
 
+
 The grouped replay buffer preserves the agent dimension during PPO mini-batch
 sampling. This detail is important: if group-agent samples are flattened too
 early, communication layers cannot reconstruct the correct set of agents for
 message passing. The implemented buffer therefore keeps tensors in a shape that
 supports both MAPPO updates and communication over group members.
+
 
 \section{Communication Modules}
 
@@ -89,6 +102,7 @@ o_i \rightarrow \mathrm{encoder}_k \rightarrow h_i
 Because the communication module is registered as part of the actor, its
 parameters are optimized by the same PPO actor loss.
 
+
 \subsection{No Communication}
 
 The identity module is used as the no-communication baseline:
@@ -96,6 +110,7 @@ The identity module is used as the no-communication baseline:
 \tilde{h}_i = h_i .
 \]
 This isolates the effect of message passing from the effect of grouping.
+
 
 \subsection{CommNet-Style Mean Communication}
 
@@ -110,6 +125,7 @@ The message is transformed by an MLP and added through a residual connection:
 \]
 This is the simplest differentiable communication baseline.
 
+
 \subsection{PowerNet-Style Neighbor Communication}
 
 The PowerNet-style module restricts communication to a graph. The implemented
@@ -120,6 +136,7 @@ m_i = \frac{1}{\max(1,\sum_j A_{ij})}\sum_j A_{ij}g_\theta(h_j).
 \]
 This tests whether sparse local communication can preserve coordination while
 reducing noisy all-to-all message passing.
+
 
 \subsection{TarMAC-Style Attention}
 
@@ -136,6 +153,7 @@ c_i = \sum_j \alpha_{ij}v_j .
 \]
 The updated feature is computed from $h_i$ and $c_i$. This module tests whether
 learned receiver selection is beneficial for CityLearn coordination.
+
 
 \subsection{Weighted Same-Group and Other-Group Communication}
 
@@ -156,9 +174,11 @@ to encode a clear inductive bias: buildings with similar flexibility should
 communicate more strongly, but portfolio-level tracking still requires some
 global context.
 
+
 \section{Completed Implementation}
 
 At the midterm stage, the following implementation work has been completed:
+
 
 \begin{itemize}
   \item independent PPO and SAC training scripts;
@@ -171,7 +191,9 @@ At the midterm stage, the following implementation work has been completed:
   \item grouped replay buffer preserving communication structure during PPO
   updates;
   \item checkpoint loading and saving for test-only evaluation;
-  \item Annex 96 metric export, daily metric tables, and plotting utilities.
+  \item Annex 96 metric export, daily metric tables, and plotting utilities,
+  with cost and carbon fields marked as unavailable when the CE1 data provides
+  no pricing or carbon-intensity signals.
 \end{itemize}
 
 The most important conclusion from the completed work is that the project has a
@@ -181,6 +203,7 @@ tracking, comfort, and secondary-metric trade-offs. At this stage, global
 CommNet is the most promising communication variant, but this is only a
 preliminary observation.
 
+
 \section{Current Limitations}
 
 The current limitation is that the available numerical results are incomplete:
@@ -188,6 +211,10 @@ they cover Vermont only, use one seed, and are based on 200 training episodes.
 Therefore, the report does not claim that one communication method is
 definitively superior to another. The final comparison will require longer
 training, Texas experiments, multiple seeds where possible, and a deeper
-analysis of daily load trajectories. Another current limitation is that K-means
-uses static flexibility features; future work may replace or augment this with
-learned embeddings based on building trajectories.
+analysis of daily load trajectories. The CE1 datasets used in the current
+pipeline also omit pricing and grid-carbon time series, so cost and carbon
+secondary metrics cannot be interpreted without adding external assumptions.
+Another current limitation is that K-means uses static flexibility features;
+future work may replace or augment this with learned embeddings based on
+building trajectories.
+

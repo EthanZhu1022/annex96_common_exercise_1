@@ -6,6 +6,10 @@ Vermont only, one random seed, and 200 training episodes. They are useful for
 debugging, early comparison, and identifying promising directions, but they are
 not sufficient for final claims.
 
+中文：本章报告当前阶段性结果与剩余评估计划。
+由于结果仅基于 Vermont、单个随机种子和 200 训练回合，因此应视为初步结果。
+它们可用于调试、早期比较和识别有潜力方向，但不足以支撑最终结论。
+
 \section{Experimental Setting}
 
 The experiments use the Annex 96 Common Exercise 1 CityLearn portfolios. Each
@@ -13,6 +17,8 @@ portfolio contains 25 single-family homes with photovoltaic generation and
 battery storage. Two climates are available: Vermont, which is
 heating-dominated, and Texas, which is cooling-dominated. The current completed
 test results are for Vermont only.
+
+中文：实验采用 Annex 96 Common Exercise 1 的 CityLearn 组合。每个组合包含 25 栋配有光伏发电和电池储能的独立住宅。可用气候有两类：以采暖为主的 Vermont 与以制冷为主的 Texas。当前已完成的测试结果仅包含 Vermont。
 
 \begin{table}[h]
 \begin{center}
@@ -35,22 +41,36 @@ layers, learning rate $3\times10^{-4}$, discount factor $0.99$, GAE parameter
 $0.95$, PPO clip parameter $0.2$, 10 PPO epochs, and four mini-batches. The
 K-means grouped variants use four groups with group sizes 8, 7, 6, and 4.
 
+中文：当前可用实验使用随机种子 42，训练 200 回合或迭代。多数 MAPPO 变体共享相同超参数：隐藏层维度 256、两层网络、学习率 $3\times10^{-4}$、折扣因子 $0.99$、GAE 参数 $0.95$、PPO 裁剪参数 $0.2$、10 个 PPO epoch、4 个 mini-batch。K-means 分组变体采用 4 组，组大小分别为 8、7、6、4。
+
 \section{Available Runs}
 
 The local \texttt{results} and \texttt{wandb} folders contain completed
 testing-month metrics for the following runs:
 
+中文：本地 \texttt{results} 与 \texttt{wandb} 文件夹中包含以下实验在测试月的已完成指标：
+
 \begin{itemize}
   \item SB3 independent PPO;
+  中文：SB3 独立 PPO。
   \item standard MAPPO;
+  中文：标准 MAPPO。
   \item grouped MAPPO;
+  中文：分组 MAPPO。
   \item grouped MAPPO without communication through the communication wrapper;
+  中文：通过通信封装关闭通信的分组 MAPPO。
   \item grouped MAPPO with global CommNet communication;
+  中文：带全局 CommNet 通信的分组 MAPPO。
   \item grouped MAPPO with weighted same-group/other-group communication;
+  中文：带组内/组间加权通信的分组 MAPPO。
   \item grouped MAPPO with DIAL-style communication;
+  中文：带 DIAL 风格通信的分组 MAPPO。
   \item grouped MAPPO with intra-group PowerNet-style communication;
+  中文：带组内 PowerNet 风格通信的分组 MAPPO。
   \item grouped MAPPO with global PowerNet-style communication;
+  中文：带全局 PowerNet 风格通信的分组 MAPPO。
   \item grouped MAPPO with TarMAC-style attention.
+  中文：带 TarMAC 风格注意力的分组 MAPPO。
 \end{itemize}
 
 RLlib independent PPO, RLlib SAC, and SB3 independent SAC currently have run
@@ -58,11 +78,15 @@ configuration files but no complete exported test metrics in the local results
 folder. They should therefore remain excluded from numerical comparison until
 their test metrics are exported.
 
+中文：RLlib 独立 PPO、RLlib SAC 与 SB3 独立 SAC 目前已有运行配置文件，但在本地结果目录中尚无完整导出的测试指标。因此在导出测试指标之前，这些方法应暂不纳入数值比较。
+
 \section{Primary Metrics}
 
 The primary objective is portfolio-level reference tracking. Let $y_t$ be the
 actual aggregate portfolio load and $r_t$ be the reference load. The two primary
 metrics are:
+
+中文：首要目标是组合层参考曲线跟踪。设 $y_t$ 为实际组合聚合负荷，$r_t$ 为参考负荷。两个核心指标如下：
 
 \begin{equation}
 \mathrm{NMBE} =
@@ -81,12 +105,16 @@ tracking error and is the most important single number for the load-following
 objective. Comfort exceedance hours are also included because tracking
 improvement is not useful if it is achieved by sacrificing indoor comfort.
 
+中文：NMBE 衡量相对目标的系统性偏差。CV-RMSE 衡量整体跟踪误差，是负荷跟随目标最关键的单一指标。舒适性超限小时也被纳入，因为若以牺牲室内舒适性换取跟踪改善，则这种改善并无实际意义。
+
 \section{Preliminary Test Results}
 
 Table~\ref{tab:prelim-primary-results} summarizes the current February Vermont
 test results. Lower absolute NMBE, lower CV-RMSE, lower comfort hours, and a
 less negative reward are preferred. The table is intentionally labelled as
 preliminary because it uses a limited training budget.
+
+中文：表~\ref{tab:prelim-primary-results} 汇总了当前 Vermont 2 月测试结果。更优表现对应更低绝对 NMBE、更低 CV-RMSE、更少舒适性超限小时，以及“更不负”的奖励值。该表明确标注为“初步结果”，因为其基于受限训练预算。
 
 \begin{table}[h]
 \small
@@ -120,6 +148,8 @@ reward sum and lowest comfort exceedance among the available MAPPO-style runs,
 but its CV-RMSE is not the best. This indicates that the reward and the Annex
 96 tracking metric are related but not identical.
 
+中文：早期结果呈现出若干有价值模式。SB3 独立 PPO 的 CV-RMSE 最低，但其组合奖励与舒适性表现明显差于各 MAPPO 变体，说明其跟踪改进尚未与舒适性或奖励形成平衡。标准 MAPPO 在当前 MAPPO 类运行中具有最佳奖励总和与最低舒适性超限，但 CV-RMSE 并非最优，表明奖励与 Annex 96 跟踪指标相关但并不等价。
+
 Among the communication variants, global CommNet is currently the most
 promising. It improves CV-RMSE from 55.71\% for the no-communication wrapper to
 53.05\%, while also improving reward from -41856.6 to -36186.4. TarMAC also
@@ -129,6 +159,8 @@ current run. The weighted group communication method does not yet show the
 expected benefit; it may need more training, coefficient tuning, or a different
 message normalization.
 
+中文：在通信变体中，全局 CommNet 当前最有前景。其将 CV-RMSE 从无通信封装的 55.71\% 降至 53.05\%，同时将奖励从 -41856.6 提升到 -36186.4。TarMAC 相比无通信封装也改善了 CV-RMSE，但在 200 回合下改善幅度不及 CommNet。DIAL 风格通信在当前运行中表现较差。组内/组间加权通信尚未体现预期收益，可能需要更长训练、系数调优或不同的消息归一化方式。
+
 \section{Secondary Metrics}
 
 Table~\ref{tab:prelim-secondary-results} reports selected secondary metrics.
@@ -136,6 +168,8 @@ Site energy change is relative to the baseline. Peak change is the percentage
 change in all-time peak demand. Ramping is reported as the CityLearn normalized
 ramping KPI. Fairness is represented by the flexibility Gini coefficient and
 maximum building share.
+
+中文：表~\ref{tab:prelim-secondary-results} 报告了部分次级指标。场站能耗变化以基线为参照。峰值变化表示全周期峰值负荷的百分比变化。爬坡采用 CityLearn 归一化 ramping KPI。公平性由灵活性 Gini 系数与单建筑最大占比表示。
 
 \begin{table}[h]
 \small
@@ -169,24 +203,34 @@ runs, but its ramping KPI is worse. The fairness metrics for grouped MAPPO
 variants are generally more balanced than SB3 independent PPO, whose Gini and
 maximum share are much larger.
 
+中文：次级指标提供了重要补充背景。全局 CommNet 当前在通信方案中给出最好的 CV-RMSE，同时将峰值负荷降低 10.61\%。组内/组间加权通信在峰值与爬坡方面收益相近，但跟踪与舒适性更差。TarMAC 在 MAPPO 类运行中带来最大峰值下降，但其 ramping KPI 更差。分组 MAPPO 变体在公平性上通常比 SB3 独立 PPO 更均衡，后者的 Gini 与最大占比明显更高。
+
 Cost and carbon metrics are not interpretable in the current exports because
 the corresponding values are null or zero. They should be revisited after the
 data pipeline confirms that price and carbon signals are correctly included.
+
+中文：当前导出结果中的成本与碳排指标暂不可解释，因为对应数值为 null 或 0。待数据流水线确认价格与碳信号被正确纳入后，应重新分析这些指标。
 
 \section{Remaining Data Analysis}
 
 The final report will expand the analysis in four ways:
 
+中文：最终报告将从四个方面扩展分析：
+
 \begin{itemize}
   \item rerun the most important methods with a larger training budget and, if
   time allows, multiple seeds;
+  中文：在更大训练预算下重跑关键方法，并在时间允许时加入多个随机种子。
   \item complete Texas experiments to test whether conclusions generalize from
   heating-dominated to cooling-dominated operation;
+  中文：完成 Texas 实验，检验结论能否从采暖主导场景泛化到制冷主导场景。
   \item plot training curves, testing-month aggregate load versus reference
   profile, daily NMBE/CV-RMSE distributions, comfort distributions, and battery
   state-of-charge trajectories;
+  中文：绘制训练曲线、测试月聚合负荷与参考曲线对比、日 NMBE/CV-RMSE 分布、舒适性分布和电池 SOC 轨迹。
   \item compare reward, tracking, comfort, ramping, peak, and fairness jointly
   rather than selecting a method from one metric alone.
+  中文：联合比较奖励、跟踪、舒适性、爬坡、峰值与公平性，而非仅凭单一指标选方法。
 \end{itemize}
 
 \section{Current Interpretation}
@@ -200,5 +244,9 @@ current 200-episode configuration. Third, global CommNet is the strongest
 communication candidate at this stage because it improves both reward and
 CV-RMSE relative to the no-communication wrapper.
 
+中文：当前证据支持三条审慎结论。第一，MAPPO 流水线能够稳定运行，并在奖励与舒适性上显著优于当前可用的 SB3 独立 PPO。第二，通信并非天然有益：不同通信机制会产生不同权衡，在现有 200 回合配置下，DIAL 风格或加权通信并未更优。第三，全局 CommNet 是本阶段最强通信候选，因为其相对无通信封装同时改善了奖励与 CV-RMSE。
+
 These are not final conclusions. The 200-episode runs should be treated as
 evidence for selecting next experiments, not as proof of algorithm superiority.
+
+中文：以上并非最终结论。200 回合运行应被视为“下一步实验选择”的证据，而非“算法优越性已被证明”的结论。

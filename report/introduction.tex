@@ -1,42 +1,63 @@
 \chapter{Introduction}\label{ch:intro}
 
-Buildings are becoming active participants in power-system operation. Modern
-homes can contain photovoltaic generation, batteries, heat pumps, and other
-controllable loads. When these devices are coordinated across a portfolio, the
-aggregate demand can be shifted to reduce peak stress, follow a contracted
-reference profile, and support the integration of renewable generation. The
-same flexibility also creates a difficult control problem: each building has
-local dynamics and private observations, while the objective is measured at the
-portfolio level.
+Buildings are no longer just passive electricity users. Many modern homes have
+solar panels, batteries, HVAC equipment for heating and cooling, and other
+devices that can be controlled.
+If a group of homes is controlled together, their total electricity use can be
+moved away from peak periods and made closer to a target load profile. The
+challenge is that each home only sees its own situation, but the success of the
+controller is judged by the behaviour of the whole group.
 
-This midterm report studies that problem in CityLearn, an open benchmark for
+中文：现在，许多社区建筑不再只是被动用电，很多现代住宅有太阳能板、电池、用于供暖和制冷的 HVAC 设备，以及其他可以控制的用来自主供电的设备。
+如果把社区住宅分组，一组住宅放在一起协调控制，它们的总用电可以避开高峰时段，也可以更接近一个人们期望的目标负荷曲线。
+难点在于，每栋房子只能看到自己的情况，但控制效果最后是按照整个建筑组合的表现来评价的。
+
+This midterm report studies this problem in CityLearn, an open benchmark for
 reinforcement learning control of grid-interactive communities
 \cite{citylearn2019,citylearn2020,citylearnv2}. The project uses the IEA EBC
-Annex 96 Common Exercise 1 setting. In this task, a portfolio of 25
-single-family homes must track a daily portfolio-level reference load profile.
-The controller can adjust battery operation and heat-pump-related flexibility,
-and the final evaluation must consider not only tracking error but also comfort,
-cost, carbon emissions, ramping, peak demand, and fairness.
+Annex 96 Common Exercise 1 setting. In this task, 25 single-family homes need
+to follow a daily reference load profile as a group. The controller can adjust
+battery operation and HVAC-related flexibility for both heating and cooling.
+The evaluation considers
+not only tracking error, but also comfort, cost, carbon emissions, ramping, peak
+demand, and fairness.
+
+中文：本中期报告基于 CityLearn 仿真环境研究建筑群负荷跟踪问题。
+CityLearn 是一个面向建筑群能源控制与强化学习算法比较的开源仿真环境
+\cite{citylearn2019,citylearn2020,citylearnv2}。
+本项目采用 IEA EBC Annex 96 Common Exercise 1（CE1）作为标准化实验任务设置。
+在这个任务中，25 栋住宅需要作为一个整体去跟踪每天的参考负荷曲线。控制器可以调节电池运行，以及供暖和制冷 HVAC 设备相关的灵活性。
+评价时不仅看跟踪误差，也看舒适性、成本、碳排放、爬坡、峰值负荷和公平性。
 
 The core research question is:
+
+中文：核心研究问题是：
+
 \begin{quote}
 How can structured communication between building agents improve scalable
 multi-agent reinforcement learning for CityLearn portfolio load tracking?
 \end{quote}
 
+中文：建筑智能体之间的结构化通信，如何提升 CityLearn 建筑组合负荷跟踪任务中的多智能体强化学习效果？
+
 The question sits between three existing approaches. Independent reinforcement
-learning is scalable and privacy-friendly, but the agents have no explicit
-coordination mechanism. A fully centralized controller can optimize the
-portfolio directly, but it scales poorly and becomes harder to interpret as the
-number of buildings grows. Centralized training with decentralized execution
-(CTDE), used by methods such as MADDPG, COMA, QMIX, FACMAC, and MAPPO, provides
-a stronger compromise by using global information during training while keeping
-execution decentralized \cite{maddpg2017,coma2018,qmix2018,mappo2022}. This
-project builds on that CTDE direction and adds structured communication between
-actors.
+learning is simple and scalable, but the buildings do not explicitly coordinate
+with each other. A fully centralized controller can optimize the whole group
+directly, but it becomes harder to scale and interpret when the number of
+buildings grows. Centralized training with decentralized execution (CTDE), used
+by methods such as MADDPG, COMA, QMIX, FACMAC, and MAPPO, is a useful
+compromise: it can use global information during training, while still allowing
+each building to act locally during execution \cite{maddpg2017,coma2018,
+qmix2018,mappo2022}. This project follows that direction and adds structured
+communication between the actors.
+
+中文：这个问题介于三类方法之间。独立强化学习简单、可扩展，但建筑之间没有明确协同。完全中心化控制可以直接优化整个建筑组合，但建筑数量增加后会更难扩展，也更难解释。集中训练、分散执行是一种折中方案：训练时可以用全局信息，实际执行时每栋建筑仍然只做自己的动作
+\cite{maddpg2017,coma2018,qmix2018,mappo2022}。本项目在这个思路上进一步加入 actor 之间的结构化通信。
 
 The current stage of the project has produced a working research codebase and a
 clear experimental plan. The completed work includes:
+
+中文：目前项目已经形成了可运行的研究代码和清晰的实验计划。已经完成的工作包括：
 
 \begin{itemize}
   \item implementation of CityLearn wrappers for independent PPO/SAC and MAPPO
@@ -52,17 +73,27 @@ clear experimental plan. The completed work includes:
   export utilities.
 \end{itemize}
 
+中文：具体来说，已经实现了 CityLearn 到 PPO/SAC/MAPPO 的环境封装，标准 MAPPO 和分组 MAPPO 基线，基于 K-means 的建筑分组策略，多种通信模块，以及日志、模型保存、测试和 Annex 96 指标导出工具。
+
 The project now also has a first set of Vermont 200-episode runs. These runs
 are useful as partial evidence: they show that the MAPPO and communication
-pipelines execute end-to-end and they reveal early trade-offs between tracking,
+pipelines execute end-to-end and reveal early trade-offs between tracking,
 comfort, peak demand, and fairness. They are not treated as final results
 because the training budget is limited, Texas has not yet been completed, and
 additional seeds are still needed for stronger conclusions. Therefore, this
 report presents the literature review, research gap, method, implementation
 progress, preliminary results, and the remaining evaluation plan.
 
+中文：目前项目也已经有第一批 Vermont 场景下 200 轮训练的结果。这些结果可以作为阶段性参考，说明 MAPPO 和通信方法的流程能够完整跑通，也初步展示了负荷跟踪、舒适性、峰值负荷和公平性之间的取舍。但这些还不是最终结果，因为训练轮数有限，Texas 场景还没完成，也还需要更多随机种子来支持更可靠的结论。因此，本报告主要展示文献综述、研究空白、方法、实现进展、初步结果和后续评估计划。
+
 Chapter~\ref{ch:background} reviews the relevant literature and explains where
 the project fits. Chapter~\ref{ch:method} describes the implemented method and
-current progress. Chapter~\ref{ch:eval} gives the planned evaluation and result
-analysis structure. Chapter~\ref{ch:concl} summarizes the midterm outcomes and
-next steps.
+current progress. Chapter~\ref{ch:eval} gives the preliminary evaluation and
+the remaining analysis plan. Chapter~\ref{ch:concl} summarizes the midterm
+outcomes and next steps.
+
+中文：第~\ref{ch:background}~章回顾相关文献并说明本项目的位置。第~\ref{ch:method}~章介绍已经实现的方法和当前进展。第~\ref{ch:eval}~章给出初步评估和后续分析计划。第~\ref{ch:concl}~章总结中期成果和下一步工作。
+
+d}~章介绍已实现方法与当前进展。第~\ref{ch:eval}~章给出计划中的评估与结果分析结构。第~\ref{ch:concl}~章总结期中成果与后续步骤。
+
+d}~章介绍已实现方法与当前进展。第~\ref{ch:eval}~章给出计划中的评估与结果分析结构。第~\ref{ch:concl}~章总结期中成果与后续步骤。

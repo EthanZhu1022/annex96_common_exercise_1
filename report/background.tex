@@ -11,6 +11,7 @@ adaptive building control, while also noting practical barriers such as safety,
 sample efficiency, sim-to-real transfer, and benchmark comparability
 \cite{zandi2023tenquestions,safeDRL2025}.
 
+
 CityLearn directly addresses the benchmark problem. CityLearn v1 introduced an
 OpenAI Gym-style environment for demand response using deep RL
 \cite{citylearn2019}. The later CityLearn work standardized multi-agent RL
@@ -23,6 +24,7 @@ environment for this project because the research question is not simply
 whether an agent can reduce energy cost, but whether multiple building agents
 can coordinate under shared portfolio-level objectives.
 
+
 \section{MARL for Energy Systems}
 
 Multi-agent reinforcement learning is a natural formulation for energy
@@ -32,6 +34,7 @@ non-stationarity from concurrently learning agents, partial observability, and
 credit assignment under shared rewards \cite{marlOverview2019}. In energy
 systems these issues are amplified by heterogeneous devices, different comfort
 states, network constraints, and long temporal dependencies.
+
 
 Recent energy-system studies show why MARL is appropriate but also why
 structure is necessary. PowerGridworld provides a Gym-style environment for
@@ -45,6 +48,7 @@ that graph and physical structure can improve robustness and sample efficiency
 project: scalable energy MARL should not treat agents as an unstructured list;
 it should use building similarity, graph structure, or communication structure.
 
+
 \section{Single-Agent Baselines: PPO and SAC}
 
 Independent single-agent baselines are still important. PPO is a robust
@@ -57,10 +61,12 @@ sacApplications2018}. In this project, independent PPO and SAC provide
 baseline controllers that answer a basic question: how much performance can be
 obtained without explicit inter-building coordination?
 
+
 However, independent baselines are expected to struggle with portfolio-level
 tracking. Each building receives only local observations and cannot know how
 other buildings will respond at the same time step. This motivates moving from
 independent learning to CTDE and communication-aware MARL.
+
 
 \section{Centralized Training with Decentralized Execution}
 
@@ -73,6 +79,7 @@ such as VDN and QMIX decompose a team value function into per-agent components;
 QMIX adds a monotonic mixing constraint so that decentralized greedy actions
 remain consistent with the centralized value function \cite{vdn2017,qmix2018}.
 
+
 MAPPO is a policy-gradient CTDE method that adapts PPO to cooperative
 multi-agent settings. Yu et al. show that, with careful implementation,
 PPO-style on-policy learning is surprisingly effective in cooperative
@@ -80,6 +87,7 @@ multi-agent games \cite{mappo2022}. MAPPO is a good match for CityLearn because
 the action space is continuous and the portfolio objective is cooperative. This
 project therefore uses MAPPO as the main learning backbone and reuses the
 existing on-policy implementation rather than reimplementing the optimizer.
+
 
 \section{Parameter Sharing, Grouping, and K-Means}
 
@@ -92,6 +100,7 @@ parameters within each partition \cite{seps2021}. This idea is directly
 relevant to the CityLearn portfolio, where buildings differ in battery capacity,
 thermal flexibility, and load profile.
 
+
 The grouping method used in this project is K-means clustering. K-means
 partitions data into $K$ sets by minimizing within-cluster squared distances to
 cluster centroids \cite{kmeans1967}. In this implementation, buildings are
@@ -100,6 +109,7 @@ and aggregate HVAC capacity. The result is a grouped actor architecture: agents
 within the same cluster share an actor, while the full portfolio shares a
 centralized critic. This provides a concrete link between classical clustering,
 selective parameter sharing, and building-energy heterogeneity.
+
 
 \section{Communication in MARL}
 
@@ -112,6 +122,7 @@ especially relevant for building portfolios: all-to-all communication may be
 unnecessary or noisy, while no communication may be too weak for aggregate
 tracking.
 
+
 Several communication methods guide this project. DIAL trains differentiable
 communication channels under centralized learning and decentralized execution
 \cite{dial2016}. CommNet performs differentiable message passing by averaging
@@ -122,6 +133,7 @@ targeted communication so that agents can learn whom to attend to
 local-neighbor communication and is closely aligned with the idea that energy
 systems have useful graph structure \cite{powernet2020}.
 
+
 The communication modules in this project combine these ideas with the
 CityLearn portfolio structure. CommNet tests simple mean-pooling communication.
 PowerNet-style modules test sparse neighbor graphs. TarMAC tests learned
@@ -130,6 +142,7 @@ middle ground: it gives higher weight to messages from similar buildings and
 lower weight to global context. This method is intended to preserve scalability
 while still allowing the policy to coordinate at portfolio level.
 
+
 \section{Research Gap}
 
 The literature shows that RL for building control is active, CityLearn provides
@@ -137,11 +150,14 @@ a strong benchmark, CTDE methods are effective for cooperative MARL, and
 communication can improve coordination. The gap addressed here is the
 combination of these ideas for CityLearn portfolio load tracking:
 
+
 \begin{itemize}
   \item most CityLearn controllers do not explicitly compare multiple
   structured communication protocols;
   \item many MARL communication studies use abstract games rather than
-  building-energy metrics such as comfort, carbon, ramping, and load tracking;
+  building-energy metrics such as comfort, ramping, peak demand, and load
+  tracking, with cost and carbon included when the benchmark data supplies
+  valid signals;
   \item full parameter sharing ignores heterogeneity, while fully separate
   actors lose sample efficiency;
   \item final performance must be judged by portfolio-level tracking and
@@ -151,3 +167,4 @@ combination of these ideas for CityLearn portfolio load tracking:
 This project therefore focuses on grouped MAPPO with structured communication,
 using CityLearn and Annex 96 metrics as the application-grounded evaluation
 setting.
+
