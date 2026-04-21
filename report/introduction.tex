@@ -49,8 +49,8 @@ communication designs.
 
 中文：因此，本项目围绕三类比较展开。
 第一，比较每栋建筑独立控制和 MARL 协同控制，判断协同控制对 CE1 是否真的有帮助。
-第二，比较不同类型的 MARL，例如 MAPPO、MASAC 或基于价值函数的方法，判断哪类学习方式更适合这个任务。
-第三，在 MAPPO 框架下比较有通信和无通信的版本，并进一步比较不同通信结构。
+第二，以稳定的onpolicy方法（MAPPO）为例，比较不同结构的的MARL，例如分组和未分组，有通信和无通信的，组间通讯和组内通讯的版本，并进一步比较不同通信结构。
+第三，比较不同类型的 MARL，例如 MAPPO、MASAC 或基于价值函数的方法，判断哪类学习方式更适合这个任务。
 
 At the current stage, MAPPO is used as the main experimental backbone. This is
 a practical choice rather than a final claim that MAPPO is the best algorithm.
@@ -61,7 +61,11 @@ CityLearn pipeline with grouped actors, a shared critic, and communication
 modules. After this pipeline is stable, the project can compare MAPPO with
 other directions such as SAC/MASAC or DQN-style value-based methods.
 
-中文：当前阶段选择 MAPPO 作为主要实验主干，是因为它是 on-policy 的集中训练、分散执行方法，PPO 类更新通常比较稳定，也更容易调试 \cite{ppo2017,mappo2022}。这不是说 MAPPO 一定是最终最优算法，而是因为它适合作为第一阶段的稳定起点，用来调通 CityLearn 环境、分组 actor、共享 critic 和通信模块。等这条流程稳定后，后续会继续和 SAC/MASAC、DQN 类价值函数方法等方向做对比。
+中文：当前阶段选择 MAPPO 作为主要实验主干，是因为它是 on-policy 的集中训练、分散执行方法，
+PPO 类更新通常比较稳定，也更容易调试 \cite{ppo2017,mappo2022}。
+这不是说 MAPPO 一定是最终最优算法，而是因为它适合作为第一阶段的稳定起点，
+用来调通 CityLearn 环境、分组 actor、共享 critic 和通信模块。
+等这条流程稳定后，后续会继续和 SAC/MASAC、DQN 类价值函数方法等方向做对比。
 
 The communication part is therefore an optimization and innovation on top of
 the current MAPPO backbone. It studies whether agents should share information,
@@ -69,7 +73,9 @@ and if so, whether simple mean-message communication, graph-based neighbour
 communication, attention-based communication, or weighted same-group/other-group
 communication is more effective.
 
-中文：因此，通信部分是在当前 MAPPO 主干上的优化和创新。它研究的是建筑智能体之间是否应该共享信息；如果要共享，是简单均值消息、图结构邻居通信、注意力通信，还是组内/组间加权通信更有效。
+中文：因此，通信部分是在当前 MAPPO 主干上的优化和创新。
+它研究的是建筑智能体之间是否应该共享信息；
+如果要共享，是简单均值消息、图结构邻居通信、注意力通信，还是组内/组间加权通信更有效。
 
 The current stage of the project has produced a working research codebase and a
 clear experimental plan. The completed work includes:
@@ -90,7 +96,10 @@ clear experimental plan. The completed work includes:
   export utilities.
 \end{itemize}
 
-中文：具体来说，已经实现了 CityLearn 到 PPO/SAC/MAPPO 的环境封装，标准 MAPPO 和分组 MAPPO 基线，基于 K-means 的建筑分组策略，多种通信模块，以及日志、模型保存、测试和 Annex 96 指标导出工具。
+中文：具体来说，已经实现了 CityLearn 到 PPO/SAC/MAPPO 的环境封装，
+标准 MAPPO 和分组 MAPPO 基线，
+基于 K-means 的建筑分组策略，
+多种通信模块，以及日志、模型保存、测试和 Annex 96 指标导出工具。
 
 The project now also has a first set of Vermont 200-episode runs. These runs
 are useful as partial evidence: they show that the MAPPO and communication
@@ -101,7 +110,11 @@ additional seeds are still needed for stronger conclusions. Therefore, this
 report presents the literature review, research gap, method, implementation
 progress, preliminary results, and the remaining evaluation plan.
 
-中文：目前项目也已经有第一批 Vermont 场景下 200 轮训练的结果。这些结果可以作为阶段性参考，说明 MAPPO 和通信方法的流程能够完整跑通，也初步展示了负荷跟踪、舒适性、峰值负荷和公平性之间的取舍。但这些还不是最终结果，因为训练轮数有限，Texas 场景还没完成，也还需要更多随机种子来支持更可靠的结论。因此，本报告主要展示文献综述、研究空白、方法、实现进展、初步结果和后续评估计划。
+中文：目前项目也已经有第一批 Vermont 场景下 200 轮训练的结果。
+这些结果可以作为阶段性参考，说明 MAPPO 和通信方法的流程能够完整跑通，
+也初步展示了负荷跟踪、舒适性、峰值负荷和公平性之间的取舍。
+但这些还不是最终结果，因为训练轮数有限，Texas 场景还没完成，也还需要更多随机种子来支持更可靠的结论。
+因此，本报告主要展示文献综述、研究空白、方法、实现进展、初步结果和后续评估计划。
 
 Chapter~\ref{ch:background} reviews the relevant literature and explains where
 the project fits. Chapter~\ref{ch:method} describes the implemented method and
@@ -109,8 +122,7 @@ current progress. Chapter~\ref{ch:eval} gives the preliminary evaluation and
 the remaining analysis plan. Chapter~\ref{ch:concl} summarizes the midterm
 outcomes and next steps.
 
-中文：第~\ref{ch:background}~章回顾相关文献并说明本项目的位置。第~\ref{ch:method}~章介绍已经实现的方法和当前进展。第~\ref{ch:eval}~章给出初步评估和后续分析计划。第~\ref{ch:concl}~章总结中期成果和下一步工作。
-
-d}~章介绍已实现方法与当前进展。第~\ref{ch:eval}~章给出计划中的评估与结果分析结构。第~\ref{ch:concl}~章总结期中成果与后续步骤。
-
-d}~章介绍已实现方法与当前进展。第~\ref{ch:eval}~章给出计划中的评估与结果分析结构。第~\ref{ch:concl}~章总结期中成果与后续步骤。
+中文：第~\ref{ch:background}~章回顾相关文献并说明本项目的位置。
+第~\ref{ch:method}~章介绍已经实现的方法和当前进展。
+第~\ref{ch:eval}~章给出初步评估和后续分析计划。
+第~\ref{ch:concl}~章总结中期成果和下一步工作。
