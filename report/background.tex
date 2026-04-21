@@ -36,7 +36,7 @@ CityLearn v2 又扩展了能源灵活性、韧性、住户中心和碳感知等�
 
 \section{Annex 96 CE1 Experimental Setting}
 
-This project uses the Annex 96 Common Exercise 1 neighborhood datasets in
+This project uses Annex 96 Common Exercise 1 (CE1) as a benchmark setting in
 CityLearn. Each CE1 schema defines 25 single-family homes, one weather file, one
 district target file, and one energy-simulation file per home. The district
 target file provides the reference load that the whole portfolio should follow,
@@ -45,7 +45,7 @@ generation, and other time-series observations. The important point for this
 project is that CE1 is a portfolio load-tracking task, not a physical network
 control task.
 
-中文：本项目使用 CityLearn 中的 Annex 96 Common Exercise 1（CE1）社区数据集。
+中文：本项目使用 CityLearn 中的 Annex 96 Common Exercise 1（CE1）作为基准实验设置。
 每个 CE1 schema 定义了 25 栋独栋住宅、一个天气文件、一个区域目标负荷文件，以及每栋住宅各自的能耗仿真文件。
 其中区域目标负荷文件给出了整个建筑组合需要跟踪的参考负荷；
 每栋住宅自己的文件则提供本地需求、室内温度、太阳能发电等时间序列观测。
@@ -183,13 +183,14 @@ MAPPO is a policy-gradient CTDE method that adapts PPO to cooperative
 multi-agent settings. Yu et al. show that, with careful implementation,
 PPO-style on-policy learning is surprisingly effective in cooperative
 multi-agent games \cite{mappo2022}. MAPPO is a good match for CityLearn because
-the action space is continuous and the portfolio objective is cooperative. This
-project therefore uses MAPPO as the main learning backbone and reuses the
-existing on-policy implementation rather than reimplementing the optimizer.
+CityLearn has a continuous bounded action space, and the portfolio objective is
+cooperative. This project therefore uses MAPPO as the main learning backbone and
+reuses the existing on-policy implementation rather than reimplementing the
+optimizer.
 
 中文：MAPPO 是一种基于策略梯度的 CTDE 方法，可以理解为把 PPO 扩展到合作型多智能体任务。
 Yu 等人的研究表明，在实现细节合理的情况下，PPO 风格的 on-policy 学习在合作多智能体任务中效果很好 \cite{mappo2022}。
-MAPPO 适合 CityLearn 的一个原因是，CityLearn 的动作空间是连续的，而且组合负荷跟踪是合作目标。
+MAPPO 适合 CityLearn 的一个原因是，CityLearn 的动作空间是连续且有边界的，而且组合负荷跟踪是合作目标。
 因此，本项目当前阶段把 MAPPO 作为主要学习主干，并复用已有 on-policy 实现，而不是重新实现优化器。
 
 \section{Parameter Sharing, Grouping, and K-Means}
