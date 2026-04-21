@@ -206,10 +206,12 @@ maximum share are much larger.
 中文：次级指标提供了重要补充背景。全局 CommNet 当前在通信方案中给出最好的 CV-RMSE，同时将峰值负荷降低 10.61\%。组内/组间加权通信在峰值与爬坡方面收益相近，但跟踪与舒适性更差。TarMAC 在 MAPPO 类运行中带来最大峰值下降，但其 ramping KPI 更差。分组 MAPPO 变体在公平性上通常比 SB3 独立 PPO 更均衡，后者的 Gini 与最大占比明显更高。
 
 Cost and carbon metrics are not interpretable in the current exports because
-the corresponding values are null or zero. They should be revisited after the
-data pipeline confirms that price and carbon signals are correctly included.
+the CE1 schemas used here do not provide pricing or carbon-intensity files.
+CityLearn fills the missing signals with zero series, so the resulting cost and
+carbon values are zero or null rather than meaningful control outcomes.
 
-中文：当前导出结果中的成本与碳排指标暂不可解释，因为对应数值为 null 或 0。待数据流水线确认价格与碳信号被正确纳入后，应重新分析这些指标。
+中文：当前导出结果中的成本与碳排指标不可解释，因为本项目使用的 CE1 schema 没有提供电价和碳排放强度文件。
+CityLearn 会用全 0 序列填充这些缺失信号，所以得到的成本与碳排结果是 0 或 null，而不是有意义的控制效果。
 
 \section{Remaining Data Analysis}
 

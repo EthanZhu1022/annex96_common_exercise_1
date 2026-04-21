@@ -21,16 +21,19 @@ Annex 96 Common Exercise 1 (CE1) as a standardized experimental task. In this
 task, 25 single-family homes need to follow a daily reference load profile as a
 group. The controller can adjust battery operation and HVAC-related flexibility
 for both heating and cooling. The evaluation considers not only load tracking
-error, but also indoor comfort and secondary metrics such as cost, carbon
-emissions, total energy use, peak demand, peak-to-valley ratio, load factor,
-ramping, and fairness.
+error, but also indoor comfort and secondary metrics such as total energy use,
+peak demand, peak-to-valley ratio, load factor, ramping, and fairness. Cost and
+carbon emissions are part of the Annex 96 metric set, but the CE1 schemas used
+in this project do not provide pricing or carbon-intensity files, so these two
+fields are not interpreted in the current experiments.
 
 中文：本中期报告基于 CityLearn 仿真环境研究建筑群负荷跟踪问题。
 CityLearn 是一个面向建筑群能源控制与强化学习算法比较的开源仿真环境
 \cite{citylearn2019,citylearn2020,citylearnv2}。
 本项目采用 IEA EBC Annex 96 Common Exercise 1（CE1）作为标准化实验任务设置。
 在这个任务中，25 栋住宅需要作为一个整体去跟踪每天的参考负荷曲线。控制器可以调节电池运行，以及供暖和制冷 HVAC 设备相关的灵活性。
-评价时不仅看负荷跟踪误差，也看室内舒适性，以及成本、碳排放、总用能、峰值负荷、峰谷比、负荷率、爬坡和公平性等次要指标。
+评价时不仅看负荷跟踪误差，也看室内舒适性，以及总用能、峰值负荷、峰谷比、负荷率、爬坡和公平性等次要指标。
+成本和碳排放属于 Annex 96 指标体系的一部分，但本项目使用的 CE1 schema 没有提供电价和碳排放强度文件，所以当前实验不解释这两个字段。
 
 The core research question is:
 

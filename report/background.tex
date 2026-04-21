@@ -34,6 +34,49 @@ CityLearn v1 提供了一个类似 OpenAI Gym 的需求响应环境，用于深�
 CityLearn v2 又扩展了能源灵活性、韧性、住户中心和碳感知等社区控制场景，并加入了更丰富的分布式能源模型和评价用例 \cite{citylearnv2}。
 因此，CityLearn 很适合本项目，因为本项目关心的不是单个智能体能不能降低能耗，而是多个建筑智能体能不能在共同的组合目标下协同。
 
+\section{Annex 96 CE1 Experimental Setting}
+
+This project uses the Annex 96 Common Exercise 1 neighborhood datasets in
+CityLearn. Each CE1 schema defines 25 single-family homes, one weather file, one
+district target file, and one energy-simulation file per home. The district
+target file provides the reference load that the whole portfolio should follow,
+while the per-building files provide local demand, indoor temperature, solar
+generation, and other time-series observations. The important point for this
+project is that CE1 is a portfolio load-tracking task, not a physical network
+control task.
+
+中文：本项目使用 CityLearn 中的 Annex 96 Common Exercise 1（CE1）社区数据集。
+每个 CE1 schema 定义了 25 栋独栋住宅、一个天气文件、一个区域目标负荷文件，以及每栋住宅各自的能耗仿真文件。
+其中区域目标负荷文件给出了整个建筑组合需要跟踪的参考负荷；
+每栋住宅自己的文件则提供本地需求、室内温度、太阳能发电等时间序列观测。
+对本项目最重要的一点是，CE1 是建筑组合负荷跟踪任务，而不是物理电网拓扑控制任务。
+
+The CE1 schemas used here do not provide a feeder map, floor-plan distribution,
+geographic coordinates, or an adjacency list between homes. Therefore the
+current grouping method cannot use physical proximity or electrical topology.
+Instead, buildings are grouped using flexibility-related device features that
+are available after CityLearn initializes the environment, mainly electrical
+storage capacity and total HVAC nominal power. This matches the K-means
+implementation used in the experiments.
+
+中文：当前使用的 CE1 schema 没有提供住宅之间的馈线拓扑、楼层或空间分布、地理坐标，也没有提供建筑之间的邻接关系。
+因此，本项目当前的分组方法不能基于物理距离或电气拓扑。
+实际使用的是 CityLearn 初始化环境后可以读取到的灵活性相关设备特征，主要是电池容量和 HVAC 名义总功率。
+这与实验中的 K-means 分组实现一致。
+
+Another data limitation is pricing and carbon intensity. The CE1 schema contains
+observation names for electricity pricing and carbon intensity, but the VT and TX
+CE1 building entries used in this project set both the pricing file and the
+carbon-intensity file to null. CityLearn then fills these series with zeros.
+As a result, cost and carbon-emission metrics still have calculation formulas in
+CityLearn, but they are zero or null in the current experiments and should not be
+interpreted as meaningful performance outcomes.
+
+中文：另一个需要说明的数据限制是电价和碳排放强度。
+CE1 schema 中虽然保留了 electricity pricing 和 carbon intensity 这些观测名称，但本项目使用的 VT 和 TX CE1 建筑条目中，pricing 文件和 carbon-intensity 文件都设置为 null。
+CityLearn 在这种情况下会用全 0 序列填充这些数据。
+因此，成本和碳排放指标在 CityLearn 中仍然有计算公式，但在当前实验中会表现为 0 或 null，不能作为有意义的性能结果解释。
+
 \section{MARL for Energy Systems}
 
 Multi-agent reinforcement learning is a natural formulation for energy
@@ -80,10 +123,22 @@ sacApplications2018}. In this project, independent PPO and SAC provide
 baseline controllers that answer a basic question: how much performance can be
 obtained without explicit inter-building coordination?
 
+On-policy and off-policy methods also differ in how they use data. On-policy
+methods such as PPO and MAPPO collect trajectories using the current policy and
+then update from those fresh trajectories. This is usually stable and easier to
+control, but it uses data less efficiently. Off-policy methods such as SAC can
+store past experience in a replay buffer and reuse it for many updates. This can
+be more sample-efficient and exploratory, but it can also be more sensitive to
+distribution shift between old data and the current policy.
+
 中文：独立单智能体基线仍然很重要。
 PPO 是一种 on-policy 的策略梯度方法，通过裁剪目标函数限制每次策略更新的幅度，因此训练通常比较稳定 \cite{ppo2017}。
 SAC 是一种 off-policy 的最大熵 actor-critic 方法，通过熵正则鼓励探索并学习随机策略 \cite{sac2018,sacApplications2018}。
 在本项目中，独立 PPO 和 SAC 用来回答一个基础问题：如果建筑之间不显式协同，仅靠每栋建筑独立学习，最多能做到什么程度？
+
+on-policy 和 off-policy 的主要区别在于数据怎么使用。
+PPO 和 MAPPO 这类 on-policy 方法使用当前策略采样得到的新轨迹进行更新，训练通常更稳定、更容易控制，但样本利用率较低。
+SAC 这类 off-policy 方法可以把过去的经验放进 replay buffer，并反复用于多次更新，因此样本利用率和探索能力通常更强，但也更容易受到旧数据和当前策略分布不一致的影响。
 
 However, independent baselines are expected to struggle with portfolio-level
 tracking. Each building receives only local observations and cannot know how
@@ -219,9 +274,9 @@ combination of these ideas for CityLearn portfolio load tracking:
   中文：多数 CityLearn 控制器没有系统比较多种结构化通信协议。
   \item many MARL communication studies use abstract games rather than
   building-energy metrics such as comfort, ramping, peak demand, and load
-  tracking. Cost and carbon should be interpreted only when the benchmark
-  data provides valid signals for them;
-  中文：很多 MARL 通信研究使用抽象博弈环境，而不是舒适性、爬坡、峰值负荷和负荷跟踪等建筑能源指标。需要注意的是，本实验中成本和碳排放只有在基准数据提供有效信号时才适合纳入解释。
+  tracking. In the current CE1 data, cost and carbon are not interpreted because
+  the pricing and carbon-intensity files are absent;
+  中文：很多 MARL 通信研究使用抽象博弈环境，而不是舒适性、爬坡、峰值负荷和负荷跟踪等建筑能源指标。需要注意的是，当前 CE1 数据没有提供电价和碳排放强度文件，因此本实验不解释成本和碳排放结果。
   \item full parameter sharing ignores heterogeneity, while fully separate
   actors lose sample efficiency;
   中文：完全参数共享会忽略建筑差异，而完全独立 actor 又会降低样本效率。
