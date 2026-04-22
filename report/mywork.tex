@@ -232,6 +232,40 @@ m_i = \frac{1}{|G_k|-1}\sum_{j \in G_k, j \ne i} h_j .
 这是本项目中最简单的通信基线。
 
 
+\subsection{Weighted Same-Group and Other-Group Communication}
+
+The project-specific communication module separates messages from similar
+buildings and messages from the rest of the portfolio. For group $G_k$,
+\[
+m^{same}_k = \frac{1}{|G_k|}\sum_{j \in G_k} h_j,
+\qquad
+m^{other}_k = \frac{1}{N-|G_k|}\sum_{j \notin G_k} h_j .
+\]
+The combined message is
+\[
+m_k = \alpha m^{same}_k + \beta m^{other}_k,
+\qquad \alpha > \beta \geq 0.
+\]
+The default implementation uses $\alpha=0.75$ and $\beta=0.25$. This means that
+same-group information is weighted more strongly, while other-group information
+is still kept as weaker global context.
+
+中文：本项目设计的通信模块将相似建筑的信息和其他建筑的信息分开处理。
+对于组 $G_k$：
+\[
+m^{same}_k = \frac{1}{|G_k|}\sum_{j \in G_k} h_j,
+\qquad
+m^{other}_k = \frac{1}{N-|G_k|}\sum_{j \notin G_k} h_j .
+\]
+组合后的消息为：
+\[
+m_k = \alpha m^{same}_k + \beta m^{other}_k,
+\qquad \alpha > \beta \geq 0.
+\]
+默认实现使用 $\alpha=0.75$ 和 $\beta=0.25$。
+这表示组内信息权重更高，但组外信息仍然作为较弱的全局背景保留下来。
+
+
 \subsection{PowerNet-Style Structured Information Passing}
 
 The PowerNet-style module tests a more structured way of sharing information. It
@@ -267,8 +301,10 @@ and the received context is
 \[
 c_i = \sum_j \alpha_{ij}v_j .
 \]
-The updated feature is computed from $h_i$ and $c_i$. This module tests whether
-the agents can learn which other agents are worth paying more attention to.
+The updated feature is computed from $h_i$ and $c_i$. Compared with the fixed
+$\alpha$ and $\beta$ weights above, this module learns the communication weights
+from the current features. It tests whether the agents can learn which other
+agents are worth paying more attention to.
 
 中文：TarMAC 风格模块使用注意力机制。
 每个智能体都会生成 query、key 和 value 特征。
@@ -283,6 +319,7 @@ the agents can learn which other agents are worth paying more attention to.
 c_i = \sum_j \alpha_{ij}v_j .
 \]
 更新后的特征由 $h_i$ 和 $c_i$ 共同计算得到。
+和上面固定的 $\alpha$、$\beta$ 权重相比，这个模块会根据当前特征学习通信权重。
 该模块用于测试智能体能否学会更应该关注哪些其他智能体。
 
 
@@ -302,40 +339,6 @@ communication signals help the grouped actors coordinate.
 测试时，消息可以被离散化。
 在本项目中，DIAL 模块被改造成适用于 MAPPO 的形式，而不是完全复现原始基于 DQN 的 DIAL 算法。
 这样做的目的是测试可训练的通信信号是否能帮助分组 actor 更好地协同。
-
-
-\subsection{Weighted Same-Group and Other-Group Communication}
-
-The project-specific communication module separates messages from similar
-buildings and messages from the rest of the portfolio. For group $G_k$,
-\[
-m^{same}_k = \frac{1}{|G_k|}\sum_{j \in G_k} h_j,
-\qquad
-m^{other}_k = \frac{1}{N-|G_k|}\sum_{j \notin G_k} h_j .
-\]
-The combined message is
-\[
-m_k = \alpha m^{same}_k + \beta m^{other}_k,
-\qquad \alpha > \beta \geq 0.
-\]
-The default implementation uses $\alpha=0.75$ and $\beta=0.25$. This means that
-same-group information is weighted more strongly, while other-group information
-is still kept as weaker global context.
-
-中文：本项目设计的通信模块将相似建筑的信息和其他建筑的信息分开处理。
-对于组 $G_k$：
-\[
-m^{same}_k = \frac{1}{|G_k|}\sum_{j \in G_k} h_j,
-\qquad
-m^{other}_k = \frac{1}{N-|G_k|}\sum_{j \notin G_k} h_j .
-\]
-组合后的消息为：
-\[
-m_k = \alpha m^{same}_k + \beta m^{other}_k,
-\qquad \alpha > \beta \geq 0.
-\]
-默认实现使用 $\alpha=0.75$ 和 $\beta=0.25$。
-这表示组内信息权重更高，但组外信息仍然作为较弱的全局背景保留下来。
 
 
 \section{Completed Implementation}
@@ -359,13 +362,13 @@ At the midterm stage, the following implementation work has been completed:
   CommNet-style mean communication, and PowerNet-style structured information
   passing;
   中文：组内通信变体，包括无通信、CommNet 风格均值通信，以及 PowerNet 风格结构化信息传递；
-  \item attention and differentiable-message variants, including TarMAC-style
-  attention and DIAL-style communication;
-  中文：注意力和可微信息变体，包括 TarMAC 风格注意力和 DIAL 风格通信；
   \item weighted same-group and other-group communication, where same-group
   messages are weighted more strongly than messages from the rest of the
   portfolio;
   中文：组内和组外加权通信，其中组内消息的权重大于来自其他建筑组的消息；
+  \item attention and differentiable-message variants, including TarMAC-style
+  attention and DIAL-style communication;
+  中文：注意力和可微信息变体，包括 TarMAC 风格注意力和 DIAL 风格通信；
   \item shared centralized critic and shared value normalizer for grouped
   policies;
   中文：用于分组策略的共享集中式 critic 和共享 value normalizer；
