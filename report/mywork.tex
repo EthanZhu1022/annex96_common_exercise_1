@@ -150,11 +150,67 @@ in a shape that supports both MAPPO updates and group communication.
 因此，当前实现让张量保持一种既支持 MAPPO 更新、又支持组内通信的形状。
 
 
-\section{Communication Modules}
+\section{Baseline and Communication Variants}
 
-In the communication variants, the actor first encodes each building observation
-into a hidden feature. The communication layer then modifies this feature before
-the action head selects the final action:
+The implemented methods are organized as a step-by-step experimental path. The
+project first tests individual learning methods, then standard MAPPO, then
+grouped MAPPO without communication, and finally several communication variants.
+This order makes it easier to see what is added at each stage.
+
+中文：这一部分按照实验推进顺序来组织。
+项目先测试个体学习方法，再测试标准 MAPPO，然后测试无通信的分组 MAPPO，最后再加入不同通信模块。
+这样写可以更清楚地说明每一步相比前一步新增了什么。
+
+
+\subsection{Individual PPO and SAC Baselines}
+
+The first learning baselines are independent PPO and independent SAC. In these
+runs, each building learns without receiving information from other buildings.
+This gives a simple reference point for what can be achieved without multi-agent
+coordination.
+
+中文：第一类学习基线是独立 PPO 和独立 SAC。
+在这些实验中，每栋建筑在不接收其他建筑信息的情况下学习。
+这提供了一个简单参照，用来观察在没有多智能体协同的情况下大概能做到什么水平。
+
+
+\subsection{Standard MAPPO}
+
+The next step is standard MAPPO. All 25 buildings reuse the same actor network
+through parameter sharing, while the centralized critic sees the full portfolio
+state during training. There is still no explicit communication module in this
+baseline. It tests whether a basic MARL method already improves the task before
+adding grouping or communication design.
+
+中文：下一步是标准 MAPPO。
+25 栋建筑通过参数共享复用同一个 actor 网络，训练时集中式 critic 可以看到完整的建筑组合状态。
+这个基线里仍然没有显式通信模块。
+它用来测试：在还没有加入分组和通信设计之前，基础 MARL 方法本身是否已经能改善任务效果。
+
+
+\subsection{Grouped MAPPO Without Communication}
+
+After standard MAPPO, buildings are divided into groups with K-means. Buildings
+in the same group share one group actor, but the encoded feature is not changed
+by any message passing:
+\[
+\tilde{h}_i = h_i .
+\]
+This tests whether grouping alone helps. It is also the direct no-communication
+baseline for later communication modules.
+
+中文：在标准 MAPPO 之后，建筑会通过 K-means 被分成不同组。
+同一组建筑共享一个组内 actor，但编码后的特征不会被任何消息传递改变：
+\[
+\tilde{h}_i = h_i .
+\]
+这一步用来测试单独分组是否有帮助。
+它也是后续通信模块最直接的无通信对照。
+
+
+In the communication variants below, the actor first encodes each building
+observation into a hidden feature. The communication layer then modifies this
+feature before the action head selects the final action:
 \[
 o_i \rightarrow \mathrm{encoder}_k \rightarrow h_i
 \rightarrow \mathrm{communication} \rightarrow \tilde{h}_i
@@ -163,7 +219,7 @@ o_i \rightarrow \mathrm{encoder}_k \rightarrow h_i
 Because the communication module is part of the actor network, it is trained
 together with the actor.
 
-中文：在带通信的变体中，actor 会先把每栋建筑的观测编码成隐藏特征。
+中文：在下面的通信变体中，actor 会先把每栋建筑的观测编码成隐藏特征。
 通信层会在动作头选择最终动作之前，对这个隐藏特征进行更新：
 \[
 o_i \rightarrow \mathrm{encoder}_k \rightarrow h_i
@@ -171,40 +227,6 @@ o_i \rightarrow \mathrm{encoder}_k \rightarrow h_i
 \rightarrow \mathrm{action\ head}_k \rightarrow a_i .
 \]
 因为通信模块是 actor 网络的一部分，它会和 actor 一起训练。
-
-
-\subsection{Baselines Without Communication}
-
-There are two important baselines without communication. The first is standard
-MAPPO: the same actor network is reused by all 25 buildings through parameter
-sharing, and the centralized critic sees the full portfolio state during
-training. This tests whether a basic MARL method already improves the CityLearn
-task. The second is grouped MAPPO with no
-communication: buildings are first divided into groups, and each group uses its
-own actor, but agents do not exchange messages. This tests whether grouping
-alone helps before adding communication.
-
-中文：没有通信的基线主要有两个。
-第一个是标准 MAPPO：25 栋建筑通过参数共享复用同一个 actor 网络，训练时集中式 critic 可以看到完整的建筑组合状态。
-它用来测试基础的 MARL 方法本身是否已经能改善 CityLearn 任务。
-第二个是无通信的分组 MAPPO：建筑先被分成不同组，每个组使用自己的 actor，但智能体之间不交换消息。
-它用来测试在加入通信之前，单独分组是否有帮助。
-
-
-\subsection{No Communication}
-
-The no-communication baseline simply leaves the encoded feature unchanged:
-\[
-\tilde{h}_i = h_i .
-\]
-This makes it possible to compare grouped MAPPO with and without message
-passing.
-
-中文：无通信基线不会改变编码后的特征：
-\[
-\tilde{h}_i = h_i .
-\]
-这样可以直接比较分组 MAPPO 在有通信和无通信时的差别。
 
 
 \subsection{CommNet-Style Mean Communication}
