@@ -1,147 +1,245 @@
 \chapter{Method and Progress}\label{ch:method}
 
-This chapter describes the implemented method and the progress completed by the
-midterm stage. The project is not yet at the final result-analysis stage, but
-the first 200-episode Vermont runs have been completed. The strongest outcomes
-so far are implementation and design outcomes: the training pipeline is
-operational, multiple baselines have been implemented, and the communication
-variants have been integrated into a common MAPPO framework. The current
-numerical results are treated as preliminary reference points.
+This chapter describes what has been implemented and what has been completed by
+the midterm stage. The project is not yet at the final result-analysis stage,
+but the first 200-episode Vermont runs have been completed. The main progress so
+far is that the training pipeline works, several baselines are available, and
+the communication variants can be tested within the same MAPPO framework. The
+current numerical results are therefore used only as preliminary reference
+points.
+
+中文：本章介绍当前已经实现的方法，以及中期阶段已经完成的工作。
+项目还没有进入最终结果分析阶段，但 Vermont 场景下第一批 200 轮训练实验已经完成。
+目前最主要的进展是训练流程已经可以运行，多个基线方法已经实现，多种通信变体也可以在同一个 MAPPO 框架下测试。
+当前数值结果只作为阶段性参考。
 
 
 \section{Problem Definition}
 
-The CityLearn Annex 96 task is formulated as a cooperative partially observable
-stochastic game. There are $N=25$ building agents. At time step $t$, building
-$i$ observes a local vector $o_i^t$ and selects a continuous action $a_i^t$ for
-its flexible devices. The joint action changes building states, battery states,
-thermal conditions, and aggregate portfolio load. The portfolio should track a
-daily reference load profile $r_t$ while avoiding excessive comfort violations
-and negative secondary impacts.
+The CityLearn Annex 96 task is treated as a cooperative control problem with
+$N=25$ building agents. At time step $t$, building $i$ observes its own local
+state $o_i^t$ and chooses a continuous action $a_i^t$ for its controllable
+devices. The actions of all buildings together affect battery states, indoor
+conditions, and the total portfolio load. The goal is to make the total load
+follow a daily reference profile $r_t$ without creating too many comfort
+violations or other negative side effects.
+
+中文：CityLearn Annex 96 任务在本项目中被看作一个合作型控制问题。
+任务中有 $N=25$ 个建筑智能体。
+在时间步 $t$，建筑 $i$ 看到自己的本地状态 $o_i^t$，并为可控设备选择连续动作 $a_i^t$。
+所有建筑的动作共同影响电池状态、室内状态和整体建筑组合负荷。
+目标是让总负荷跟踪每日参考曲线 $r_t$，同时不要造成过多舒适性违背或其他负面影响。
 
 
-The project objective is not only to maximize training reward. The practical
-objective is to reduce testing-month tracking error, measured by NMBE and
-CV-RMSE, while keeping comfort, ramping, peak demand, and fairness within
-acceptable ranges. Cost and carbon emissions are part of the Annex 96 secondary
+The project objective is not only to get a high training reward. In practice,
+the controller should reduce the testing-month tracking error, measured by NMBE
+and CV-RMSE, while keeping comfort, ramping, peak demand, and fairness in a
+reasonable range. Cost and carbon emissions are part of the Annex 96 secondary
 metric set, but the CE1 schemas used here do not provide pricing or
-carbon-intensity time series, so those two metrics are reported as unavailable
-in the current experiments. This objective motivates the use of a centralized
-critic and structured actor communication.
+carbon-intensity time series, so those two metrics are not interpreted in the
+current experiments. This is why the method uses a centralized critic and
+structured communication between actors.
+
+中文：本项目的目标不只是让训练 reward 变高。
+更实际的目标是在测试月份降低负荷跟踪误差，也就是降低 NMBE 和 CV-RMSE，同时让舒适性、爬坡、峰值负荷和公平性保持在合理范围内。
+成本和碳排放属于 Annex 96 次级指标的一部分，但本项目使用的 CE1 schema 没有提供电价或碳排放强度时间序列，
+因此当前实验不解释这两个指标。
+这也是本项目使用集中式 critic 和 actor 间结构化通信的原因。
 
 
 \section{Environment and Baseline Pipeline}
 
 The first completed component is the environment interface. CityLearn is wrapped
-for several learning backends:
+for several control and learning pipelines:
+
+中文：首先完成的是环境接口。
+本项目为多个控制和学习流程封装了 CityLearn 环境：
 
 
 \begin{itemize}
+  \item RBC notebook baseline for non-learning comparison;
+  中文：用于非学习方法对比的 RBC notebook 基线；
   \item independent PPO and independent SAC baselines, where each building
   learns without communication;
+  中文：独立 PPO 和独立 SAC 基线，其中每栋建筑在没有通信的情况下学习；
   \item standard MAPPO, where all buildings use a shared policy and a
   centralized critic;
+  中文：标准 MAPPO，其中所有建筑使用共享策略和集中式 critic；
   \item grouped MAPPO, where clusters of buildings share group-specific actors;
+  中文：分组 MAPPO，其中同一组建筑共享组内 actor；
   \item communication-aware grouped MAPPO, where a communication layer is
   inserted between actor encoders and action heads.
+  中文：带通信的分组 MAPPO，其中通信层被插入 actor 编码器和动作头之间。
 \end{itemize}
 
-The MAPPO wrapper returns local observations, centralized observations,
-continuous action spaces, rewards, done masks, and episode lengths in the tensor
-format expected by the on-policy MAPPO implementation. Reusing the established
-MAPPO optimizer reduces implementation risk and keeps the research focus on
-CityLearn adaptation, grouping, and communication.
+For the current standard, grouped, and communication-aware MAPPO experiments,
+the \texttt{mappo\_standard/env.py} wrapper returns local observations,
+centralized observations, continuous action spaces, rewards, done masks, and
+episode lengths in the tensor format expected by \texttt{on-policy-main}. The
+training scripts then reuse \texttt{R\_MAPPO}, \texttt{R\_MAPPOPolicy}, and
+\texttt{SharedReplayBuffer} from that implementation, instead of reimplementing
+the PPO optimizer and buffer logic. This reduces implementation risk and keeps
+the research focus on CityLearn adaptation, grouping, and communication.
+
+中文：对于当前的标准 MAPPO、分组 MAPPO 和带通信 MAPPO 实验，
+\texttt{mappo\_standard/env.py} 中的封装会返回局部观测、集中式观测、连续动作空间、奖励、done mask 和 episode 长度，并把它们整理成 \texttt{on-policy-main} 所需要的张量格式。
+随后训练脚本直接复用该实现中的 \texttt{R\_MAPPO}、\texttt{R\_MAPPOPolicy} 和 \texttt{SharedReplayBuffer}，而不是重新实现 PPO 优化器和 buffer 逻辑。
+这样可以降低实现风险，使研究重点集中在 CityLearn 适配、建筑分组和通信设计上。
 
 
 \section{Grouped Actor Architecture}
 
-The grouped actor design is based on selective parameter sharing. Full sharing
-is sample efficient but may be too restrictive for a heterogeneous portfolio.
-Fully independent actors are expressive but require more data and weaken
-coordination. The implemented grouped actor architecture balances these two
-extremes.
+The grouped actor design sits between two simple choices. If all buildings share
+one actor, training is efficient, but the policy may ignore important
+differences between buildings. If every building has its own actor, the policy
+can be more flexible, but it needs more data and coordination becomes harder.
+The grouped design shares an actor only within similar buildings.
+
+中文：分组 actor 设计位于两种简单方案之间。
+如果所有建筑共享一个 actor，训练效率高，但可能忽略建筑之间的重要差异。
+如果每栋建筑都有自己的 actor，策略更灵活，但需要更多数据，协同也更难。
+因此当前方案只让相似建筑共享同一个 actor。
 
 
-Buildings are clustered using K-means over flexibility-related features. The
-current implementation uses features such as battery energy storage capacity
-and aggregate HVAC capacity. After clustering, buildings in group $G_k$ share
-the same actor network. All groups share one centralized critic. The critic
-observes the concatenated portfolio state, while each actor receives local
-building observations plus any communication-enhanced hidden features.
+Buildings are grouped with K-means using features related to flexibility, mainly
+battery energy storage capacity and total HVAC capacity. After clustering,
+buildings in group $G_k$ share the same actor network. All groups still share one
+centralized critic. The critic sees the full portfolio state, while each actor
+uses its local building observations and, when enabled, communication-enhanced
+features.
+
+中文：建筑使用 K-means 根据灵活性相关特征进行分组，主要包括电池储能容量和 HVAC 总容量。
+聚类后，组 $G_k$ 中的建筑共享同一个 actor 网络。
+所有组共享一个集中式 critic。
+critic 可以看到完整的建筑组合状态，而每个 actor 使用本地建筑观测，以及在启用通信时得到的通信增强特征。
 
 
 This architecture has been implemented in the \texttt{mappo\_grouped} package.
 The same grouping information is reused by communication-aware variants so that
 communication effects can be compared against a consistent grouped baseline.
 
+中文：该架构已经在 \texttt{mappo\_grouped} 包中实现。
+带通信的变体会复用同一套分组信息，这样通信效果就可以和一致的分组基线进行比较。
+
 
 \section{MAPPO Learning Structure}
 
 The learning structure follows centralized training and decentralized
-execution. For each group, the actor maps observations to a continuous action
-distribution. The centralized critic estimates the value of the portfolio state.
-After each rollout episode, generalized advantage estimation is computed and
-the PPO clipped objective updates the policies.
+execution. During training, the critic can see the full portfolio state and
+learn whether the overall control decision is good. During execution, each
+group actor only uses its own building observations, plus any communication
+features, to choose continuous actions. After each episode, MAPPO uses the
+collected experience to estimate which actions were better than expected, and
+then updates the actors with PPO's conservative update rule.
+
+中文：学习结构遵循集中训练、分散执行。
+训练时，critic 可以看到整个建筑组合的状态，用来判断整体控制效果好不好。
+执行时，每个组的 actor 只根据本组建筑的观测，以及可能加入的通信特征，选择连续动作。
+每个 episode 结束后，MAPPO 会根据这一轮收集到的经验判断哪些动作比预期更好，然后用 PPO 中比较稳健的更新方式调整 actor。
 
 
-The grouped replay buffer preserves the agent dimension during PPO mini-batch
-sampling. This detail is important: if group-agent samples are flattened too
-early, communication layers cannot reconstruct the correct set of agents for
-message passing. The implemented buffer therefore keeps tensors in a shape that
-supports both MAPPO updates and communication over group members.
+The grouped replay buffer keeps the group-agent structure when samples are drawn
+for PPO updates. This matters for communication: the communication layer needs
+to know which agents were in the same group at the same time step. If the data is
+flattened too early, that structure is lost. The buffer therefore keeps tensors
+in a shape that supports both MAPPO updates and group communication.
+
+中文：分组 replay buffer 在 PPO 更新采样时保留组内智能体结构。
+这对通信很重要：通信层需要知道同一时间步里哪些智能体属于同一组。
+如果过早把数据压平成普通 batch，这个结构就丢失了。
+因此，当前实现让张量保持一种既支持 MAPPO 更新、又支持组内通信的形状。
 
 
 \section{Communication Modules}
 
-The communication layer is inserted between the actor encoder and action head:
+In the communication variants, the actor first encodes each building observation
+into a hidden feature. The communication layer then modifies this feature before
+the action head selects the final action:
 \[
 o_i \rightarrow \mathrm{encoder}_k \rightarrow h_i
 \rightarrow \mathrm{communication} \rightarrow \tilde{h}_i
 \rightarrow \mathrm{action\ head}_k \rightarrow a_i .
 \]
-Because the communication module is registered as part of the actor, its
-parameters are optimized by the same PPO actor loss.
+Because the communication module is part of the actor network, it is trained
+together with the actor.
+
+中文：在带通信的变体中，actor 会先把每栋建筑的观测编码成隐藏特征。
+通信层会在动作头选择最终动作之前，对这个隐藏特征进行更新：
+\[
+o_i \rightarrow \mathrm{encoder}_k \rightarrow h_i
+\rightarrow \mathrm{communication} \rightarrow \tilde{h}_i
+\rightarrow \mathrm{action\ head}_k \rightarrow a_i .
+\]
+因为通信模块是 actor 网络的一部分，它会和 actor 一起训练。
 
 
 \subsection{No Communication}
 
-The identity module is used as the no-communication baseline:
+The no-communication baseline simply leaves the encoded feature unchanged:
 \[
 \tilde{h}_i = h_i .
 \]
-This isolates the effect of message passing from the effect of grouping.
+This makes it possible to compare grouped MAPPO with and without message
+passing.
+
+中文：无通信基线不会改变编码后的特征：
+\[
+\tilde{h}_i = h_i .
+\]
+这样可以直接比较分组 MAPPO 在有通信和无通信时的差别。
 
 
 \subsection{CommNet-Style Mean Communication}
 
-For each group, the CommNet-style module computes the mean hidden feature of
-the other agents:
+For each group, the CommNet-style module lets each agent receive the average
+hidden feature of the other agents:
 \[
 m_i = \frac{1}{|G_k|-1}\sum_{j \in G_k, j \ne i} h_j .
 \]
-The message is transformed by an MLP and added through a residual connection:
+This average message is passed through a small neural network and then added
+back to the agent's own feature:
 \[
 \tilde{h}_i = h_i + f_\theta(m_i).
 \]
-This is the simplest differentiable communication baseline.
+This is the simplest communication baseline in the project.
+
+中文：对于每个组，CommNet 风格模块让每个智能体接收其他智能体隐藏特征的均值：
+\[
+m_i = \frac{1}{|G_k|-1}\sum_{j \in G_k, j \ne i} h_j .
+\]
+这个平均消息会经过一个小型神经网络，然后加回智能体自己的特征：
+\[
+\tilde{h}_i = h_i + f_\theta(m_i).
+\]
+这是本项目中最简单的通信基线。
 
 
-\subsection{PowerNet-Style Neighbor Communication}
+\subsection{PowerNet-Style Structured Information Passing}
 
-The PowerNet-style module restricts communication to a graph. The implemented
-topologies are ring, chain, and full graph. For adjacency matrix $A$, the
-neighbor message is
+The PowerNet-style module tests a more structured way of sharing information. It
+can use ring, chain, or full topologies to decide which other agents are included
+in the message. For adjacency matrix $A$, the selected peer message is
 \[
 m_i = \frac{1}{\max(1,\sum_j A_{ij})}\sum_j A_{ij}g_\theta(h_j).
 \]
-This tests whether sparse local communication can preserve coordination while
-reducing noisy all-to-all message passing.
+The implementation then combines the agent's own feature with the peer message
+using a learned residual update. The purpose is to avoid overwriting local
+information while still allowing agents to coordinate.
+
+中文：PowerNet 风格模块测试的是更结构化的信息共享方式。
+它可以使用 ring、chain 或 full 拓扑来决定哪些其他智能体会被纳入消息。
+对于邻接矩阵 $A$，被选择的其他智能体消息为：
+\[
+m_i = \frac{1}{\max(1,\sum_j A_{ij})}\sum_j A_{ij}g_\theta(h_j).
+\]
+当前实现随后把智能体自己的特征和其他智能体消息结合起来，并通过学习到的残差更新生成新特征。
+这样做的目的是尽量不覆盖本地信息，同时仍然让智能体能够协同。
 
 
 \subsection{TarMAC-Style Attention}
 
-The TarMAC-style module computes query, key, and value projections for all
-agents. Attention weights are
+The TarMAC-style module uses attention. Each agent produces query, key, and
+value features, and the attention weights are
 \[
 \alpha_{ij} =
 \frac{\exp(q_i^\top k_j / \sqrt{d})}
@@ -152,13 +250,28 @@ and the received context is
 c_i = \sum_j \alpha_{ij}v_j .
 \]
 The updated feature is computed from $h_i$ and $c_i$. This module tests whether
-learned receiver selection is beneficial for CityLearn coordination.
+the agents can learn which other agents are worth paying more attention to.
+
+中文：TarMAC 风格模块使用注意力机制。
+每个智能体都会生成 query、key 和 value 特征。
+注意力权重为：
+\[
+\alpha_{ij} =
+\frac{\exp(q_i^\top k_j / \sqrt{d})}
+{\sum_l \exp(q_i^\top k_l / \sqrt{d})},
+\]
+接收到的上下文为：
+\[
+c_i = \sum_j \alpha_{ij}v_j .
+\]
+更新后的特征由 $h_i$ 和 $c_i$ 共同计算得到。
+该模块用于测试智能体能否学会更应该关注哪些其他智能体。
 
 
 \subsection{Weighted Same-Group and Other-Group Communication}
 
-The project-specific communication module separates same-group and other-group
-messages. For group $G_k$,
+The project-specific communication module separates messages from similar
+buildings and messages from the rest of the portfolio. For group $G_k$,
 \[
 m^{same}_k = \frac{1}{|G_k|}\sum_{j \in G_k} h_j,
 \qquad
@@ -169,52 +282,86 @@ The combined message is
 m_k = \alpha m^{same}_k + \beta m^{other}_k,
 \qquad \alpha > \beta \geq 0.
 \]
-The default implementation uses $\alpha=0.75$ and $\beta=0.25$. The purpose is
-to encode a clear inductive bias: buildings with similar flexibility should
-communicate more strongly, but portfolio-level tracking still requires some
-global context.
+The default implementation uses $\alpha=0.75$ and $\beta=0.25$. This means that
+same-group information is weighted more strongly, while other-group information
+is still kept as weaker global context.
+
+中文：本项目设计的通信模块将相似建筑的信息和其他建筑的信息分开处理。
+对于组 $G_k$：
+\[
+m^{same}_k = \frac{1}{|G_k|}\sum_{j \in G_k} h_j,
+\qquad
+m^{other}_k = \frac{1}{N-|G_k|}\sum_{j \notin G_k} h_j .
+\]
+组合后的消息为：
+\[
+m_k = \alpha m^{same}_k + \beta m^{other}_k,
+\qquad \alpha > \beta \geq 0.
+\]
+默认实现使用 $\alpha=0.75$ 和 $\beta=0.25$。
+这表示组内信息权重更高，但组外信息仍然作为较弱的全局背景保留下来。
 
 
 \section{Completed Implementation}
 
 At the midterm stage, the following implementation work has been completed:
 
+中文：截至中期阶段，已经完成以下实现工作：
+
 
 \begin{itemize}
+  \item RBC notebook baseline for non-learning comparison;
+  中文：用于非学习方法对比的 RBC notebook 基线；
   \item independent PPO and SAC training scripts;
+  中文：独立 PPO 和 SAC 训练脚本；
   \item standard MAPPO training and testing scripts;
+  中文：标准 MAPPO 训练和测试脚本；
   \item grouped MAPPO with K-means clustering;
+  中文：带 K-means 聚类的分组 MAPPO；
   \item communication-aware grouped MAPPO with CommNet, PowerNet-style,
   TarMAC-style, DIAL-style, and weighted communication variants;
+  中文：带通信的分组 MAPPO，包括 CommNet、PowerNet 风格、TarMAC 风格、DIAL 风格和加权通信变体；
   \item shared centralized critic and shared value normalizer for grouped
   policies;
+  中文：用于分组策略的共享集中式 critic 和共享 value normalizer；
   \item grouped replay buffer preserving communication structure during PPO
   updates;
+  中文：在 PPO 更新过程中保留通信结构的分组 replay buffer；
   \item checkpoint loading and saving for test-only evaluation;
+  中文：用于 test-only evaluation 的 checkpoint 加载与保存；
   \item Annex 96 metric export, daily metric tables, and plotting utilities,
   with cost and carbon fields marked as unavailable when the CE1 data provides
   no pricing or carbon-intensity signals.
+  中文：Annex 96 指标导出、每日指标表格和绘图工具；当 CE1 数据没有提供电价或碳排放强度信号时，成本和碳排放字段会标记为不可用或不可解释。
 \end{itemize}
 
-The most important conclusion from the completed work is that the project has a
-common experimental interface for the main planned methods. The 200-episode
-Vermont results also provide early evidence that communication changes the
-tracking, comfort, and secondary-metric trade-offs. At this stage, global
-CommNet is the most promising communication variant, but this is only a
-preliminary observation.
+The most important outcome so far is that the main methods can now be run and
+compared through a common experimental interface. The 200-episode Vermont runs
+also show that communication changes the balance between tracking, comfort, and
+secondary metrics. At this stage, global CommNet looks like the most promising
+communication variant, but this is only a preliminary observation.
+
+中文：目前最重要的成果是，主要方法现在可以通过统一的实验接口运行和比较。
+Vermont 场景下 200 轮训练结果也初步说明，通信机制会改变负荷跟踪、舒适性和次级指标之间的取舍。
+在当前阶段，全局 CommNet 是最有前景的通信变体，但这仍然只是初步观察。
 
 
 \section{Current Limitations}
 
-The current limitation is that the available numerical results are incomplete:
-they cover Vermont only, use one seed, and are based on 200 training episodes.
-Therefore, the report does not claim that one communication method is
-definitively superior to another. The final comparison will require longer
-training, Texas experiments, multiple seeds where possible, and a deeper
-analysis of daily load trajectories. The CE1 datasets used in the current
-pipeline also omit pricing and grid-carbon time series, so cost and carbon
-secondary metrics cannot be interpreted without adding external assumptions.
-Another current limitation is that K-means uses static flexibility features;
-future work may replace or augment this with learned embeddings based on
+The current numerical results are incomplete. They cover Vermont only, use one
+seed, and are based on 200 training episodes. Therefore, this report does not
+claim that one communication method is definitively better than the others. The
+final comparison will need longer training, Texas RL experiments, multiple seeds
+where possible, and a closer look at daily load trajectories. The CE1 schemas
+used in the current pipeline also do not include pricing or grid-carbon time
+series, so cost and carbon metrics cannot be interpreted without adding external
+assumptions. Another limitation is that K-means currently uses static device
+features; future work may replace or extend them with learned features from
 building trajectories.
 
+中文：当前数值结果还不完整。
+它们只覆盖 Vermont 场景，只使用一个随机种子，并且只基于 200 轮训练。
+因此，本报告不会声称某一种通信方法已经明确优于其他方法。
+最终比较还需要更长训练、Texas 场景下的 RL 实验、尽可能多个随机种子，以及对每日负荷轨迹的更深入分析。
+当前流程使用的 CE1 schema 也没有提供电价和电网碳排放时间序列，因此如果不加入外部假设，成本和碳排放指标不能解释。
+另一个限制是，K-means 当前使用的是静态设备特征；未来工作可以用基于建筑轨迹学习得到的特征来替代或补充当前特征。
