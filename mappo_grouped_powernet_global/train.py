@@ -46,6 +46,7 @@ from mappo_grouped_comm.train import (  # noqa: E402
     save_run_config,
     seed_everything,
 )
+from training_progress import ProgressTimer  # noqa: E402
 from mappo_grouped_comm_v2.global_actor import GlobalCommActorController  # noqa: E402
 from mappo_grouped_comm_v2.train import (  # noqa: E402
     _train_global_actor,
@@ -460,6 +461,7 @@ def train(cfg: Config) -> None:
     all_rewards: List[float] = []
     all_primary_metrics: List[Dict[str, Any]] = []
     save_every = max(cfg.n_episodes // 10, 1)
+    progress = ProgressTimer(cfg.n_episodes, unit="Ep", label="train")
 
     for episode in range(1, cfg.n_episodes + 1):
         obs, share_obs = train_env.reset(seed=cfg.seed + episode)
@@ -630,6 +632,8 @@ def train(cfg: Config) -> None:
                 cfg=cfg,
             )
             save_plots(all_rewards, all_primary_metrics, save_dir)
+
+        progress.step(episode)
 
     test_result: Optional[Dict[str, Any]] = None
     if cfg.do_test and test_start is not None:

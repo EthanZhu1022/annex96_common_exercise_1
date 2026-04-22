@@ -86,6 +86,7 @@ from ray.rllib.utils.typing import PolicyID
 
 from rllib_sac.env import CityLearnMultiAgentEnv, _build_citylearn
 from mappo.utils import extract_episode_kpis, get_soc_stats, resolve_reference_baseline_series
+from training_progress import ProgressTimer
 
 try:
     import wandb
@@ -1087,6 +1088,7 @@ def train(cfg: Config) -> SAC:
     all_rewards:         List[float] = []
     all_primary_metrics: List[Dict] = []
     ckpt_dir_path: Optional[str] = None
+    progress = ProgressTimer(cfg.n_iterations, unit="Iter", label="train")
 
     for iteration in range(1, cfg.n_iterations + 1):
         result = algorithm.train()
@@ -1137,6 +1139,8 @@ def train(cfg: Config) -> SAC:
             ckpt_dir_path = str(ckpt)
             print(f"  [ckpt] iter {iteration} → {ckpt_dir_path}")
             save_plots(all_rewards, all_primary_metrics, save_dir)
+
+        progress.step(iteration)
 
     # ── Test evaluation ───────────────────────────────────────────────────
     test_result: Optional[Dict] = None

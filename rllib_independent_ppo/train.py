@@ -99,6 +99,7 @@ from ray.rllib.policy import Policy
 
 from rllib_independent_ppo.env import CityLearnPPOEnv
 from mappo.utils import extract_episode_kpis, get_soc_stats, resolve_reference_baseline_series
+from training_progress import ProgressTimer
 
 try:
     import wandb
@@ -1261,6 +1262,7 @@ def train(cfg: Config) -> PPO:
     all_primary_metrics: List[Dict] = []
     ckpt_dir_path: Optional[str] = None
     save_every = max(cfg.n_iterations // 10, 1)
+    progress = ProgressTimer(cfg.n_iterations, unit="Iter", label="train")
 
     for iteration in range(1, cfg.n_iterations + 1):
         result = algorithm.train()
@@ -1309,6 +1311,8 @@ def train(cfg: Config) -> PPO:
             ckpt_dir_path = str(ckpt)
             print(f"  [ckpt] iter {iteration} 鈫?{ckpt_dir_path}")
             save_plots(all_rewards, all_primary_metrics, save_dir)
+
+        progress.step(iteration)
 
     # 鈹€鈹€ Test evaluation 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     test_result: Optional[Dict] = None

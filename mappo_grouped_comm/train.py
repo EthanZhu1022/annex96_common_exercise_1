@@ -112,6 +112,7 @@ from mappo_grouped_comm.env import CityLearnMAPPOEnv                            
 from mappo_grouped_comm.cluster import run_clustering                                      # noqa: E402
 from mappo_grouped_comm.buffer import GroupedSharedReplayBuffer                           # noqa: E402
 from mappo.utils import extract_episode_kpis, get_soc_stats, resolve_reference_baseline_series  # noqa: E402
+from training_progress import ProgressTimer                                                # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Communication layer imports
@@ -1434,6 +1435,7 @@ def train(cfg: Config) -> None:
     all_rewards: List[float] = []
     all_primary_metrics: List[Dict[str, Any]] = []
     save_every = max(cfg.n_episodes // 10, 1)
+    progress = ProgressTimer(cfg.n_episodes, unit="Ep", label="train")
 
     for episode in range(1, cfg.n_episodes + 1):
 
@@ -1618,6 +1620,8 @@ def train(cfg: Config) -> None:
         if episode % save_every == 0 or episode == cfg.n_episodes:
             save_checkpoint(policies, group_assignments, mappo_args, save_dir, episode, cfg)
             save_plots(all_rewards, all_primary_metrics, save_dir)
+
+        progress.step(episode)
 
     # ── Test evaluation ───────────────────────────────────────────────────
     test_result: Optional[Dict] = None

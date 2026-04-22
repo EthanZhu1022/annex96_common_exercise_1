@@ -39,6 +39,7 @@ from independent_sac.train import (
     seed_everything,
 )
 from mappo.utils import resolve_reference_baseline_series
+from training_progress import ProgressTimer
 
 try:
     import wandb
@@ -503,6 +504,7 @@ def train_sb3_independent(
 
     all_rewards: List[float] = []
     all_primary_metrics: List[Dict[str, Any]] = []
+    progress = ProgressTimer(cfg.n_episodes, unit="Ep", label="train")
 
     for episode in range(1, cfg.n_episodes + 1):
         for model in models:
@@ -543,6 +545,8 @@ def train_sb3_independent(
         if episode % cfg.save_every == 0 or episode == cfg.n_episodes:
             save_plots(all_rewards, all_primary_metrics, save_dir, algorithm_label)
             save_sb3_checkpoint(models, save_dir, cfg)
+
+        progress.step(episode)
 
     test_result_prefixed: Optional[Dict[str, Any]] = None
     raw_test_metrics: Optional[Dict[str, Any]] = None
