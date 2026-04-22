@@ -173,6 +173,24 @@ o_i \rightarrow \mathrm{encoder}_k \rightarrow h_i
 因为通信模块是 actor 网络的一部分，它会和 actor 一起训练。
 
 
+\subsection{Baselines Without Communication}
+
+There are two important baselines without communication. The first is standard
+MAPPO: the same actor network is reused by all 25 buildings through parameter
+sharing, and the centralized critic sees the full portfolio state during
+training. This tests whether a basic MARL method already improves the CityLearn
+task. The second is grouped MAPPO with no
+communication: buildings are first divided into groups, and each group uses its
+own actor, but agents do not exchange messages. This tests whether grouping
+alone helps before adding communication.
+
+中文：没有通信的基线主要有两个。
+第一个是标准 MAPPO：25 栋建筑通过参数共享复用同一个 actor 网络，训练时集中式 critic 可以看到完整的建筑组合状态。
+它用来测试基础的 MARL 方法本身是否已经能改善 CityLearn 任务。
+第二个是无通信的分组 MAPPO：建筑先被分成不同组，每个组使用自己的 actor，但智能体之间不交换消息。
+它用来测试在加入通信之前，单独分组是否有帮助。
+
+
 \subsection{No Communication}
 
 The no-communication baseline simply leaves the encoded feature unchanged:
@@ -268,6 +286,24 @@ c_i = \sum_j \alpha_{ij}v_j .
 该模块用于测试智能体能否学会更应该关注哪些其他智能体。
 
 
+\subsection{DIAL-Style Differentiable Communication}
+
+The DIAL-style module tests a different communication idea. Each agent first
+turns its hidden feature into a message. During training, the message remains
+continuous and differentiable, so gradients can pass through the communication
+channel. During evaluation, the message can be discretized. In this project, the
+DIAL module is adapted to MAPPO rather than implemented as the original
+DQN-based DIAL algorithm. The purpose is to test whether trainable
+communication signals help the grouped actors coordinate.
+
+中文：DIAL 风格模块测试的是另一种通信思路。
+每个智能体先把自己的隐藏特征转换成消息。
+训练时，消息保持连续并且可微，因此梯度可以通过通信通道传递。
+测试时，消息可以被离散化。
+在本项目中，DIAL 模块被改造成适用于 MAPPO 的形式，而不是完全复现原始基于 DQN 的 DIAL 算法。
+这样做的目的是测试可训练的通信信号是否能帮助分组 actor 更好地协同。
+
+
 \subsection{Weighted Same-Group and Other-Group Communication}
 
 The project-specific communication module separates messages from similar
@@ -314,13 +350,22 @@ At the midterm stage, the following implementation work has been completed:
   中文：用于非学习方法对比的 RBC notebook 基线；
   \item independent PPO and SAC training scripts;
   中文：独立 PPO 和 SAC 训练脚本；
-  \item standard MAPPO training and testing scripts;
-  中文：标准 MAPPO 训练和测试脚本；
-  \item grouped MAPPO with K-means clustering;
-  中文：带 K-means 聚类的分组 MAPPO；
-  \item communication-aware grouped MAPPO with CommNet, PowerNet-style,
-  TarMAC-style, DIAL-style, and weighted communication variants;
-  中文：带通信的分组 MAPPO，包括 CommNet、PowerNet 风格、TarMAC 风格、DIAL 风格和加权通信变体；
+  \item standard MAPPO training and testing scripts, where all buildings reuse
+  the same actor network through parameter sharing;
+  中文：标准 MAPPO 训练和测试脚本，其中所有建筑通过参数共享复用同一个 actor 网络；
+  \item grouped MAPPO with K-means clustering and no communication;
+  中文：带 K-means 聚类、但不使用通信的分组 MAPPO；
+  \item intra-group communication variants, including no communication,
+  CommNet-style mean communication, and PowerNet-style structured information
+  passing;
+  中文：组内通信变体，包括无通信、CommNet 风格均值通信，以及 PowerNet 风格结构化信息传递；
+  \item attention and differentiable-message variants, including TarMAC-style
+  attention and DIAL-style communication;
+  中文：注意力和可微信息变体，包括 TarMAC 风格注意力和 DIAL 风格通信；
+  \item weighted same-group and other-group communication, where same-group
+  messages are weighted more strongly than messages from the rest of the
+  portfolio;
+  中文：组内和组外加权通信，其中组内消息的权重大于来自其他建筑组的消息；
   \item shared centralized critic and shared value normalizer for grouped
   policies;
   中文：用于分组策略的共享集中式 critic 和共享 value normalizer；
