@@ -209,6 +209,27 @@ def print_repro_metadata(
 # WandB + KPI callback
 # ---------------------------------------------------------------------------
 
+def _finite_metric_scalar(value: Any) -> Optional[float]:
+    """Return a finite float for RLlib custom_metrics, otherwise None."""
+    if value is None or isinstance(value, (bool, np.bool_, str, bytes, dict, list, tuple)):
+        return None
+    if isinstance(value, np.ndarray):
+        if value.shape != ():
+            return None
+        value = value.item()
+    try:
+        value_f = float(value)
+    except (TypeError, ValueError):
+        return None
+    return value_f if np.isfinite(value_f) else None
+
+
+def _set_episode_metric(episode: Union[Episode, Any], key: str, value: Any) -> None:
+    value_f = _finite_metric_scalar(value)
+    if value_f is not None:
+        episode.custom_metrics[key] = value_f
+
+
 class CE1Callback(DefaultCallbacks):
     """Record per-episode rewards, KPIs, and primary metrics for RLlib.
 
@@ -279,15 +300,13 @@ class CE1Callback(DefaultCallbacks):
             primary_metrics = {}
 
         # Write into episode custom metrics so RLlib aggregates them
-        episode.custom_metrics["portfolio_reward_sum"] = portfolio_reward
+        _set_episode_metric(episode, "portfolio_reward_sum", portfolio_reward)
         for k, v in kpis.items():
-            if v is not None:
-                episode.custom_metrics[k] = v
+            _set_episode_metric(episode, k, v)
         for k, v in primary_metrics.items():
-            if v is not None:
-                episode.custom_metrics[k] = v
+            _set_episode_metric(episode, k, v)
         for agent_id, r in agent_rewards.items():
-            episode.custom_metrics[f"{agent_id}_reward"] = r
+            _set_episode_metric(episode, f"{agent_id}_reward", r)
 
     def on_train_result(
         self,
