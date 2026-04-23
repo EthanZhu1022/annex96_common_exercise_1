@@ -6,10 +6,10 @@
   "test_month_name": "February",
   "n_steps": 671,
   "target_source": "district",
-  "controlled_mean": 128.42490713900142,
-  "baseline_mean": 106.25671122823849,
+  "controlled_mean": 12.255106028385915,
+  "baseline_mean": 82.81823306076573,
   "district_target_mean": 67.19536817614481,
-  "computed_reference_mean": 106.25671122823849,
-  "tracking_mae_to_plotted_target": 71.44314109054538,
-  "tracking_rmse_to_plotted_target": 77.84375993498186
+  "computed_reference_mean": 82.81823306076573,
+  "tracking_mae_to_plotted_target": 56.98760574644962,
+  "tracking_rmse_to_plotted_target": 73.11458980380146
 }
