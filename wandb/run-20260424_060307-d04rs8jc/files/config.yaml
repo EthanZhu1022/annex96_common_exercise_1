@@ -1,0 +1,167 @@
+_wandb:
+    value:
+        cli_version: 0.25.1
+        e:
+            o0ihc2exxdxx7qbd5kzuczt5ddowybob:
+                args:
+                    - --climate
+                    - VT
+                    - --n_iterations
+                    - "300"
+                    - --seed
+                    - "42"
+                    - --save_dir
+                    - results/rllib_sac_vt_300_rerun
+                    - --wandb_name
+                    - rllib_sac_vt_300_rerun
+                cpu_count: 8
+                cpu_count_logical: 16
+                cudaVersion: "13.1"
+                disk:
+                    /:
+                        total: "1081101176832"
+                        used: "29873561600"
+                email: z5610836@ad.unsw.edu.au
+                executable: /home/yue/EthanZhu/annex96_common_exercise_1/.venv/bin/python
+                git:
+                    commit: 5d5d426ae91bcf85df3bfa5b12d30ef0ee7529df
+                    remote: https://github.com/EthanZhu1022/annex96_common_exercise_1.git
+                gpu: NVIDIA GeForce RTX 3090
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      memoryTotal: "25769803776"
+                      name: NVIDIA GeForce RTX 3090
+                      uuid: GPU-5a921a1d-c334-2cd6-9e6f-c47d6ae92867
+                host: MetaBook14
+                memory:
+                    total: "16402014208"
+                os: Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39
+                program: -m rllib_sac.train
+                python: CPython 3.11.14
+                root: /home/yue/EthanZhu/annex96_common_exercise_1
+                startedAt: "2026-04-23T20:03:07.178074Z"
+                writerId: o0ihc2exxdxx7qbd5kzuczt5ddowybob
+        m:
+            - "1": episode
+              "6":
+                - 3
+              "7": []
+            - "1": test_day
+              "6":
+                - 3
+              "7": []
+            - "2": test/daily_baseline/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+            - "2": test/daily_secondary_baseline/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+            - "2": test/daily_primary/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+            - "2": train/*
+              "5": 1
+              "6":
+                - 1
+              "7": []
+            - "2": test/*
+              "5": 1
+              "6":
+                - 1
+              "7": []
+            - "2": test/daily/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+            - "2": test/daily_secondary/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+        python_version: 3.11.14
+        t:
+            "1":
+                - 1
+                - 5
+                - 30
+                - 53
+            "2":
+                - 1
+                - 5
+                - 30
+                - 53
+            "3":
+                - 2
+                - 7
+                - 13
+                - 16
+                - 41
+                - 61
+            "4": 3.11.14
+            "5": 0.25.1
+            "12": 0.25.1
+            "13": linux-x86_64
+backup_dir:
+    value: null
+buffer_size:
+    value: 100000
+climate:
+    value: VT
+do_test:
+    value: true
+episode_time_steps:
+    value: null
+gamma:
+    value: 0.99
+hidden_sizes:
+    value:
+        - 256
+        - 256
+initial_alpha:
+    value: 0.2
+lr:
+    value: 0.0003
+n_buildings:
+    value: 25
+n_iterations:
+    value: 300
+num_steps_sampled_before_learning_starts:
+    value: 1000
+num_workers:
+    value: 0
+rollout_fragment_len:
+    value: 200
+save_dir:
+    value: results/rllib_sac_vt_300_rerun
+seed:
+    value: 42
+target_network_update_freq:
+    value: 1
+tau:
+    value: 0.005
+test_end_step:
+    value: 1415
+test_month:
+    value: 2
+test_start_step:
+    value: 744
+train_batch_size:
+    value: 256
+train_end_step:
+    value: 743
+train_month:
+    value: 1
+train_start_step:
+    value: 0
+wandb_name:
+    value: rllib_sac_vt_300_rerun
+wandb_project:
+    value: annex96-ce1
