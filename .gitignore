@@ -184,7 +184,7 @@ examples/*
 # Simulation outputs
 render_logs/
 SimulationData/
-#results/
+results/
 
 # --- My ignored files ---
 src/pre-processing/
@@ -201,7 +201,7 @@ outputs/
 .github/workflows/
 
 # Wandb
-#wandb/
+wandb/
 
 # Reference files
 reference/
