@@ -1,0 +1,15 @@
+{
+  "result_dir": "/home/yue/EthanZhu/annex96_common_exercise_1/results/sb3_independent_sac_vt_50_final",
+  "label": "sb3_independent_sac_vt_50_final",
+  "climate": "VT",
+  "test_month": 2,
+  "test_month_name": "February",
+  "n_steps": 671,
+  "target_source": "district",
+  "controlled_mean": 81.63273238072009,
+  "baseline_mean": 100.62198620155209,
+  "district_target_mean": 67.19536817614481,
+  "computed_reference_mean": 100.62198620155209,
+  "tracking_mae_to_plotted_target": 41.30984616383535,
+  "tracking_rmse_to_plotted_target": 50.601673671130214
+}

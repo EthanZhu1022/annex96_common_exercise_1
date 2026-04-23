@@ -1,0 +1,15 @@
+{
+  "result_dir": "/home/yue/EthanZhu/annex96_common_exercise_1/results/mappo_grouped_gat_vt_500_final",
+  "label": "mappo_grouped_gat_vt_500_final",
+  "climate": "VT",
+  "test_month": 2,
+  "test_month_name": "February",
+  "n_steps": 671,
+  "target_source": "district",
+  "controlled_mean": 83.7968318978083,
+  "baseline_mean": 100.69607618135774,
+  "district_target_mean": 67.19536817614481,
+  "computed_reference_mean": 100.69607618135774,
+  "tracking_mae_to_plotted_target": 46.77178800624447,
+  "tracking_rmse_to_plotted_target": 56.07451390721726
+}

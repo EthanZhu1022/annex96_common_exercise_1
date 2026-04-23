@@ -1,0 +1,15 @@
+{
+  "result_dir": "/home/yue/EthanZhu/annex96_common_exercise_1/results/mappo_grouped_tarmac_vt_200",
+  "label": "mappo_grouped_tarmac_vt_200",
+  "climate": "VT",
+  "test_month": 2,
+  "test_month_name": "February",
+  "n_steps": 671,
+  "target_source": "district",
+  "controlled_mean": 75.98118957982366,
+  "baseline_mean": 99.11290980877713,
+  "district_target_mean": 67.19536817614481,
+  "computed_reference_mean": 99.11290980877713,
+  "tracking_mae_to_plotted_target": 39.9019262296786,
+  "tracking_rmse_to_plotted_target": 50.6800531803727
+}

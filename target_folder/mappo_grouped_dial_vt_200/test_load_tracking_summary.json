@@ -1,0 +1,15 @@
+{
+  "result_dir": "/home/yue/EthanZhu/annex96_common_exercise_1/results/mappo_grouped_dial_vt_200",
+  "label": "mappo_grouped_dial_vt_200",
+  "climate": "VT",
+  "test_month": 2,
+  "test_month_name": "February",
+  "n_steps": 671,
+  "target_source": "district",
+  "controlled_mean": 69.42913406130742,
+  "baseline_mean": 98.081957517189,
+  "district_target_mean": 67.19536817614481,
+  "computed_reference_mean": 98.081957517189,
+  "tracking_mae_to_plotted_target": 39.18815811917378,
+  "tracking_rmse_to_plotted_target": 52.26714126984586
+}
