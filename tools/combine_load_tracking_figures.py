@@ -39,6 +39,12 @@ GROUPS: Dict[str, List[Tuple[str, str]]] = {
         ("mappo_grouped_dial_vt_500_final", "DIAL"),
         ("mappo_grouped_comm_weighted_default_vt_500_final", "Weighted Comm default"),
     ],
+    "independent_agent_baselines": [
+        ("rllib_independent_ppo_vt_42_final", "RLlib Independent PPO"),
+        ("rllib_sac_vt_800_final", "RLlib SAC"),
+        ("sb3_independent_ppo_vt_300_final", "SB3 Independent PPO"),
+        ("sb3_independent_sac_vt_50_final", "SB3 Independent SAC"),
+    ],
 }
 
 
