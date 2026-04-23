@@ -12,9 +12,11 @@ import pandas as pd
 
 REPO_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_OUTPUT_ROOT = "experiment_metric_summary"
+DEFAULT_TRACKING_ROOT = "target_folder"
 
 
 SELECTED_EXPERIMENTS: List[str] = [
+    "rbc_baseline_vt_february",
     "mappo_standard_vt_500_final",
     "mappo_grouped_vt_500_final",
     "mappo_grouped_comm_v2_vt_500_final",
@@ -129,6 +131,8 @@ def _round(value: Any, digits: int = 4) -> Optional[float]:
 
 
 def _method_label(experiment: str) -> str:
+    if experiment == "rbc_baseline_vt_february":
+        return "BasicBatteryRBC"
     label = experiment
     label = label.replace("_vt_500_final", "")
     label = label.replace("_vt_42_final", "")
@@ -141,6 +145,8 @@ def _method_label(experiment: str) -> str:
 
 
 def _algorithm_family(experiment: str) -> str:
+    if experiment.startswith("rbc_baseline"):
+        return "RBC"
     if experiment.startswith("mappo"):
         return "MAPPO"
     if experiment.startswith("rllib_independent_ppo") or experiment.startswith("sb3_independent_ppo"):
@@ -178,6 +184,8 @@ def _extract_yaml_value(text: str, key: str) -> Optional[str]:
 
 
 def _find_wandb_run(experiment: str, wandb_root: Path) -> Dict[str, Any]:
+    if experiment.startswith("rbc_baseline"):
+        return {}
     if not wandb_root.exists():
         return {}
 
@@ -231,7 +239,121 @@ def _find_wandb_run(experiment: str, wandb_root: Path) -> Dict[str, Any]:
     }
 
 
+def _compute_rbc_metrics_from_tracking(tracking_dir: Path) -> Dict[str, Any]:
+    csv_path = tracking_dir / "test_load_tracking_timeseries.csv"
+    summary_path = tracking_dir / "test_load_tracking_summary.json"
+    df = pd.read_csv(csv_path)
+    summary = _load_json(summary_path)
+
+    controlled = df["controlled_load"].to_numpy(dtype=float)
+    baseline = df["baseline_load"].to_numpy(dtype=float)
+    target = df["plotted_target_load"].to_numpy(dtype=float)
+    valid = pd.notna(target)
+    target_valid = target[valid]
+    controlled_valid = controlled[valid]
+
+    reference_mean = float(target_valid.mean()) if len(target_valid) else math.nan
+    actual_mean = float(controlled_valid.mean()) if len(controlled_valid) else math.nan
+    rmse = float(((controlled_valid - target_valid) ** 2).mean() ** 0.5) if len(target_valid) else math.nan
+    nmbe = float((controlled_valid - target_valid).mean() / reference_mean * 100.0) if reference_mean else math.nan
+    cv_rmse = float(rmse / reference_mean * 100.0) if reference_mean else math.nan
+
+    baseline_energy = float(baseline.sum()) if len(baseline) else math.nan
+    controlled_energy = float(controlled.sum()) if len(controlled) else math.nan
+    baseline_peak = float(baseline.max()) if len(baseline) else math.nan
+    controlled_peak = float(controlled.max()) if len(controlled) else math.nan
+    peak_change_pct = (
+        float((controlled_peak - baseline_peak) / baseline_peak * 100.0)
+        if baseline_peak and math.isfinite(baseline_peak)
+        else math.nan
+    )
+    site_energy_change_pct = (
+        float((controlled_energy - baseline_energy) / baseline_energy * 100.0)
+        if baseline_energy and math.isfinite(baseline_energy)
+        else math.nan
+    )
+
+    return {
+        "climate": summary.get("climate", "VT"),
+        "test_month": summary.get("test_month", 2),
+        "test_month_name": summary.get("test_month_name", "February"),
+        "test_reward_sum": None,
+        "test_reward_mean": None,
+        "test_step_reward_mean": None,
+        "primary_load_cv_rmse_pct": round(cv_rmse, 4) if math.isfinite(cv_rmse) else None,
+        "primary_load_nmbe_pct": round(nmbe, 4) if math.isfinite(nmbe) else None,
+        "primary_load_reference_mean": round(reference_mean, 4) if math.isfinite(reference_mean) else None,
+        "primary_load_actual_mean": round(actual_mean, 4) if math.isfinite(actual_mean) else None,
+        "primary_load_reference_peak": round(float(target_valid.max()), 4) if len(target_valid) else None,
+        "primary_load_actual_peak": round(controlled_peak, 4) if math.isfinite(controlled_peak) else None,
+        "primary_comfort_exceedance_hours_total": None,
+        "primary_comfort_exceedance_hours_mean": None,
+        "primary_comfort_exceedance_hours_max": None,
+        "primary_comfort_exceedance_pct": None,
+        "kpi_electricity_consumption": None,
+        "kpi_carbon_emissions": None,
+        "kpi_cost": None,
+        "kpi_ramping": None,
+        "kpi_daily_peak": None,
+        "kpi_all_time_peak": None,
+        "kpi_load_factor": None,
+        "secondary_site_energy_change_pct": round(site_energy_change_pct, 4) if math.isfinite(site_energy_change_pct) else None,
+        "secondary_site_total_energy_kwh": round(controlled_energy, 4) if math.isfinite(controlled_energy) else None,
+        "secondary_site_total_energy_baseline_kwh": round(baseline_energy, 4) if math.isfinite(baseline_energy) else None,
+        "secondary_peak_demand_kw": round(controlled_peak, 4) if math.isfinite(controlled_peak) else None,
+        "secondary_peak_demand_baseline_kw": round(baseline_peak, 4) if math.isfinite(baseline_peak) else None,
+        "secondary_peak_demand_change_pct": round(peak_change_pct, 4) if math.isfinite(peak_change_pct) else None,
+        "secondary_peak_demand_time": None,
+        "secondary_peak_demand_baseline_time": None,
+        "secondary_peak_to_valley_ratio_pct": None,
+        "secondary_peak_to_valley_ratio_baseline_pct": None,
+        "secondary_load_factor_pct": None,
+        "secondary_load_factor_baseline_pct": None,
+        "secondary_system_ramping_kw": None,
+        "secondary_system_ramping_baseline_kw": None,
+        "secondary_fairness_gini": None,
+        "secondary_fairness_entropy": None,
+        "secondary_fairness_max_share_pct": None,
+    }
+
+
 def _build_row(experiment: str, wandb_root: Path) -> Dict[str, Any]:
+    if experiment.startswith("rbc_baseline"):
+        tracking_dir = REPO_DIR / DEFAULT_TRACKING_ROOT / experiment
+        tracking_metrics = _compute_rbc_metrics_from_tracking(tracking_dir)
+        row = {
+            "experiment": experiment,
+            "method": _method_label(experiment),
+            "algorithm_family": _algorithm_family(experiment),
+            "result_dir": str(tracking_dir.relative_to(REPO_DIR)),
+            "n_episodes": None,
+            "seed": None,
+            "climate": tracking_metrics.get("climate"),
+            "train_month": None,
+            "test_month": tracking_metrics.get("test_month"),
+            "test_month_name": tracking_metrics.get("test_month_name"),
+            "test_start_step": None,
+            "test_end_step": None,
+            "train_reward_sum": None,
+            "train_load_cv_rmse_pct": None,
+            "train_load_nmbe_pct": None,
+            "train_comfort_exceedance_pct": None,
+            "wandb_test_reward_sum": None,
+            "wandb_test_cv_rmse_pct": None,
+            "wandb_test_comfort_exceedance_pct": None,
+            "wandb_train_reward_sum": None,
+            "wandb_train_cv_rmse_pct": None,
+            "wandb_train_comfort_exceedance_pct": None,
+            "wandb_run_id": None,
+            "wandb_run_dir": None,
+            "wandb_started_at": None,
+            "wandb_program": None,
+            "wandb_runtime_seconds": None,
+        }
+        row.update(tracking_metrics)
+        row["primary_abs_nmbe_pct"] = _round(abs(row["primary_load_nmbe_pct"]), 4)
+        return row
+
     result_dir = REPO_DIR / "results" / experiment
     test_metrics = _load_json(result_dir / "test_metrics.json")
     latest_metrics = _load_json(result_dir / "latest_metrics.json")
