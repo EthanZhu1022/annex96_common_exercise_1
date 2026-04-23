@@ -43,11 +43,11 @@ GROUPS: Dict[str, List[Tuple[str, str]]] = {
         ("rllib_independent_ppo_vt_42_final", "RLlib Independent PPO"),
         ("rllib_sac_vt_800_final", "RLlib SAC"),
         ("sb3_independent_ppo_vt_300_final", "SB3 Independent PPO"),
-        ("sb3_independent_sac_vt_50_final", "SB3 Independent SAC"),
+        ("rllib_sac_vt_300_rerun", "RLlib SAC rerun"),
     ],
     "selected_independent_vs_mappo": [
         ("rllib_independent_ppo_vt_42_final", "RLlib Independent PPO"),
-        ("sb3_independent_sac_vt_50_final", "SB3 Independent SAC"),
+        ("rllib_sac_vt_300_rerun", "RLlib SAC rerun"),
         ("mappo_standard_vt_500_final", "MAPPO Standard"),
         ("mappo_grouped_vt_500_final", "Grouped MAPPO"),
     ],

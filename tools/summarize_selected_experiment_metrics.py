@@ -55,7 +55,7 @@ SELECTED_EXPERIMENTS: List[str] = [
     "mappo_grouped_commnet_vt_500_final",
     "mappo_grouped_dial_vt_500_final",
     "rllib_independent_ppo_vt_42_final",
-    "sb3_independent_sac_vt_50_final",
+    "rllib_sac_vt_300_rerun",
     "mappo_grouped_comm_weighted_default_vt_500_final",
     "mappo_grouped_comm_weighted_a090_b010_vt_500_final",
     "mappo_grouped_comm_weighted_a055_b045_vt_500_final",

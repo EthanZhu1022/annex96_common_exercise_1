@@ -7,16 +7,16 @@
 | 1             | mappo_grouped_dial_vt_500_final                    | 1.667               | 0.145                   | 0.9899                     | 5.662                            |
 | 2             | mappo_grouped_gat_vt_500_final                     | 2                   | 0.1276                  | 0.991                      | 6.679                            |
 | 3             | mappo_grouped_powernet_global_vt_500_final         | 4.667               | 0.1612                  | 0.9869                     | 5.973                            |
-| 4             | mappo_grouped_comm_weighted_a090_b010_vt_500_final | 5.667               | 0.1784                  | 0.9847                     | 6.358                            |
-| 5             | mappo_grouped_comm_weighted_a055_b045_vt_500_final | 6                   | 0.1527                  | 0.9881                     | 7.635                            |
-| 6             | mappo_grouped_tarmac_vt_500_final                  | 6                   | 0.1564                  | 0.988                      | 6.935                            |
-| 7             | mappo_grouped_powernet_vt_500_final                | 6.333               | 0.1784                  | 0.9847                     | 6.699                            |
-| 8             | mappo_grouped_vt_500_final                         | 6.333               | 0.1558                  | 0.9875                     | 7.304                            |
-| 9             | sb3_independent_sac_vt_50_final                    | 8.667               | 0.1794                  | 0.9841                     | 6.876                            |
-| 10            | mappo_grouped_comm_v2_vt_500_final                 | 9                   | 0.1796                  | 0.9844                     | 6.911                            |
-| 11            | mappo_grouped_comm_weighted_default_vt_500_final   | 10                  | 0.1906                  | 0.9821                     | 6.805                            |
-| 12            | mappo_standard_vt_500_final                        | 11.67               | 0.1809                  | 0.9839                     | 7.741                            |
-| 13            | mappo_grouped_commnet_vt_500_final                 | 12.33               | 0.1913                  | 0.9818                     | 7.463                            |
+| 4             | mappo_grouped_comm_weighted_a055_b045_vt_500_final | 5.667               | 0.1527                  | 0.9881                     | 7.635                            |
+| 5             | mappo_grouped_comm_weighted_a090_b010_vt_500_final | 5.667               | 0.1784                  | 0.9847                     | 6.358                            |
+| 6             | mappo_grouped_tarmac_vt_500_final                  | 5.667               | 0.1564                  | 0.988                      | 6.935                            |
+| 7             | mappo_grouped_vt_500_final                         | 6                   | 0.1558                  | 0.9875                     | 7.304                            |
+| 8             | mappo_grouped_powernet_vt_500_final                | 6.333               | 0.1784                  | 0.9847                     | 6.699                            |
+| 9             | mappo_grouped_comm_v2_vt_500_final                 | 8.333               | 0.1796                  | 0.9844                     | 6.911                            |
+| 10            | mappo_grouped_comm_weighted_default_vt_500_final   | 9.333               | 0.1906                  | 0.9821                     | 6.805                            |
+| 11            | mappo_standard_vt_500_final                        | 10.67               | 0.1809                  | 0.9839                     | 7.741                            |
+| 12            | mappo_grouped_commnet_vt_500_final                 | 11.33               | 0.1913                  | 0.9818                     | 7.463                            |
+| 13            | rllib_sac_vt_300_rerun                             | 13                  | 0.2711                  | 0.9637                     | 9.364                            |
 | 14            | rllib_independent_ppo_vt_42_final                  | 14                  | 0.2841                  | 0.9574                     | 11.46                            |
 | 15            | rbc_baseline_vt_february                           | 15                  |                         |                            |                                  |
 
@@ -24,9 +24,9 @@
 
 | site_energy_rank | experiment                                         | site_energy_rank_score | secondary_site_energy_change_pct | secondary_site_total_energy_kwh | secondary_site_total_energy_baseline_kwh |
 | ---------------- | -------------------------------------------------- | ---------------------- | -------------------------------- | ------------------------------- | ---------------------------------------- |
-| 1                | rllib_independent_ppo_vt_42_final                  | 1                      | 3.667                            | 5.248e+04                       | 6.714e+04                                |
-| 2                | mappo_grouped_dial_vt_500_final                    | 2                      | 4.831                            | 4.675e+04                       | 6.593e+04                                |
-| 3                | sb3_independent_sac_vt_50_final                    | 3                      | 6.176                            | 5.487e+04                       | 6.756e+04                                |
+| 1                | rllib_sac_vt_300_rerun                             | 1                      | -29.92                           | 2.726e+04                       | 5.93e+04                                 |
+| 2                | rllib_independent_ppo_vt_42_final                  | 2                      | 3.667                            | 5.248e+04                       | 6.714e+04                                |
+| 3                | mappo_grouped_dial_vt_500_final                    | 3                      | 4.831                            | 4.675e+04                       | 6.593e+04                                |
 | 4                | mappo_standard_vt_500_final                        | 4                      | 6.455                            | 5.356e+04                       | 6.69e+04                                 |
 | 5                | mappo_grouped_commnet_vt_500_final                 | 5                      | 6.459                            | 5.293e+04                       | 6.701e+04                                |
 | 6                | mappo_grouped_comm_weighted_a090_b010_vt_500_final | 6                      | 8.318                            | 5.439e+04                       | 6.709e+04                                |
@@ -44,10 +44,10 @@
 
 | peak_demand_rank | experiment                                         | peak_demand_rank_score | secondary_peak_demand_kw | secondary_peak_demand_baseline_kw | secondary_peak_demand_change_pct | secondary_peak_demand_time | secondary_peak_demand_baseline_time |
 | ---------------- | -------------------------------------------------- | ---------------------- | ------------------------ | --------------------------------- | -------------------------------- | -------------------------- | ----------------------------------- |
-| 1                | rllib_independent_ppo_vt_42_final                  | 1.5                    | 222.4                    | 251.3                             | -11.49                           | D02 20:00                  | D03 09:00                           |
-| 2                | mappo_grouped_dial_vt_500_final                    | 3                      | 224.3                    | 251.7                             | -10.88                           | D02 20:00                  | D03 09:00                           |
-| 3                | sb3_independent_sac_vt_50_final                    | 3                      | 227.2                    | 255.2                             | -10.97                           | D03 08:00                  | D03 09:00                           |
-| 4                | rbc_baseline_vt_february                           | 3.5                    | 218.8                    | 239                               | -8.442                           |                            |                                     |
+| 1                | rllib_sac_vt_300_rerun                             | 1                      | 129.6                    | 204.2                             | -36.53                           | D01 06:00                  | D03 09:00                           |
+| 2                | rllib_independent_ppo_vt_42_final                  | 2.5                    | 222.4                    | 251.3                             | -11.49                           | D02 20:00                  | D03 09:00                           |
+| 3                | mappo_grouped_dial_vt_500_final                    | 3.5                    | 224.3                    | 251.7                             | -10.88                           | D02 20:00                  | D03 09:00                           |
+| 4                | rbc_baseline_vt_february                           | 4                      | 218.8                    | 239                               | -8.442                           |                            |                                     |
 | 5                | mappo_grouped_comm_weighted_a055_b045_vt_500_final | 4.5                    | 233.8                    | 259.2                             | -9.788                           | D03 08:00                  | D03 09:00                           |
 | 6                | mappo_grouped_powernet_vt_500_final                | 5.5                    | 235.9                    | 258.9                             | -8.9                             | D03 08:00                  | D03 09:00                           |
 | 7                | mappo_grouped_comm_weighted_default_vt_500_final   | 7                      | 237.8                    | 257.8                             | -7.743                           | D02 20:00                  | D03 09:00                           |
@@ -71,32 +71,32 @@
 | 5                         | mappo_grouped_comm_weighted_a090_b010_vt_500_final | 5                               | 705.4                              | 214.4                                       |
 | 6                         | mappo_grouped_dial_vt_500_final                    | 6                               | 708.6                              | 218.1                                       |
 | 7                         | mappo_grouped_vt_500_final                         | 7                               | 852.3                              | 215.4                                       |
-| 8                         | mappo_grouped_commnet_vt_500_final                 | 8                               | 1099                               | 213.2                                       |
-| 9                         | mappo_grouped_gat_vt_500_final                     | 9                               | 1367                               | 214.4                                       |
-| 10                        | rllib_independent_ppo_vt_42_final                  | 10                              | 1557                               | 212.3                                       |
-| 11                        | mappo_grouped_powernet_vt_500_final                | 11                              | 2127                               | 215                                         |
-| 12                        | mappo_grouped_comm_weighted_default_vt_500_final   | 12                              | 2419                               | 217.9                                       |
-| 13                        | mappo_grouped_tarmac_vt_500_final                  | 13                              | 4118                               | 214.2                                       |
-| 14                        | sb3_independent_sac_vt_50_final                    | 14                              | 4838                               | 213.5                                       |
+| 8                         | rllib_sac_vt_300_rerun                             | 8                               | 916.9                              | 208.2                                       |
+| 9                         | mappo_grouped_commnet_vt_500_final                 | 9                               | 1099                               | 213.2                                       |
+| 10                        | mappo_grouped_gat_vt_500_final                     | 10                              | 1367                               | 214.4                                       |
+| 11                        | rllib_independent_ppo_vt_42_final                  | 11                              | 1557                               | 212.3                                       |
+| 12                        | mappo_grouped_powernet_vt_500_final                | 12                              | 2127                               | 215                                         |
+| 13                        | mappo_grouped_comm_weighted_default_vt_500_final   | 13                              | 2419                               | 217.9                                       |
+| 14                        | mappo_grouped_tarmac_vt_500_final                  | 14                              | 4118                               | 214.2                                       |
 | 15                        | rbc_baseline_vt_february                           | 15                              |                                    |                                             |
 
 ## Load Factor
 
 | load_factor_rank | experiment                                         | load_factor_rank_score | secondary_load_factor_pct | secondary_load_factor_baseline_pct |
 | ---------------- | -------------------------------------------------- | ---------------------- | ------------------------- | ---------------------------------- |
-| 1                | sb3_independent_sac_vt_50_final                    | 1                      | 58.62                     | 72.29                              |
-| 2                | mappo_grouped_comm_v2_vt_500_final                 | 2                      | 57.57                     | 72.11                              |
-| 3                | mappo_grouped_comm_weighted_a055_b045_vt_500_final | 2                      | 57.57                     | 72.1                               |
-| 4                | mappo_grouped_tarmac_vt_500_final                  | 4                      | 56.57                     | 72.18                              |
-| 5                | rllib_independent_ppo_vt_42_final                  | 5                      | 56.52                     | 72.48                              |
-| 6                | mappo_grouped_comm_weighted_a090_b010_vt_500_final | 6                      | 55.82                     | 72.18                              |
-| 7                | mappo_grouped_commnet_vt_500_final                 | 7                      | 55.4                      | 72.18                              |
-| 8                | mappo_grouped_powernet_vt_500_final                | 8                      | 55.33                     | 71.98                              |
-| 9                | mappo_standard_vt_500_final                        | 9                      | 55.21                     | 71.97                              |
-| 10               | mappo_grouped_gat_vt_500_final                     | 10                     | 54.8                      | 71.96                              |
-| 11               | mappo_grouped_vt_500_final                         | 11                     | 53.69                     | 72.08                              |
-| 12               | mappo_grouped_comm_weighted_default_vt_500_final   | 12                     | 53.62                     | 71.81                              |
-| 13               | mappo_grouped_powernet_global_vt_500_final         | 13                     | 53.41                     | 71.89                              |
+| 1                | mappo_grouped_comm_v2_vt_500_final                 | 1                      | 57.57                     | 72.11                              |
+| 2                | mappo_grouped_comm_weighted_a055_b045_vt_500_final | 1                      | 57.57                     | 72.1                               |
+| 3                | mappo_grouped_tarmac_vt_500_final                  | 3                      | 56.57                     | 72.18                              |
+| 4                | rllib_independent_ppo_vt_42_final                  | 4                      | 56.52                     | 72.48                              |
+| 5                | mappo_grouped_comm_weighted_a090_b010_vt_500_final | 5                      | 55.82                     | 72.18                              |
+| 6                | mappo_grouped_commnet_vt_500_final                 | 6                      | 55.4                      | 72.18                              |
+| 7                | mappo_grouped_powernet_vt_500_final                | 7                      | 55.33                     | 71.98                              |
+| 8                | mappo_standard_vt_500_final                        | 8                      | 55.21                     | 71.97                              |
+| 9                | mappo_grouped_gat_vt_500_final                     | 9                      | 54.8                      | 71.96                              |
+| 10               | mappo_grouped_vt_500_final                         | 10                     | 53.69                     | 72.08                              |
+| 11               | mappo_grouped_comm_weighted_default_vt_500_final   | 11                     | 53.62                     | 71.81                              |
+| 12               | mappo_grouped_powernet_global_vt_500_final         | 12                     | 53.41                     | 71.89                              |
+| 13               | rllib_sac_vt_300_rerun                             | 13                     | 48.16                     | 72.79                              |
 | 14               | mappo_grouped_dial_vt_500_final                    | 14                     | 47.63                     | 71.21                              |
 | 15               | rbc_baseline_vt_february                           | 15                     |                           |                                    |
 
@@ -104,7 +104,7 @@
 
 | system_ramping_rank | experiment                                         | system_ramping_rank_score | secondary_system_ramping_kw | secondary_system_ramping_baseline_kw |
 | ------------------- | -------------------------------------------------- | ------------------------- | --------------------------- | ------------------------------------ |
-| 1                   | sb3_independent_sac_vt_50_final                    | 1                         | 375.8                       | 200.5                                |
+| 1                   | rllib_sac_vt_300_rerun                             | 1                         | 332.8                       | 188                                  |
 | 2                   | rllib_independent_ppo_vt_42_final                  | 2                         | 380.3                       | 198.8                                |
 | 3                   | mappo_standard_vt_500_final                        | 3                         | 418.5                       | 203.7                                |
 | 4                   | mappo_grouped_comm_weighted_a090_b010_vt_500_final | 4                         | 430.1                       | 202.1                                |

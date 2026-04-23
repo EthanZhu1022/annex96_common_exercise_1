@@ -32,13 +32,13 @@ These runs can be used as independent-agent baselines or supplementary compariso
 - results/rllib_independent_ppo_vt_42_final
 - results/rllib_sac_vt_300_final
 - results/rllib_sac_vt_800_final
+- results/rllib_sac_vt_300_rerun
 - results/sb3_independent_ppo_vt_300_final
-- results/sb3_independent_sac_vt_50_final
 
 Notes:
 
 - `results/rllib_independent_ppo_vt_42_final` can be described as an early-stopped or best-checkpoint run. Its W&B total reward is higher than `rllib_independent_ppo_vt_300_final`, which may have degraded after continued training.
-- `results/sb3_independent_sac_vt_50_final` has complete data, but the training budget is short. It is best used as a supplementary baseline.
+- `results/rllib_sac_vt_300_rerun` is the rerun SAC baseline to use in the final summary tables and comparison figures.
 
 ## 4. Early 200-Episode MAPPO Results
 
