@@ -1,0 +1,75 @@
+{
+  "os": "Linux-5.15.0-94-generic-x86_64-with-glibc2.39",
+  "python": "CPython 3.11.13",
+  "startedAt": "2026-04-22T14:31:41.199612Z",
+  "args": [
+    "--climate",
+    "VT",
+    "--n_episodes",
+    "500",
+    "--seed",
+    "42",
+    "--save_dir",
+    "results/mappo_grouped_comm_weighted_a090_b010_vt_500_final",
+    "--wandb_name",
+    "mappo_grouped_comm_weighted_a090_b010_vt_500_final",
+    "--comm_alpha",
+    "0.90",
+    "--comm_beta",
+    "0.10"
+  ],
+  "program": "-m mappo_grouped_comm_weighted.train",
+  "git": {
+    "remote": "https://github.com/EthanZhu1022/annex96_common_exercise_1.git",
+    "commit": "130f0ae11a26675c37adbd3ad06722d3fe81f8a5"
+  },
+  "email": "z5610836@ad.unsw.edu.au",
+  "root": "/root/annex96_common_exercise_1",
+  "host": "enormous-vista-9518-55bd6774f7-xbps4",
+  "executable": "/root/annex96_common_exercise_1/.venv/bin/python",
+  "cpu_count": 64,
+  "cpu_count_logical": 64,
+  "gpu": "NVIDIA GeForce RTX 5090",
+  "gpu_count": 4,
+  "disk": {
+    "/": {
+      "total": "53685747712",
+      "used": "14473101312"
+    }
+  },
+  "memory": {
+    "total": "540637196288"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA GeForce RTX 5090",
+      "memoryTotal": "34190917632",
+      "cudaCores": 21760,
+      "architecture": "Blackwell",
+      "uuid": "GPU-7141979c-ec90-f818-778e-04f7ad52afd6"
+    },
+    {
+      "name": "NVIDIA GeForce RTX 5090",
+      "memoryTotal": "34190917632",
+      "cudaCores": 21760,
+      "architecture": "Blackwell",
+      "uuid": "GPU-702a21e9-4a1c-e09c-fd27-48a4c4ce81c1"
+    },
+    {
+      "name": "NVIDIA GeForce RTX 5090",
+      "memoryTotal": "34190917632",
+      "cudaCores": 21760,
+      "architecture": "Blackwell",
+      "uuid": "GPU-c3b89d51-cf50-6ba6-95a0-62828cd7b2f4"
+    },
+    {
+      "name": "NVIDIA GeForce RTX 5090",
+      "memoryTotal": "34190917632",
+      "cudaCores": 21760,
+      "architecture": "Blackwell",
+      "uuid": "GPU-334c582b-9fab-1432-0e16-e87a91d7d5f8"
+    }
+  ],
+  "cudaVersion": "13.1",
+  "writerId": "gz2yq3pc7qmbboejmjtnqsx0pdy0qrep"
+}

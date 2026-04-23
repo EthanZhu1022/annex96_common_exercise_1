@@ -1,0 +1,222 @@
+_wandb:
+    value:
+        cli_version: 0.25.1
+        e:
+            668uhnujna1he3sdgaamvfzazwdij48z:
+                args:
+                    - --climate
+                    - VT
+                    - --n_episodes
+                    - "500"
+                    - --seed
+                    - "42"
+                    - --save_dir
+                    - results/mappo_grouped_powernet_global_vt_500_final
+                    - --wandb_name
+                    - mappo_grouped_powernet_global_vt_500_final
+                cpu_count: 64
+                cpu_count_logical: 64
+                cudaVersion: "13.1"
+                disk:
+                    /:
+                        total: "53685747712"
+                        used: "14473592832"
+                email: z5610836@ad.unsw.edu.au
+                executable: /root/annex96_common_exercise_1/.venv/bin/python
+                git:
+                    commit: 130f0ae11a26675c37adbd3ad06722d3fe81f8a5
+                    remote: https://github.com/EthanZhu1022/annex96_common_exercise_1.git
+                gpu: NVIDIA GeForce RTX 5090
+                gpu_count: 4
+                gpu_nvidia:
+                    - architecture: Blackwell
+                      cudaCores: 21760
+                      memoryTotal: "34190917632"
+                      name: NVIDIA GeForce RTX 5090
+                      uuid: GPU-7141979c-ec90-f818-778e-04f7ad52afd6
+                    - architecture: Blackwell
+                      cudaCores: 21760
+                      memoryTotal: "34190917632"
+                      name: NVIDIA GeForce RTX 5090
+                      uuid: GPU-702a21e9-4a1c-e09c-fd27-48a4c4ce81c1
+                    - architecture: Blackwell
+                      cudaCores: 21760
+                      memoryTotal: "34190917632"
+                      name: NVIDIA GeForce RTX 5090
+                      uuid: GPU-c3b89d51-cf50-6ba6-95a0-62828cd7b2f4
+                    - architecture: Blackwell
+                      cudaCores: 21760
+                      memoryTotal: "34190917632"
+                      name: NVIDIA GeForce RTX 5090
+                      uuid: GPU-334c582b-9fab-1432-0e16-e87a91d7d5f8
+                host: enormous-vista-9518-55bd6774f7-xbps4
+                memory:
+                    total: "540637196288"
+                os: Linux-5.15.0-94-generic-x86_64-with-glibc2.39
+                program: -m mappo_grouped_powernet_global.train
+                python: CPython 3.11.13
+                root: /root/annex96_common_exercise_1
+                startedAt: "2026-04-22T14:31:42.397591Z"
+                writerId: 668uhnujna1he3sdgaamvfzazwdij48z
+        m:
+            - "1": episode
+              "6":
+                - 3
+              "7": []
+            - "1": test_day
+              "6":
+                - 3
+              "7": []
+            - "2": test/*
+              "5": 1
+              "6":
+                - 1
+              "7": []
+            - "2": test/daily/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+            - "2": test/daily_secondary/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+            - "2": test/daily_baseline/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+            - "2": test/daily_secondary_baseline/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+            - "2": test/daily_primary/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+            - "2": train/*
+              "5": 1
+              "6":
+                - 1
+              "7": []
+        python_version: 3.11.13
+        t:
+            "1":
+                - 1
+                - 5
+                - 30
+                - 53
+            "2":
+                - 1
+                - 5
+                - 30
+                - 53
+            "3":
+                - 2
+                - 7
+                - 13
+                - 16
+                - 61
+            "4": 3.11.13
+            "5": 0.25.1
+            "12": 0.25.1
+            "13": linux-x86_64
+algorithm:
+    value: mappo_grouped_powernet_global
+backup_dir:
+    value: null
+checkpoint_dir:
+    value: null
+climate:
+    value: VT
+clip_param:
+    value: 0.2
+cluster_artifact_dir:
+    value: null
+cluster_retries:
+    value: 10
+cluster_seed:
+    value: 0
+comm_dropout:
+    value: 0
+comm_hidden_dim:
+    value: 64
+comm_method:
+    value: powernet
+comm_neighbors:
+    value: 1
+comm_rounds:
+    value: 1
+comm_scope:
+    value: global
+comm_topology:
+    value: full
+comm_use_residual:
+    value: true
+critic_lr:
+    value: 0.0003
+do_test:
+    value: true
+entropy_coef:
+    value: 0.01
+gae_lambda:
+    value: 0.95
+gamma:
+    value: 0.99
+group_k_candidates:
+    value:
+        - 4
+        - 5
+group_sizes:
+    value:
+        - 8
+        - 7
+        - 6
+        - 4
+hidden_size:
+    value: 256
+layer_N:
+    value: 2
+lr:
+    value: 0.0003
+max_grad_norm:
+    value: 10
+n_buildings:
+    value: 25
+n_episodes:
+    value: 500
+n_groups:
+    value: 4
+num_mini_batch:
+    value: 4
+ppo_epoch:
+    value: 10
+save_dir:
+    value: results/mappo_grouped_powernet_global_vt_500_final
+seed:
+    value: 42
+test_end_step:
+    value: 1415
+test_month:
+    value: 2
+test_only:
+    value: false
+test_save_dir:
+    value: null
+test_start_step:
+    value: 744
+train_end_step:
+    value: 743
+train_month:
+    value: 1
+train_start_step:
+    value: 0
+value_loss_coef:
+    value: 1
+wandb_name:
+    value: mappo_grouped_powernet_global_vt_500_final
+wandb_project:
+    value: annex96-ce1
