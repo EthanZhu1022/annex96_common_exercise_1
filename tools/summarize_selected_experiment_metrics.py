@@ -34,10 +34,20 @@ SELECTED_EXPERIMENTS: List[str] = [
 ]
 
 
-PRIMARY_RANK_COLUMNS: List[str] = [
-    "primary_load_cv_rmse_pct",
-    "primary_abs_nmbe_pct",
+COMFORT_RANK_COLUMNS: List[str] = [
     "primary_comfort_exceedance_pct",
+    "primary_comfort_exceedance_hours_total",
+    "primary_comfort_exceedance_hours_mean",
+    "primary_comfort_exceedance_hours_max",
+]
+
+
+SECONDARY_RANK_COLUMNS: List[str] = [
+    "kpi_electricity_consumption",
+    "kpi_ramping",
+    "kpi_daily_peak",
+    "secondary_peak_demand_change_pct",
+    "secondary_site_energy_change_pct",
 ]
 
 
@@ -55,6 +65,8 @@ SUMMARY_COLUMNS: List[str] = [
     "primary_abs_nmbe_pct",
     "primary_comfort_exceedance_pct",
     "primary_comfort_exceedance_hours_total",
+    "primary_comfort_exceedance_hours_mean",
+    "primary_comfort_exceedance_hours_max",
     "test_reward_sum",
     "test_step_reward_mean",
     "kpi_electricity_consumption",
@@ -92,6 +104,9 @@ MARKDOWN_COLUMNS: List[str] = [
     "primary_load_cv_rmse_pct",
     "primary_load_nmbe_pct",
     "primary_comfort_exceedance_pct",
+    "primary_comfort_exceedance_hours_total",
+    "primary_comfort_exceedance_hours_mean",
+    "primary_comfort_exceedance_hours_max",
     "test_reward_sum",
     "kpi_electricity_consumption",
     "kpi_ramping",
@@ -449,21 +464,31 @@ def _build_row(experiment: str, wandb_root: Path) -> Dict[str, Any]:
 
 def _add_primary_ranking(df: pd.DataFrame) -> pd.DataFrame:
     ranked = df.copy()
-    for column in PRIMARY_RANK_COLUMNS:
+    base_rank_columns = ["primary_load_cv_rmse_pct", "primary_abs_nmbe_pct"] + COMFORT_RANK_COLUMNS + SECONDARY_RANK_COLUMNS
+
+    for column in base_rank_columns:
         rank_column = f"rank_{column}"
         ranked[rank_column] = ranked[column].rank(method="min", ascending=True, na_option="bottom")
 
+    comfort_rank_columns = [f"rank_{column}" for column in COMFORT_RANK_COLUMNS]
+    secondary_rank_columns = [f"rank_{column}" for column in SECONDARY_RANK_COLUMNS]
+    ranked["comfort_rank_score"] = ranked[comfort_rank_columns].mean(axis=1)
+    ranked["secondary_rank_score"] = ranked[secondary_rank_columns].mean(axis=1)
+
     ranked["primary_rank_score"] = (
-        0.50 * ranked["rank_primary_load_cv_rmse_pct"]
-        + 0.25 * ranked["rank_primary_abs_nmbe_pct"]
-        + 0.25 * ranked["rank_primary_comfort_exceedance_pct"]
+        0.30 * ranked["rank_primary_load_cv_rmse_pct"]
+        + 0.30 * ranked["rank_primary_abs_nmbe_pct"]
+        + 0.30 * ranked["comfort_rank_score"]
+        + 0.10 * ranked["secondary_rank_score"]
     )
     ranked = ranked.sort_values(
-        by=["primary_rank_score", "primary_load_cv_rmse_pct", "primary_abs_nmbe_pct"],
-        ascending=[True, True, True],
+        by=["primary_rank_score", "rank_primary_load_cv_rmse_pct", "rank_primary_abs_nmbe_pct", "comfort_rank_score"],
+        ascending=[True, True, True, True],
     ).reset_index(drop=True)
     ranked["primary_rank"] = ranked.index + 1
     ranked["primary_rank_score"] = ranked["primary_rank_score"].round(4)
+    ranked["comfort_rank_score"] = ranked["comfort_rank_score"].round(4)
+    ranked["secondary_rank_score"] = ranked["secondary_rank_score"].round(4)
     return ranked
 
 
@@ -493,8 +518,21 @@ def _write_markdown_table(path: Path, df: pd.DataFrame, columns: Sequence[str]) 
     note = [
         "# Selected Experiment Metrics Summary",
         "",
-        "Sorted by `primary_rank_score` ascending. The score is a weighted rank: "
-        "50% load-tracking CV-RMSE, 25% absolute NMBE, and 25% thermal-comfort exceedance percentage.",
+        "Sorted by `primary_rank_score` ascending.",
+        "",
+        "Weighted rank formula:",
+        "`0.30 * rank(primary_load_cv_rmse_pct)`",
+        "+ `0.30 * rank(|primary_load_nmbe_pct|)`",
+        "+ `0.30 * average_rank(thermal comfort metrics)`",
+        "+ `0.10 * average_rank(selected secondary metrics)`",
+        "",
+        "Thermal comfort metrics: `primary_comfort_exceedance_pct`, "
+        "`primary_comfort_exceedance_hours_total`, "
+        "`primary_comfort_exceedance_hours_mean`, "
+        "`primary_comfort_exceedance_hours_max`.",
+        "",
+        "Selected secondary metrics: `kpi_electricity_consumption`, `kpi_ramping`, "
+        "`kpi_daily_peak`, `secondary_peak_demand_change_pct`, `secondary_site_energy_change_pct`.",
         "",
     ]
     path.write_text("\n".join(note + lines) + "\n", encoding="utf-8")
