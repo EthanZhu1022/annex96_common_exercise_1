@@ -494,6 +494,174 @@ def _safe_float(value: Any) -> Optional[float]:
     return value_f if np.isfinite(value_f) else None
 
 
+def _safe_pct(numerator: float, denominator: float) -> Optional[float]:
+    if denominator is None:
+        return None
+    try:
+        numerator_f = float(numerator)
+        denominator_f = float(denominator)
+    except (TypeError, ValueError):
+        return None
+    if not np.isfinite(numerator_f) or not np.isfinite(denominator_f) or denominator_f == 0.0:
+        return None
+    return numerator_f / denominator_f * 100.0
+
+
+def _get_season_comfort_bounds(month: int) -> Tuple[str, float, float]:
+    if month in {12, 1, 2, 3}:
+        return "heating", 20.0, 24.0
+    return "cooling", 22.0, 26.0
+
+
+def _compute_primary_metric_tables_from_env(
+    env: Any,
+    *,
+    month: int,
+    actual_profile: np.ndarray,
+    reference_profile: np.ndarray,
+    steps_per_day: int,
+) -> Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]:
+    step_hours = 1.0
+    n_steps = min(len(actual_profile), len(reference_profile))
+    actual = np.asarray(actual_profile[:n_steps], dtype=float)
+    reference = np.asarray(reference_profile[:n_steps], dtype=float)
+    n_days = n_steps // steps_per_day
+
+    daily_rows: List[Dict[str, Any]] = []
+    for day in range(n_days):
+        start = day * steps_per_day
+        end = start + steps_per_day
+        actual_day = actual[start:end]
+        reference_day = reference[start:end]
+        diff = actual_day - reference_day
+        reference_mean = float(np.nanmean(reference_day)) if reference_day.size else float("nan")
+        rmse = float(np.sqrt(np.nanmean(np.square(diff)))) if diff.size else float("nan")
+        daily_rows.append(
+            {
+                "day": day + 1,
+                "reference_mean": reference_mean,
+                "actual_mean": float(np.nanmean(actual_day)) if actual_day.size else float("nan"),
+                "actual_energy": float(np.nansum(actual_day)) if actual_day.size else float("nan"),
+                "reference_energy": float(np.nansum(reference_day)) if reference_day.size else float("nan"),
+                "nmbe_pct": _safe_pct(float(np.nanmean(diff)) if diff.size else float("nan"), reference_mean),
+                "cv_rmse_pct": _safe_pct(rmse, reference_mean),
+                "rmse": rmse,
+            }
+        )
+
+    daily_df = pd.DataFrame(daily_rows)
+    season, comfort_low_c, comfort_high_c = _get_season_comfort_bounds(month)
+    building_rows: List[Dict[str, Any]] = []
+    daily_exceed_hours_total = np.zeros(n_days, dtype=float)
+
+    for building_idx, building in enumerate(env.buildings):
+        indoor = np.asarray(building.indoor_dry_bulb_temperature, dtype=float)[:n_steps]
+        indoor = indoor[: n_days * steps_per_day]
+        exceed_mask = (indoor < comfort_low_c) | (indoor > comfort_high_c)
+        exceed_hours = float(np.sum(exceed_mask) * step_hours)
+        total_hours = len(indoor) * step_hours
+
+        building_rows.append(
+            {
+                "building_id": building_idx,
+                "building_name": getattr(building, "name", f"building_{building_idx}"),
+                "temperature_exceedance_hours": exceed_hours,
+                "temperature_exceedance_pct": _safe_pct(exceed_hours, total_hours),
+            }
+        )
+
+        if n_days > 0 and exceed_mask.size == n_days * steps_per_day:
+            daily_mask = exceed_mask.reshape(n_days, steps_per_day)
+            daily_exceed_hours_total += daily_mask.sum(axis=1).astype(float) * step_hours
+
+    comfort_df = pd.DataFrame(building_rows)
+    if not daily_df.empty and len(env.buildings) > 0:
+        portfolio_hours_per_day = len(env.buildings) * steps_per_day * step_hours
+        daily_df["temperature_exceedance_hours_total"] = daily_exceed_hours_total
+        daily_df["temperature_exceedance_pct_portfolio"] = daily_exceed_hours_total / portfolio_hours_per_day * 100.0
+
+    overall_ref_mean = float(np.nanmean(reference)) if reference.size else float("nan")
+    overall_diff = actual - reference
+    overall_rmse = float(np.sqrt(np.nanmean(np.square(overall_diff)))) if overall_diff.size else float("nan")
+    total_exceed_hours = float(comfort_df["temperature_exceedance_hours"].sum()) if not comfort_df.empty else 0.0
+    total_portfolio_hours = len(env.buildings) * n_steps * step_hours
+
+    summary = {
+        "primary/load_tracking/nmbe_pct": _safe_pct(
+            float(np.nanmean(overall_diff)) if overall_diff.size else float("nan"),
+            overall_ref_mean,
+        ),
+        "primary/load_tracking/cv_rmse_pct": _safe_pct(overall_rmse, overall_ref_mean),
+        "primary/load_tracking/reference_mean": overall_ref_mean,
+        "primary/load_tracking/actual_mean": float(np.nanmean(actual)) if actual.size else float("nan"),
+        "primary/load_tracking/reference_peak": float(np.nanmax(reference)) if reference.size else float("nan"),
+        "primary/load_tracking/actual_peak": float(np.nanmax(actual)) if actual.size else float("nan"),
+        "primary/thermal_comfort/temperature_exceedance_hours_total": total_exceed_hours,
+        "primary/thermal_comfort/temperature_exceedance_hours_mean": (
+            float(comfort_df["temperature_exceedance_hours"].mean()) if not comfort_df.empty else 0.0
+        ),
+        "primary/thermal_comfort/temperature_exceedance_hours_max": (
+            float(comfort_df["temperature_exceedance_hours"].max()) if not comfort_df.empty else 0.0
+        ),
+        "primary/thermal_comfort/portfolio_exceedance_pct": _safe_pct(total_exceed_hours, total_portfolio_hours),
+        "primary/thermal_comfort/lower_bound_c": comfort_low_c,
+        "primary/thermal_comfort/upper_bound_c": comfort_high_c,
+        "primary/thermal_comfort/season": season,
+    }
+
+    return summary, daily_df, comfort_df
+
+
+def _write_primary_metric_artifacts(
+    *,
+    output_dir: Path,
+    climate: str,
+    test_month: int,
+    test_start: int,
+    test_end: int,
+    primary_metrics: Dict[str, Any],
+    daily_df: pd.DataFrame,
+    comfort_df: pd.DataFrame,
+) -> None:
+    metrics_json = {
+        "climate": climate,
+        "test_month": test_month,
+        "test_month_name": MONTH_NAMES.get(test_month, str(test_month)),
+        "test_start_step": test_start,
+        "test_end_step": test_end,
+        "test/primary/load_tracking/nmbe_pct": _safe_float(primary_metrics.get("primary/load_tracking/nmbe_pct")),
+        "test/primary/load_tracking/cv_rmse_pct": _safe_float(primary_metrics.get("primary/load_tracking/cv_rmse_pct")),
+        "test/primary/load_tracking/reference_mean": _safe_float(primary_metrics.get("primary/load_tracking/reference_mean")),
+        "test/primary/load_tracking/actual_mean": _safe_float(primary_metrics.get("primary/load_tracking/actual_mean")),
+        "test/primary/load_tracking/reference_peak": _safe_float(primary_metrics.get("primary/load_tracking/reference_peak")),
+        "test/primary/load_tracking/actual_peak": _safe_float(primary_metrics.get("primary/load_tracking/actual_peak")),
+        "test/primary/thermal_comfort/temperature_exceedance_hours_total": _safe_float(
+            primary_metrics.get("primary/thermal_comfort/temperature_exceedance_hours_total")
+        ),
+        "test/primary/thermal_comfort/temperature_exceedance_hours_mean": _safe_float(
+            primary_metrics.get("primary/thermal_comfort/temperature_exceedance_hours_mean")
+        ),
+        "test/primary/thermal_comfort/temperature_exceedance_hours_max": _safe_float(
+            primary_metrics.get("primary/thermal_comfort/temperature_exceedance_hours_max")
+        ),
+        "test/primary/thermal_comfort/portfolio_exceedance_pct": _safe_float(
+            primary_metrics.get("primary/thermal_comfort/portfolio_exceedance_pct")
+        ),
+        "test/primary/thermal_comfort/lower_bound_c": _safe_float(
+            primary_metrics.get("primary/thermal_comfort/lower_bound_c")
+        ),
+        "test/primary/thermal_comfort/upper_bound_c": _safe_float(
+            primary_metrics.get("primary/thermal_comfort/upper_bound_c")
+        ),
+    }
+    (output_dir / "test_metrics.json").write_text(json.dumps(metrics_json, indent=2), encoding="utf-8")
+
+    if not daily_df.empty:
+        daily_df.to_csv(output_dir / "test_daily_metrics.csv", index=False)
+    if not comfort_df.empty:
+        comfort_df.to_csv(output_dir / "test_building_comfort_metrics.csv", index=False)
+
+
 def _run_one(
     result_dir: Path,
     output_root: Optional[Path],
@@ -609,6 +777,13 @@ def _run_rbc_baseline(
 
         district_target = _load_district_target(climate, test_start, len(rbc_load))
         computed_reference = _computed_daily_reference(baseline_load, steps_per_day)
+        primary_metrics, daily_df, comfort_df = _compute_primary_metric_tables_from_env(
+            env,
+            month=test_month,
+            actual_profile=rbc_load,
+            reference_profile=district_target,
+            steps_per_day=steps_per_day,
+        )
 
         # This is a fresh evaluation produced by this script, not an existing
         # training-result folder.
@@ -629,6 +804,16 @@ def _run_rbc_baseline(
             steps_per_day=steps_per_day,
             controlled_label="BasicBatteryRBC",
             baseline_label="Baseline (no storage)",
+        )
+        _write_primary_metric_artifacts(
+            output_dir=output_dir,
+            climate=climate,
+            test_month=test_month,
+            test_start=test_start,
+            test_end=test_end,
+            primary_metrics=primary_metrics,
+            daily_df=daily_df,
+            comfort_df=comfort_df,
         )
         return {
             "result_dir": str(output_dir),
