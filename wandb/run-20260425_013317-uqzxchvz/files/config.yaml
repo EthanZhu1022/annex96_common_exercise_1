@@ -1,0 +1,151 @@
+_wandb:
+    value:
+        cli_version: 0.25.1
+        e:
+            x42h38xmbibwd55qobja7hcr7gd89cnk:
+                args:
+                    - --climate
+                    - VT
+                    - --n_episodes
+                    - "80"
+                    - --seed
+                    - "42"
+                    - --save_dir
+                    - results/sb3_independent_ppo_vt_80_final2
+                    - --wandb_name
+                    - sb3_independent_ppo_vt_80_final2
+                cpu_count: 64
+                cpu_count_logical: 64
+                cudaVersion: "12.8"
+                disk:
+                    /:
+                        total: "53680537600"
+                        used: "18816565248"
+                email: z5610836@ad.unsw.edu.au
+                executable: /root/annex96_common_exercise_1/.venv/bin/python
+                git:
+                    commit: 30337b0ed9a2e40fd613d9902b2d60f43e17957f
+                    remote: https://github.com/EthanZhu1022/annex96_common_exercise_1.git
+                gpu: NVIDIA GeForce RTX 3090
+                gpu_count: 4
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 10496
+                      memoryTotal: "25769803776"
+                      name: NVIDIA GeForce RTX 3090
+                      uuid: GPU-a6c76469-7815-135b-12cc-77cc7a302e59
+                    - architecture: Ampere
+                      cudaCores: 10496
+                      memoryTotal: "25769803776"
+                      name: NVIDIA GeForce RTX 3090
+                      uuid: GPU-7b8a6d8d-f62a-8ce8-0c1d-24a425b48ad7
+                    - architecture: Ampere
+                      cudaCores: 10496
+                      memoryTotal: "25769803776"
+                      name: NVIDIA GeForce RTX 3090
+                      uuid: GPU-c54ab155-900f-c445-45f8-a24eeac7a17d
+                    - architecture: Ampere
+                      cudaCores: 10496
+                      memoryTotal: "25769803776"
+                      name: NVIDIA GeForce RTX 3090
+                      uuid: GPU-eefc87fc-834d-da97-398f-fad50d9eb631
+                host: enormous-vista-9518-77b89f78f5-mhwjb
+                memory:
+                    total: "540879331328"
+                os: Linux-5.15.0-94-generic-x86_64-with-glibc2.39
+                program: -m sb3_independent_ppo.train
+                python: CPython 3.11.13
+                root: /root/annex96_common_exercise_1
+                startedAt: "2026-04-24T17:33:17.597571Z"
+                writerId: x42h38xmbibwd55qobja7hcr7gd89cnk
+        m:
+            - "1": episode
+              "6":
+                - 3
+              "7": []
+            - "2": train/*
+              "5": 1
+              "6":
+                - 1
+              "7": []
+            - "2": test/*
+              "5": 1
+              "6":
+                - 1
+              "7": []
+        python_version: 3.11.13
+        t:
+            "1":
+                - 1
+                - 5
+                - 30
+                - 53
+            "2":
+                - 1
+                - 5
+                - 30
+                - 53
+            "3":
+                - 7
+                - 13
+                - 16
+            "4": 3.11.13
+            "5": 0.25.1
+            "12": 0.25.1
+            "13": linux-x86_64
+algorithm:
+    value: SB3 Shared-Env Independent PPO
+backup_dir:
+    value: null
+batch_size:
+    value: 168
+climate:
+    value: VT
+clip_range:
+    value: 0.2
+do_test:
+    value: true
+ent_coef:
+    value: 0
+episode_time_steps:
+    value: null
+gae_lambda:
+    value: 0.95
+gamma:
+    value: 0.99
+hidden_dim:
+    value: 256
+lr:
+    value: 0.0003
+max_grad_norm:
+    value: 0.5
+n_buildings:
+    value: 25
+n_episodes:
+    value: 80
+n_epochs:
+    value: 10
+save_dir:
+    value: results/sb3_independent_ppo_vt_80_final2
+save_every:
+    value: 10
+seed:
+    value: 42
+test_end_step:
+    value: 1415
+test_month:
+    value: 2
+test_start_step:
+    value: 744
+train_end_step:
+    value: 743
+train_month:
+    value: 1
+train_start_step:
+    value: 0
+vf_coef:
+    value: 0.5
+wandb_name:
+    value: sb3_independent_ppo_vt_80_final2
+wandb_project:
+    value: annex96-ce1
