@@ -1,0 +1,15 @@
+{
+  "result_dir": "/home/yue/EthanZhu/annex96_common_exercise_1/results/mappo_grouped_comm_weighted_a055_b045_vt_500_final2",
+  "label": "mappo_grouped_comm_weighted_a055_b045_vt_500_final2",
+  "climate": "VT",
+  "test_month": 2,
+  "test_month_name": "February",
+  "n_steps": 671,
+  "target_source": "district",
+  "controlled_mean": 105.77406141615782,
+  "baseline_mean": 105.57186386233471,
+  "district_target_mean": 67.19536817614481,
+  "computed_reference_mean": 105.57186386233471,
+  "tracking_mae_to_plotted_target": 58.247762929946596,
+  "tracking_rmse_to_plotted_target": 65.46960451901235
+}

@@ -1,0 +1,15 @@
+{
+  "result_dir": "/home/yue/EthanZhu/annex96_common_exercise_1/results/rllib_sac_vt_500_final2",
+  "label": "rllib_sac_vt_500_final2",
+  "climate": "VT",
+  "test_month": 2,
+  "test_month_name": "February",
+  "n_steps": 671,
+  "target_source": "district",
+  "controlled_mean": 92.53291815545981,
+  "baseline_mean": 101.69018137685943,
+  "district_target_mean": 67.19536817614481,
+  "computed_reference_mean": 101.69018137685943,
+  "tracking_mae_to_plotted_target": 45.57837103333822,
+  "tracking_rmse_to_plotted_target": 51.33439598519695
+}
