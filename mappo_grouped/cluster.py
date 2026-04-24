@@ -46,6 +46,7 @@ for _p in [str(REPO_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from annex96_rewards import DEFAULT_CE1_REWARD_PATH, build_ce1_reward_kwargs
 from citylearn.citylearn import CityLearnEnv
 from citylearn.wrappers import NormalizedObservationWrapper
 
@@ -79,6 +80,8 @@ def extract_building_features(
         root_directory  = str(schema_path.parent),
         central_agent   = False,
         buildings       = list(range(n_buildings)),
+        reward_function = DEFAULT_CE1_REWARD_PATH,
+        reward_function_kwargs = build_ce1_reward_kwargs(),
     )
     # Reset once to trigger device autosizing
     NormalizedObservationWrapper(base_env).reset(seed=0)
