@@ -266,9 +266,9 @@
     "attributes": {
       "weight_nmbe": 1.0,
       "weight_cv_rmse": 1.0,
-      "weight_comfort": 0.35,
-      "comfort_binary_weight": 1.0,
-      "comfort_degree_weight": 0.15,
+      "weight_comfort": 0.45,
+      "comfort_binary_weight": 1.1,
+      "comfort_degree_weight": 0.2,
       "return_metadata": true
     }
   },
