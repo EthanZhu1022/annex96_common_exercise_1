@@ -47,6 +47,7 @@ from gymnasium import spaces
 REPO_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_DIR))
 
+from annex96_rewards import DEFAULT_CE1_REWARD_PATH, build_ce1_reward_kwargs
 from citylearn.citylearn import CityLearnEnv
 from citylearn.wrappers import NormalizedObservationWrapper
 
@@ -60,6 +61,8 @@ def _build_citylearn(
     n_buildings: int,
     start_step:  Optional[int],
     end_step:    Optional[int],
+    reward_function: Optional[str] = None,
+    reward_function_kwargs: Optional[Dict[str, float]] = None,
     repo_dir:    Path = REPO_DIR,
 ) -> Tuple[NormalizedObservationWrapper, CityLearnEnv]:
     """Instantiate CityLearnEnv wrapped with NormalizedObservationWrapper."""
@@ -78,6 +81,8 @@ def _build_citylearn(
         root_directory=str(dataset_dir),
         central_agent=False,
         buildings=list(range(n_buildings)),
+        reward_function=reward_function or DEFAULT_CE1_REWARD_PATH,
+        reward_function_kwargs=reward_function_kwargs or build_ce1_reward_kwargs(),
     )
     if start_step is not None and end_step is not None:
         window_len = end_step - start_step + 1
@@ -114,10 +119,18 @@ class CityLearnMAPPOEnv:
         n_buildings: int      = 25,
         start_step:  Optional[int] = None,
         end_step:    Optional[int] = None,
+        reward_function: Optional[str] = None,
+        reward_function_kwargs: Optional[Dict[str, float]] = None,
         repo_dir:    Path     = REPO_DIR,
     ) -> None:
         self._env, self._base_env = _build_citylearn(
-            climate, n_buildings, start_step, end_step, repo_dir
+            climate,
+            n_buildings,
+            start_step,
+            end_step,
+            reward_function=reward_function,
+            reward_function_kwargs=reward_function_kwargs,
+            repo_dir=repo_dir,
         )
         self.n_agents  = n_buildings
         self.climate   = climate

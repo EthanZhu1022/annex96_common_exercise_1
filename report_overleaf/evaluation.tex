@@ -1,4 +1,4 @@
-\chapter{Evaluation and Result Analysis}\label{ch:eval}
+﻿\chapter{Evaluation and Result Analysis}\label{ch:eval}
 
 This chapter reports the completed Vermont benchmark comparison for the selected
 controllers. The tables and figures in this chapter are drawn from the exported
@@ -9,11 +9,6 @@ debugging-stage runs, the current result set is mature enough for a structured
 comparison of tracking, comfort, peak demand, ramping, fairness, and
 communication design.
 
-中文：本章报告当前已经完成的 Vermont 基准结果对比。
-本章中的表格和图片来自导出的 \texttt{results}、\texttt{wandb} 和 \texttt{target\_folder} 输出，
-并结合 \texttt{summarize\_selected\_experiment\_metrics} 生成的汇总结果。
-和早期试跑相比，当前结果集已经足以支持对负荷跟踪、舒适性、峰值负荷、爬坡、公平性和通信设计进行更成熟的比较。
-
 \section{Evaluation Scope}
 
 The experiments use the Annex 96 Common Exercise 1 CityLearn portfolios. Each
@@ -23,11 +18,6 @@ Vermont setting, where January is used for training and February is used for
 testing. Texas remains future work for the RL comparison, so the conclusions in
 this chapter should be read as Vermont benchmark conclusions rather than
 cross-climate conclusions.
-
-中文：实验采用 Annex 96 Common Exercise 1 的 CityLearn 建筑组合。
-每个组合包含 25 栋带光伏和电池储能的独立住宅。
-在本报告中，已经完成完整汇总的是 Vermont 场景，其中 1 月用于训练，2 月用于测试。
-Texas 的 RL 对比仍然属于后续工作，因此本章结论应理解为 Vermont 基准结论，而不是跨气候结论。
 
 \begin{table}[h]
 \begin{center}
@@ -50,19 +40,11 @@ variants, RLlib independent PPO, RLlib SAC rerun, and the RBC baseline. Most
 MAPPO-based final runs use 500 training episodes in the selected set. The
 comparison therefore no longer depends on the old pilot outputs.
 
-中文：当前汇总的 Vermont 对比包括本项目的主要学习型控制器：标准 MAPPO、分组 MAPPO、多个分组通信变体、RLlib 独立 PPO、RLlib SAC rerun，以及 RBC 基线。
-在当前选定结果集中，多数 MAPPO 类最终运行都使用了 500 轮训练。
-因此，当前对比已经不再依赖早期试跑结果。
-
 \section{Main Vermont Results}
 
 The primary objective is portfolio-level reference tracking. Let $y_t$ be the
 actual aggregate portfolio load and $r_t$ be the reference load. The two main
 tracking metrics are NMBE and CV-RMSE:
-
-中文：首要目标是组合层面的参考曲线跟踪。
-设 $y_t$ 为实际组合聚合负荷，$r_t$ 为参考负荷。
-核心跟踪指标仍然是 NMBE 和 CV-RMSE：
 
 \begin{equation}
 \mathrm{NMBE} =
@@ -80,15 +62,9 @@ Lower absolute NMBE and lower CV-RMSE mean better tracking. Comfort exceedance
 hours are also reported because a controller that tracks well but creates many
 comfort violations is not practically useful.
 
-中文：绝对 NMBE 越低、CV-RMSE 越低，说明跟踪越好。
-同时还要报告舒适性超限小时，因为如果一个控制器虽然跟踪得更好，却带来大量舒适性问题，那它在实际中并不理想。
-
 Table~\ref{tab:vt-main-results} summarizes the main Vermont comparison. The
 overall rank is taken from the consolidated summary table and combines the main
 tracking metrics with selected secondary objectives.
-
-中文：表~\ref{tab:vt-main-results} 汇总了 Vermont 主对比结果。
-其中 overall rank 来自汇总脚本生成的总排名，它综合考虑了主要跟踪指标和部分次级目标。
 
 \begin{table}[h]
 \scriptsize
@@ -116,7 +92,7 @@ DIAL & 13 & 65.51 & 29.10 & 11239 & -114468.5 \\
 
 \begin{figure}[h]
 \begin{center}
-\includegraphics[width=0.92\textwidth]{../experiment_metric_summary/selected_experiment_primary_metrics.png}
+\includegraphics[width=0.92\textwidth]{figures/selected_experiment_primary_metrics.png}
 \end{center}
 \caption{Primary metric summary generated from the selected Vermont experiment set.}
 \label{fig:primary-summary}
@@ -132,11 +108,6 @@ Third, the weighted communication variant with \mbox{$\alpha=0.90,\beta=0.10$}
 is competitive and ranks second overall, showing that a stronger same-group
 message can be helpful.
 
-中文：和早期试跑相比，当前的 Vermont 完整结果已经呈现出更清晰的模式。
-第一，带 \texttt{comm\_v2} 的分组 MAPPO 是当前选定基准结果中整体最强的方法：它在总排名和主排名中都排第一，同时拥有最低的 CV-RMSE（49.94\%）和较强的舒适性表现。
-第二，TarMAC 是当前表现最强的学习型注意力通信变体，也是最接近 \texttt{comm\_v2} 的竞争者。
-第三，\mbox{$\alpha=0.90,\beta=0.10$} 的加权通信具有竞争力，在总排名中位列第二，说明更强调组内消息的设定是有帮助的。
-
 At the same time, the comparison also shows why one metric alone is not enough.
 Standard MAPPO has the best reward sum among the learned controllers in
 Table~\ref{tab:vt-main-results}, but it is not the best tracking controller.
@@ -145,14 +116,9 @@ comfort hours are much worse than the main MAPPO variants. GAT has the lowest
 absolute NMBE and the fewest comfort exceedance hours among the learned methods,
 but its CV-RMSE and overall rank are weaker than the top communication methods.
 
-中文：同时，这个对比也说明为什么不能只看单一指标。
-标准 MAPPO 在表~\ref{tab:vt-main-results} 的学习型控制器中拥有最好的 reward sum，但它并不是跟踪最优的方法。
-RLlib independent PPO 的 CV-RMSE 和峰值削减都比较强，但舒适性小时明显差于主要 MAPPO 变体。
-GAT 在学习型方法中拥有最低的绝对 NMBE 和最少的舒适性超限小时，但它的 CV-RMSE 和整体排名仍弱于最强的几种通信方法。
-
 \begin{figure}[h]
 \begin{center}
-\includegraphics[width=0.92\textwidth]{../combined_target_figures/main_mappo_comparison/main_mappo_comparison_week1.png}
+\includegraphics[width=0.92\textwidth]{figures/main_mappo_comparison_week1.png}
 \end{center}
 \caption{Week-1 aggregate load tracking for standard MAPPO, grouped MAPPO, and grouped Comm v2.}
 \label{fig:main-mappo-week1}
@@ -164,20 +130,12 @@ the visible high-load periods than standard MAPPO and grouped MAPPO without the
 enhanced communication design. This visual pattern is consistent with its better
 CV-RMSE in Table~\ref{tab:vt-main-results}.
 
-中文：图~\ref{fig:main-mappo-week1} 帮助解释主 MAPPO 对比。
-在可见的高负荷时段中，带 \texttt{comm\_v2} 的分组控制器比标准 MAPPO 和无增强通信设计的分组 MAPPO 更接近目标曲线。
-这种视觉上的差异和表~\ref{tab:vt-main-results} 中更好的 CV-RMSE 是一致的。
-
 \section{Communication Variant Comparison}
 
 Table~\ref{tab:vt-comm-results} focuses on the communication variants. In
 addition to the main tracking metrics, it includes peak-demand change and
 fairness Gini so that the ranking can be interpreted as a trade-off rather than
 as a single-number contest.
-
-中文：表~\ref{tab:vt-comm-results} 只聚焦于通信变体。
-除了主要跟踪指标外，它还加入了峰值负荷变化和公平性 Gini，
-这样可以把排序理解为权衡结果，而不是只看单一数字。
 
 \begin{table}[h]
 \scriptsize
@@ -202,7 +160,7 @@ DIAL & 13 & 13 & 65.51 & 11239 & -10.88 & 0.1450 \\
 
 \begin{figure}[h]
 \begin{center}
-\includegraphics[width=0.92\textwidth]{../combined_target_figures/communication_method_comparison/communication_method_comparison_week1.png}
+\includegraphics[width=0.92\textwidth]{figures/communication_method_comparison_week1.png}
 \end{center}
 \caption{Week-1 load tracking comparison for the main communication variants.}
 \label{fig:comm-week1}
@@ -216,20 +174,11 @@ Third, communication quality depends strongly on design: DIAL performs poorly in
 this task, while GAT gives very good comfort and fairness but weaker global
 tracking.
 
-中文：基于当前 Vermont 完整结果，现在可以支持三条更明确的通信结论。
-第一，\texttt{comm\_v2} 是当前基准结果集中综合表现最强的通信变体。
-第二，TarMAC 是表现最强的注意力通信方法，并且在跟踪和舒适性上都保持了较强竞争力。
-第三，通信设计的差异影响很大：DIAL 在这个任务上表现明显较弱，而 GAT 则表现出较好的舒适性和公平性，但整体跟踪能力较弱。
-
 The communication results also show that better peak reduction does not always
 mean better overall control. PowerNet and DIAL reduce peak demand more strongly
 than \texttt{comm\_v2}, but their CV-RMSE or comfort performance is worse. This
 is why the combined ranking prefers \texttt{comm\_v2}, TarMAC, and the stronger
 same-group weighted setting over those variants.
-
-中文：通信结果也说明，更强的峰值削减并不一定意味着整体控制更好。
-PowerNet 和 DIAL 的峰值削减比 \texttt{comm\_v2} 更强，但它们的 CV-RMSE 或舒适性更差。
-这也是为什么综合排名更偏向 \texttt{comm\_v2}、TarMAC 和更强调组内信息的加权通信。
 
 \section{Weighted Communication Ablation}
 
@@ -237,10 +186,6 @@ The weighted communication family is useful because it isolates one design
 choice: how strongly the controller should favor same-group messages over
 messages from the rest of the portfolio. Table~\ref{tab:weighted-ablation}
 compares the three exported weighted settings.
-
-中文：加权通信家族很有用，因为它单独研究了一个设计问题：
-控制器究竟应该多大程度上偏向组内消息，而不是来自其他建筑组的消息。
-表~\ref{tab:weighted-ablation} 对比了三个已经导出的加权设定。
 
 \begin{table}[h]
 \scriptsize
@@ -261,7 +206,7 @@ $\alpha=0.55,\beta=0.45$ & 52.58 & 8561 & -9.79 & 439.4 \\
 
 \begin{figure}[h]
 \begin{center}
-\includegraphics[width=0.92\textwidth]{../combined_target_figures/weighted_comm_ablation/weighted_comm_ablation_week1.png}
+\includegraphics[width=0.92\textwidth]{figures/weighted_comm_ablation_week1.png}
 \end{center}
 \caption{Week-1 load tracking comparison for the weighted communication ablation.}
 \label{fig:weighted-ablation-week1}
@@ -274,20 +219,12 @@ balanced \mbox{$\alpha=0.55,\beta=0.45$} setting gives the strongest peak
 reduction, but its tracking and comfort are slightly worse. The default setting
 is no longer the best weighted choice in the completed result set.
 
-中文：加权消融结果说明，更强调组内信息是一个合理方向。
-\mbox{$\alpha=0.90,\beta=0.10$} 设定在三个加权变体中拥有最好的跟踪表现，同时系统爬坡也最低。
-更均衡的 \mbox{$\alpha=0.55,\beta=0.45$} 设定带来了最强的峰值削减，但其跟踪和舒适性略差。
-在当前完整结果集中，默认权重已经不再是最优的加权设定。
-
 \section{Rule-Based Baseline}
 
 Table~\ref{tab:rbc-baseline-results} reports the available RBC notebook
 comparison for Texas and Vermont. The RBC baseline is still useful as a
 non-learning reference, but it is clearly weaker than the learned Vermont
 controllers on the CE1 load-tracking task.
-
-中文：表~\ref{tab:rbc-baseline-results} 给出 notebook 中可用的 Texas 和 Vermont RBC 对比。
-RBC 仍然可以作为非学习型参考，但在 CE1 负荷跟踪任务上，它明显弱于当前的学习型 Vermont 控制器。
 
 \begin{table}[h]
 \small
@@ -312,11 +249,6 @@ worse than the no-control baseline on both NMBE and CV-RMSE. This supports the
 use of learned controllers that respond to the target profile and to
 portfolio-level conditions rather than following a fixed schedule.
 
-中文：RBC 结果说明，固定时段的充放电规则不足以完成 CE1 目标。
-在 Vermont 中，RBC 虽然相对无控制基线改善了 CV-RMSE，但系统性偏差仍然非常大。
-在 Texas 中，RBC 的 NMBE 和 CV-RMSE 都比无控制基线更差。
-这支持使用学习型控制器根据目标曲线和组合层状态进行调整，而不是执行固定日程表。
-
 \section{Secondary Metrics and Interpretation}
 
 The secondary metrics add important context to the main ranking. For example,
@@ -328,19 +260,11 @@ PowerNet and weighted communication reduce peak demand more strongly than
 \texttt{comm\_v2}, but they do not match its combined tracking and comfort
 balance.
 
-中文：次级指标为主排名提供了重要背景。
-例如，RLlib independent PPO 的峰值削减达到 11.49\%，但舒适性小时明显差于最强的 MAPPO 变体。
-GAT 在当前结果集中拥有最好的公平性 Gini，同时也有学习型控制器中最低的舒适性超限小时，但它的 CV-RMSE 无法和前两名相比。
-PowerNet 和加权通信的峰值削减通常强于 \texttt{comm\_v2}，但它们没有达到 \texttt{comm\_v2} 在跟踪与舒适性之间的综合平衡。
-
 Cost and carbon metrics are still not interpretable in the current exports
 because the CE1 schemas used here do not provide pricing or carbon-intensity
 files. CityLearn fills the missing signals with zero series, so the resulting
 cost and carbon values are zero or null rather than meaningful control
 outcomes.
-
-中文：当前导出结果中的成本和碳排指标仍然不可解释，因为本项目使用的 CE1 schema 没有提供电价和碳排放强度文件。
-CityLearn 会用全 0 序列填充这些缺失信号，所以得到的成本和碳排结果只是 0 或 null，而不是有意义的控制效果。
 
 \section{Current Interpretation and Remaining Limits}
 
@@ -355,19 +279,8 @@ MAPPO with \texttt{comm\_v2}. Fourth, the weighted and attention-based variants
 show that communication structure is a real optimization direction rather than a
 minor implementation detail.
 
-中文：当前已经完成的 Vermont 基准结果支持四条结论。
-第一，MARL 对这个任务是有帮助的：最强的 MAPPO 变体明显优于 RBC 基线，也避免了独立 PPO 那种很差的舒适性权衡。
-第二，通信确实重要，但并不是加了通信就一定更好。
-不同通信设计会产生不同权衡，最优结果来自一种既不是最简单、也不是最复杂的通信结构。
-第三，当前 Vermont 场景下最强的方法是带 \texttt{comm\_v2} 的分组 MAPPO。
-第四，加权通信和注意力通信的结果说明，通信结构本身是一个值得深入优化的研究方向，而不是实现细节。
-
 The remaining limits are now different from the earlier midterm stage. The
 selected Vermont runs are complete, but the comparison still uses one seed and
 one climate. Texas RL experiments, multi-seed validation, and cross-algorithm
 comparison with methods such as MASAC or value-based approaches are still needed
 before making broader claims about the full research question.
-
-中文：当前剩余的限制已经不同于早期中期阶段。
-选定的 Vermont 结果已经完整，但当前对比仍然只使用一个随机种子，也只覆盖一个气候场景。
-在对完整研究问题做更广泛结论之前，仍然需要完成 Texas 的 RL 实验、多随机种子验证，以及和 MASAC 或基于价值函数方法的进一步比较。

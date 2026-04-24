@@ -73,6 +73,7 @@ from annex96_reporting import (
 REPO_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_DIR))
 
+from annex96_rewards import DEFAULT_CE1_REWARD_PATH, build_ce1_reward_kwargs
 from citylearn.citylearn import CityLearnEnv
 from citylearn.wrappers import NormalizedObservationWrapper
 
@@ -239,6 +240,8 @@ def build_env(
         root_directory=str(dataset_dir),
         central_agent=False,
         buildings=list(range(cfg.n_buildings)),
+        reward_function=DEFAULT_CE1_REWARD_PATH,
+        reward_function_kwargs=build_ce1_reward_kwargs(),
     )
 
     if start_step is not None and end_step is not None:

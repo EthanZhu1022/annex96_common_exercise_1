@@ -1,4 +1,4 @@
-\chapter{Conclusion and Work Plan}\label{ch:concl}
+﻿\chapter{Conclusion and Work Plan}\label{ch:concl}
 
 This midterm report has defined the research problem, reviewed the relevant
 literature, and described the current implementation of a structured
@@ -7,7 +7,6 @@ CityLearn provides a strong building-energy benchmark, MAPPO provides a
 practical CTDE backbone, and communication methods provide coordination tools,
 but the effect of structured communication for portfolio-level CityLearn load
 tracking still needs systematic study.
-
 
 Significant implementation work has been completed. The codebase now includes
 independent PPO/SAC baselines, standard MAPPO, grouped MAPPO, K-means-based
@@ -20,7 +19,6 @@ Vermont benchmark result set has been completed. The current CE1 data does not
 provide pricing or carbon-intensity time series, so cost and carbon fields are
 kept as unavailable rather than interpreted as algorithm performance.
 
-
 The main conclusion at this stage is now more concrete. Architecturally, grouped
 MAPPO with modular communication is a feasible and well-supported research
 direction for the CityLearn portfolio. Numerically, the completed Vermont
@@ -32,11 +30,9 @@ competitors. GAT gives a different trade-off, with especially good comfort and
 fairness-related behaviour but weaker overall ranking than the best
 communication variants.
 
-
 \section{Next Steps}
 
 The work plan for the next stage is:
-
 
 \begin{itemize}
   \item extend the completed Vermont comparison to Texas so that conclusions can
@@ -59,4 +55,3 @@ If time allows, additional work will test sensitivity to the number of clusters,
 communication rounds, and weighted communication coefficients. A further
 extension is to learn building embeddings for grouping instead of relying only
 on static flexibility features.
-

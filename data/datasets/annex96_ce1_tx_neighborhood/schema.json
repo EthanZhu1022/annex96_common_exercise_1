@@ -262,8 +262,15 @@
     "attributes": null
   },
   "reward_function": {
-    "type": "citylearn.reward_function.ComfortReward",
-    "attributes": null
+    "type": "annex96_rewards.ce1.CE1ThreeMetricReward",
+    "attributes": {
+      "weight_nmbe": 1.0,
+      "weight_cv_rmse": 1.0,
+      "weight_comfort": 0.35,
+      "comfort_binary_weight": 1.0,
+      "comfort_degree_weight": 0.15,
+      "return_metadata": true
+    }
   },
   "buildings": {
     "resstock-amy2018-2021-release-1-6887": {

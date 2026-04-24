@@ -9,10 +9,6 @@ desired target load profile. The challenge is that each home only sees its own
 situation, but the success of the controller is judged by the behaviour of the
 whole building portfolio.
 
-中文：现在，许多社区建筑不再只是被动用电，很多现代住宅有太阳能板、电池、用于供暖和制冷的 HVAC 设备，以及其他支持本地能源灵活性的可控设备。
-如果把社区住宅作为一个整体协调控制，它们的总用电可以避开高峰时段，也可以更接近一个人们期望的目标负荷曲线。
-难点在于，每栋房子只能看到自己的情况，但控制效果最后是按照整个建筑组合的表现来评价的。
-
 This midterm report studies portfolio load tracking in the CityLearn simulation
 environment. CityLearn is an open benchmark for building energy control and for
 comparing reinforcement learning algorithms
@@ -27,14 +23,6 @@ carbon emissions are part of the Annex 96 metric set, but the CE1 schemas used
 in this project do not provide pricing or carbon-intensity files, so these two
 fields are not interpreted in the current experiments.
 
-中文：本中期报告基于 CityLearn 仿真环境研究建筑群负荷跟踪问题。
-CityLearn 是一个面向建筑群能源控制与强化学习算法比较的开源仿真环境
-\cite{citylearn2019,citylearn2020,citylearnv2}。
-本项目采用 IEA EBC Annex 96 Common Exercise 1（CE1）作为基准实验设置。
-在这个任务中，25 栋住宅需要作为一个整体去跟踪每天的参考负荷曲线。控制器可以调节电池运行，以及供暖和制冷 HVAC 设备相关的灵活性。
-评价时不仅看负荷跟踪误差，也看室内舒适性，以及总用能、峰值负荷、峰谷比、负荷率、爬坡和公平性等次要指标。
-成本和碳排放属于 Annex 96 指标体系的一部分，但本项目使用的 CE1 schema 没有提供电价和碳排放强度文件，所以当前实验不解释这两个字段。
-
 The core research question is:
 
 \begin{quote}
@@ -42,10 +30,6 @@ Can multi-agent reinforcement learning improve the CityLearn CE1 load tracking
 task, what type of MARL is most suitable for this problem, and can structured
 communication between building agents further improve performance?
 \end{quote}
-
-中文：核心研究问题是：多智能体强化学习能不能提升 CityLearn CE1 的负荷跟踪效果？
-在多种 MARL 方法中，哪一类方法更适合这个任务？
-在此基础上，建筑智能体之间加入结构化通信，能不能进一步提升性能？
 
 This project is organized around three comparisons. First, it compares
 rule-based control and independent building control with MARL-based coordination
@@ -56,11 +40,6 @@ no-communication variants, and intra-group and inter-group communication. Third,
 it will compare different types of MARL, such as MAPPO, MASAC, or value-based
 methods, to understand which learning style is more suitable for this task.
 
-中文：因此，本项目围绕三类比较展开。
-第一，比较规则控制、每栋建筑独立控制和 MARL 协同控制，判断学习型协同控制对 CE1 是否真的有帮助。
-第二，以稳定的 on-policy 方法（MAPPO）为例，比较不同结构的 MARL，例如分组和未分组、有通信和无通信、组内通信和组间通信的版本，并进一步比较不同通信结构。
-第三，比较不同类型的 MARL，例如 MAPPO、MASAC 或基于价值函数的方法，判断哪类学习方式更适合这个任务。
-
 At the current stage, MAPPO is used as the main experimental backbone. This is
 a practical choice rather than a final claim that MAPPO is the best algorithm.
 MAPPO is an on-policy centralized-training, decentralized-execution method, and
@@ -70,12 +49,6 @@ CityLearn pipeline with grouped actors, a shared critic, and communication
 modules. After this pipeline is stable, the project can compare MAPPO with
 other directions such as SAC/MASAC or DQN-style value-based methods.
 
-中文：当前阶段选择 MAPPO 作为主要实验主干，是因为它是 on-policy 的集中训练、分散执行方法，
-PPO 类更新通常比较稳定，也更容易调试 \cite{ppo2017,mappo2022}。
-这不是说 MAPPO 一定是最终最优算法，而是因为它适合作为第一阶段的稳定起点，
-用来调通 CityLearn 环境、分组 actor、共享 critic 和通信模块。
-等这条流程稳定后，后续会继续和 SAC/MASAC、DQN 类价值函数方法等方向做对比。
-
 The communication part is therefore an optimization and innovation on top of
 the current MAPPO backbone. It studies whether agents should share information,
 and if so, whether simple mean-message communication, PowerNet-style structured
@@ -83,14 +56,8 @@ information passing, graph-attention communication, attention-based
 communication, or weighted same-group/other-group communication is more
 effective.
 
-中文：因此，通信部分是在当前 MAPPO 主干上的优化和创新。
-它研究的是建筑智能体之间是否应该共享信息；
-如果要共享，是简单均值消息、PowerNet 风格结构化信息传递、图注意力通信、注意力通信，还是组内/组间加权通信更有效。
-
 The current stage of the project has produced a working research codebase and a
 clear experimental plan. The completed work includes:
-
-中文：目前项目已经形成了可运行的研究代码和清晰的实验计划。已经完成的工作包括：
 
 \begin{itemize}
   \item an RBC notebook baseline for non-learning comparison in Texas and
@@ -109,16 +76,6 @@ clear experimental plan. The completed work includes:
   export utilities.
 \end{itemize}
 
-中文：具体来说，已经完成的工作包括：
-\begin{itemize}
-  \item 用于非学习方法对比的 Texas 和 Vermont RBC notebook 基线；
-  \item 用于独立 PPO/SAC 和 MAPPO 训练的 CityLearn 环境封装；
-  \item 标准 MAPPO 和分组 MAPPO 基线；
-  \item 基于建筑灵活性特征和 K-means 聚类的分组 actor 策略；
-  \item 多种可微通信模块，包括 CommNet 风格均值池化、PowerNet 风格结构化信息传递、GAT 风格图注意力、TarMAC 风格注意力、DIAL 启发的全局通信，以及组内/组间加权通信；
-  \item 日志、模型保存、测试和 Annex 96 指标导出工具。
-\end{itemize}
-
 The project now has a completed Vermont benchmark comparison for the selected
 controllers, together with exported test-month metrics, ranking tables, and load
 tracking figures generated from the \texttt{results}, \texttt{wandb}, and
@@ -131,20 +88,8 @@ Texas RL experiments and multi-seed validation remain future extensions, but the
 Vermont comparison reported here is now a completed benchmark set rather than a
 debugging-stage pilot.
 
-中文：目前项目已经形成了完整的 Vermont 基准对比结果，
-并且基于 \texttt{results}、\texttt{wandb} 和 \texttt{target\_folder} 输出生成了测试月指标、排序表和负荷跟踪图。
-这说明项目已经不再只是流程调试，而是可以对负荷跟踪、舒适性、峰值负荷、公平性和通信设计做更成熟的比较。
-当前 Vermont 场景下整体表现最强的是带 \texttt{comm\_v2} 通信变体的分组 MAPPO，
-TarMAC 和 \mbox{$\alpha=0.90, \beta=0.10$} 的加权通信也表现较强。
-Texas 的 RL 实验和多随机种子验证仍然属于后续扩展，但本报告中的 Vermont 对比已经不再是早期试跑，而是一个完成后的基准结果集。
-
 Chapter~\ref{ch:background} reviews the relevant literature and explains where
 the project fits. Chapter~\ref{ch:method} describes the implemented method and
 current progress. Chapter~\ref{ch:eval} gives the completed Vermont evaluation
 and the main result analysis. Chapter~\ref{ch:concl} summarizes the midterm
 outcomes and next steps.
-
-中文：第~\ref{ch:background}~章回顾相关文献并说明本项目的位置。
-第~\ref{ch:method}~章介绍已经实现的方法和当前进展。
-第~\ref{ch:eval}~章给出完整的 Vermont 评估结果和主要分析。
-第~\ref{ch:concl}~章总结中期成果和下一步工作。

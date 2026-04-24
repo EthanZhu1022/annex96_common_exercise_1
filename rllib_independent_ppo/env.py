@@ -40,6 +40,7 @@ from ray.rllib.env.multi_agent_env import MultiAgentEnv
 REPO_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_DIR))
 
+from annex96_rewards import DEFAULT_CE1_REWARD_PATH, build_ce1_reward_kwargs
 from citylearn.citylearn import CityLearnEnv
 from citylearn.wrappers import NormalizedObservationWrapper
 
@@ -51,6 +52,8 @@ def _build_citylearn(
     n_buildings: int,
     start_step:  Optional[int] = None,
     end_step:    Optional[int] = None,
+    reward_function: Optional[str] = None,
+    reward_function_kwargs: Optional[Dict[str, Any]] = None,
     repo_dir:    Path = REPO_DIR,
 ) -> Tuple[NormalizedObservationWrapper, CityLearnEnv]:
     """Instantiate CityLearnEnv + NormalizedObservationWrapper."""
@@ -69,6 +72,8 @@ def _build_citylearn(
         root_directory=str(dataset_dir),
         central_agent=False,
         buildings=list(range(n_buildings)),
+        reward_function=reward_function or DEFAULT_CE1_REWARD_PATH,
+        reward_function_kwargs=reward_function_kwargs or build_ce1_reward_kwargs(),
     )
 
     if start_step is not None and end_step is not None:
@@ -106,12 +111,19 @@ class CityLearnPPOEnv(MultiAgentEnv):
         self._start_step  = env_config.get("start_step",  None)
         self._end_step    = env_config.get("end_step",    None)
         self._seed        = env_config.get("seed",        42)
+        self._reward_function = env_config.get("reward_function", DEFAULT_CE1_REWARD_PATH)
+        self._reward_function_kwargs = env_config.get(
+            "reward_function_kwargs",
+            build_ce1_reward_kwargs(),
+        )
 
         self._env, self._base_env = _build_citylearn(
             climate     = self._climate,
             n_buildings = self._n_buildings,
             start_step  = self._start_step,
             end_step    = self._end_step,
+            reward_function=self._reward_function,
+            reward_function_kwargs=self._reward_function_kwargs,
         )
 
         n = self._n_buildings

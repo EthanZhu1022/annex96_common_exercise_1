@@ -1,17 +1,18 @@
 \chapter{Method and Progress}\label{ch:method}
 
 This chapter describes what has been implemented and what has been completed by
-the midterm stage. The project is not yet at the final result-analysis stage,
-but the first 200-episode Vermont runs have been completed. The main progress so
-far is that the training pipeline works, several baselines are available, and
-the communication variants can be tested within the same MAPPO framework. The
-current numerical results are therefore used only as preliminary reference
-points.
+the midterm stage. The main training pipeline now runs end-to-end, the selected
+Vermont benchmark experiments have completed their planned training budgets, and
+the evaluation utilities export unified test-month metrics, ranking tables, and
+load-tracking figures. At this point, the project has moved beyond early
+pipeline debugging: several baselines and communication variants can now be
+compared within the same MAPPO framework using the completed Vermont result set.
 
 中文：本章介绍当前已经实现的方法，以及中期阶段已经完成的工作。
-项目还没有进入最终结果分析阶段，但 Vermont 场景下第一批 200 轮训练实验已经完成。
-目前最主要的进展是训练流程已经可以运行，多个基线方法已经实现，多种通信变体也可以在同一个 MAPPO 框架下测试。
-当前数值结果只作为阶段性参考。
+目前主训练流程已经可以完整运行，选定的 Vermont 基准实验也已经按计划训练完成，
+评估工具能够统一导出测试月指标、排序表和负荷跟踪图。
+这说明项目已经不再只是前期流程调试，
+而是可以在同一个 MAPPO 框架下对多个基线和通信变体进行完整比较。
 
 
 \section{Problem Definition}
@@ -310,6 +311,21 @@ m_i = \frac{1}{\max(1,\sum_j A_{ij})}\sum_j A_{ij}g_\theta(h_j).
 这样做的目的是尽量不覆盖本地信息，同时仍然让智能体能够协同。
 
 
+\subsection{GAT-Style Graph Attention Communication}
+
+The GAT-style module uses masked graph attention over a fixed similarity graph.
+Inside each K-means group, buildings are fully connected, and a small number of
+cross-group edges connect the closest groups. Each agent then learns attention
+weights over its allowed neighbors instead of using a simple average. This makes
+it possible to test whether graph-structured attention improves communication
+selectivity in the CityLearn setting.
+
+中文：GAT 风格模块在一个固定的相似性图上使用掩码图注意力。
+在每个 K-means 组内，建筑之间是全连接的，同时还会用少量跨组边连接最相近的组。
+这样每个智能体不再只做简单平均，而是会对允许连接的邻居学习不同注意力权重。
+这个模块用于测试：在 CityLearn 任务中，图结构注意力能否提高通信选择性。
+
+
 \subsection{TarMAC-Style Attention}
 
 The TarMAC-style module uses attention. Each agent produces query, key, and
@@ -384,6 +400,9 @@ At the midterm stage, the following implementation work has been completed:
   CommNet-style mean communication, and PowerNet-style structured information
   passing;
   中文：组内通信变体，包括无通信、CommNet 风格均值通信，以及 PowerNet 风格结构化信息传递；
+  \item GAT-style graph attention communication over a fixed building-similarity
+  graph;
+  中文：在固定建筑相似性图上运行的 GAT 风格图注意力通信；
   \item weighted same-group and other-group communication, where same-group
   messages are weighted more strongly than messages from the rest of the
   portfolio;
@@ -406,32 +425,36 @@ At the midterm stage, the following implementation work has been completed:
 \end{itemize}
 
 The most important outcome so far is that the main methods can now be run and
-compared through a common experimental interface. The 200-episode Vermont runs
-also show that communication changes the balance between tracking, comfort, and
-secondary metrics. At this stage, global CommNet looks like the most promising
-communication variant, but this is only a preliminary observation.
+compared through a common experimental interface. The completed Vermont
+benchmark results show that communication changes the balance between tracking,
+comfort, and secondary metrics. In the current selected benchmark set,
+\texttt{mappo\_grouped\_comm\_v2\_vt\_500\_final} is the strongest overall
+result, while TarMAC, weighted communication with
+\mbox{$\alpha=0.90, \beta=0.10$}, and GAT also show competitive trade-offs.
 
 中文：目前最重要的成果是，主要方法现在可以通过统一的实验接口运行和比较。
-Vermont 场景下 200 轮训练结果也初步说明，通信机制会改变负荷跟踪、舒适性和次级指标之间的取舍。
-在当前阶段，全局 CommNet 是最有前景的通信变体，但这仍然只是初步观察。
+完整的 Vermont 基准结果说明，通信机制会改变负荷跟踪、舒适性和次级指标之间的取舍。
+在当前选定的基准结果集中，
+\texttt{mappo\_grouped\_comm\_v2\_vt\_500\_final} 是整体表现最强的方法；
+TarMAC、\mbox{$\alpha=0.90, \beta=0.10$} 的加权通信和 GAT 也表现出有竞争力的权衡。
 
 
 \section{Current Limitations}
 
-The current numerical results are incomplete. They cover Vermont only, use one
-seed, and are based on 200 training episodes. Therefore, this report does not
-claim that one communication method is definitively better than the others. The
-final comparison will need longer training, Texas RL experiments, multiple seeds
-where possible, and a closer look at daily load trajectories. The CE1 schemas
+The current comparison is much more complete than the earlier debugging-stage runs,
+but it is still not the last word on the full research question. The selected
+Vermont experiments now have completed test-month exports, yet Texas RL
+experiments and multi-seed validation are still future work. The CE1 schemas
 used in the current pipeline also do not include pricing or grid-carbon time
 series, so cost and carbon metrics cannot be interpreted without adding external
 assumptions. Another limitation is that K-means currently uses static device
 features; future work may replace or extend them with learned features from
 building trajectories.
 
-中文：当前数值结果还不完整。
-它们只覆盖 Vermont 场景，只使用一个随机种子，并且只基于 200 轮训练。
-因此，本报告不会声称某一种通信方法已经明确优于其他方法。
-最终比较还需要更长训练、Texas 场景下的 RL 实验、尽可能多个随机种子，以及对每日负荷轨迹的更深入分析。
+中文：当前比较虽然已经比早期版本成熟得多，但仍然有一些限制。
+和早期试跑相比，当前比较已经完整得多，
+但它仍然不是对整个研究问题的最终回答。
+目前选定的 Vermont 实验已经完成测试月指标导出，
+但 Texas 的 RL 实验和多随机种子验证仍然属于后续工作。
 当前流程使用的 CE1 schema 也没有提供电价和电网碳排放时间序列，因此如果不加入外部假设，成本和碳排放指标不能解释。
 另一个限制是，K-means 当前使用的是静态设备特征；未来工作可以用基于建筑轨迹学习得到的特征来替代或补充当前特征。
