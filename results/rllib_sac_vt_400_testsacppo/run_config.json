@@ -1,0 +1,28 @@
+{
+  "climate": "VT",
+  "n_buildings": 25,
+  "hidden_sizes": [
+    256,
+    256
+  ],
+  "lr": 0.0003,
+  "gamma": 0.99,
+  "tau": 0.005,
+  "initial_alpha": 0.2,
+  "buffer_size": 100000,
+  "train_batch_size": 256,
+  "num_steps_sampled_before_learning_starts": 1000,
+  "n_iterations": 400,
+  "rollout_fragment_len": 200,
+  "num_workers": 0,
+  "target_network_update_freq": 1,
+  "train_month": 1,
+  "test_month": 2,
+  "episode_time_steps": null,
+  "do_test": true,
+  "seed": 42,
+  "wandb_project": "annex96-ce1",
+  "wandb_name": "rllib_sac_vt_400_testsacppo",
+  "save_dir": "results/rllib_sac_vt_400_testsacppo",
+  "backup_dir": null
+}

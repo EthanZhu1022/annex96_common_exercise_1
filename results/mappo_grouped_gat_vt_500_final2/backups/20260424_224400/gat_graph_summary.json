@@ -1,0 +1,42 @@
+{
+  "graph_type": "kmeans_similarity_graph",
+  "construction": "same-cluster fully connected edges plus sparse bidirectional nearest-cluster bridge edges",
+  "n_agents": 25,
+  "n_groups": 4,
+  "group_sizes": [
+    8,
+    7,
+    6,
+    4
+  ],
+  "self_loops": true,
+  "inter_group_top_k": 1,
+  "n_directed_edges": 365,
+  "n_intra_group_edges": 165,
+  "n_inter_group_edges": 200,
+  "edge_density": 0.584,
+  "selected_group_edges": [
+    {
+      "source_group": 0,
+      "target_group": 2,
+      "distance_rank": 1
+    },
+    {
+      "source_group": 1,
+      "target_group": 3,
+      "distance_rank": 1
+    },
+    {
+      "source_group": 2,
+      "target_group": 0,
+      "distance_rank": 1
+    },
+    {
+      "source_group": 3,
+      "target_group": 2,
+      "distance_rank": 1
+    }
+  ],
+  "paper_reference": "Velickovic et al., Graph Attention Networks, ICLR 2018",
+  "ce1_topology_note": "CE1 does not provide feeder/geographic adjacency; this graph is constructed from K-means building similarity."
+}
