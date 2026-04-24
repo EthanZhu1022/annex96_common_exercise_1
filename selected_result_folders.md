@@ -4,41 +4,37 @@ This file lists the experiment outputs that are worth citing in the final report
 
 ## 1. MAPPO Series Comparison
 
-These runs are relatively complete and use comparable settings:
-Vermont, seed 42, January training, February testing, 500 episodes.
+These runs are relatively complete and use comparable settings for the updated final comparison set.
 
-- results/mappo_standard_vt_500_final
-- results/mappo_grouped_vt_500_final
-- results/mappo_grouped_comm_v2_vt_500_final
-- results/mappo_grouped_tarmac_vt_500_final
-- results/mappo_grouped_gat_vt_500_final
-- results/mappo_grouped_powernet_vt_500_final
-- results/mappo_grouped_powernet_global_vt_500_final
-- results/mappo_grouped_commnet_vt_500_final
-- results/mappo_grouped_dial_vt_500_final
+- results/mappo_standard_vt_500_final3
+- results/mappo_grouped_vt_500_final3
+- results/mappo_grouped_comm_v2_vt_500_final2
+- results/mappo_grouped_tarmac_vt_500_final2
+- results/mappo_grouped_gat_vt_500_final2
+- results/mappo_grouped_powernet_vt_500_final2
+- results/mappo_grouped_powernet_global_vt_500_final2
+- results/mappo_grouped_commnet_vt_500_final2
+- results/mappo_grouped_dial_vt_500_final2
 
 ## 2. Weighted Communication Ablation
 
 These runs are suitable for a separate ablation table because the main difference is the intra-group and inter-group communication weighting, controlled by alpha and beta.
 
-- results/mappo_grouped_comm_weighted_default_vt_500_final
-- results/mappo_grouped_comm_weighted_a090_b010_vt_500_final
-- results/mappo_grouped_comm_weighted_a055_b045_vt_500_final
+- results/mappo_grouped_comm_weighted_default_vt_500_final2
+- results/mappo_grouped_comm_weighted_a090_b010_vt_500_final2
+- results/mappo_grouped_comm_weighted_a055_b045_vt_500_final2
 
 ## 3. Independent-Agent Baselines
 
 These runs can be used as independent-agent baselines or supplementary comparisons. They do not use exactly the same training budget as the main 500-episode MAPPO runs, so avoid using them in the main conclusion to claim absolute superiority.
 
-- results/rllib_independent_ppo_vt_42_final
-- results/rllib_sac_vt_300_final
-- results/rllib_sac_vt_800_final
-- results/rllib_sac_vt_300_rerun
-- results/sb3_independent_ppo_vt_300_final
+- results/rllib_independent_ppo_vt_80_final2
+- results/rllib_sac_vt_500_final2
 
 Notes:
 
-- `results/rllib_independent_ppo_vt_42_final` can be described as an early-stopped or best-checkpoint run. Its W&B total reward is higher than `rllib_independent_ppo_vt_300_final`, which may have degraded after continued training.
-- `results/rllib_sac_vt_300_rerun` is the rerun SAC baseline to use in the final summary tables and comparison figures.
+- `results/rllib_independent_ppo_vt_80_final2` is the PPO independent-agent baseline to use in the updated final summary tables and comparison figures.
+- `results/rllib_sac_vt_500_final2` is the SAC independent-agent baseline to use in the updated final summary tables and comparison figures.
 
 ## 4. Early 200-Episode MAPPO Results
 

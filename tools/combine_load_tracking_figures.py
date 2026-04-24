@@ -22,34 +22,32 @@ TIMESERIES_FILE = "test_load_tracking_timeseries.csv"
 
 GROUPS: Dict[str, List[Tuple[str, str]]] = {
     "main_mappo_comparison": [
-        ("mappo_standard_vt_500_final", "MAPPO Standard"),
-        ("mappo_grouped_vt_500_final", "Grouped MAPPO"),
-        ("mappo_grouped_comm_v2_vt_500_final", "Grouped Comm v2"),
+        ("mappo_standard_vt_500_final3", "MAPPO Standard"),
+        ("mappo_grouped_vt_500_final3", "Grouped MAPPO"),
+        ("mappo_grouped_comm_v2_vt_500_final2", "Grouped Comm v2"),
     ],
     "weighted_comm_ablation": [
-        ("mappo_grouped_comm_weighted_default_vt_500_final", "Weighted Comm default"),
-        ("mappo_grouped_comm_weighted_a090_b010_vt_500_final", "Weighted Comm alpha=0.90 beta=0.10"),
-        ("mappo_grouped_comm_weighted_a055_b045_vt_500_final", "Weighted Comm alpha=0.55 beta=0.45"),
+        ("mappo_grouped_comm_weighted_default_vt_500_final2", "Weighted Comm default"),
+        ("mappo_grouped_comm_weighted_a090_b010_vt_500_final2", "Weighted Comm alpha=0.90 beta=0.10"),
+        ("mappo_grouped_comm_weighted_a055_b045_vt_500_final2", "Weighted Comm alpha=0.55 beta=0.45"),
     ],
     "communication_method_comparison": [
-        ("mappo_grouped_comm_v2_vt_500_final", "Grouped Comm v2"),
-        ("mappo_grouped_tarmac_vt_500_final", "TarMAC"),
-        ("mappo_grouped_gat_vt_500_final", "GAT"),
-        ("mappo_grouped_powernet_global_vt_500_final", "PowerNet Global"),
-        ("mappo_grouped_dial_vt_500_final", "DIAL"),
-        ("mappo_grouped_comm_weighted_default_vt_500_final", "Weighted Comm default"),
+        ("mappo_grouped_comm_v2_vt_500_final2", "Grouped Comm v2"),
+        ("mappo_grouped_tarmac_vt_500_final2", "TarMAC"),
+        ("mappo_grouped_gat_vt_500_final2", "GAT"),
+        ("mappo_grouped_powernet_global_vt_500_final2", "PowerNet Global"),
+        ("mappo_grouped_dial_vt_500_final2", "DIAL"),
+        ("mappo_grouped_comm_weighted_default_vt_500_final2", "Weighted Comm default"),
     ],
     "independent_agent_baselines": [
-        ("rllib_independent_ppo_vt_42_final", "RLlib Independent PPO"),
-        ("rllib_sac_vt_800_final", "RLlib SAC"),
-        ("sb3_independent_ppo_vt_300_final", "SB3 Independent PPO"),
-        ("rllib_sac_vt_300_rerun", "RLlib SAC rerun"),
+        ("rllib_independent_ppo_vt_80_final2", "RLlib Independent PPO"),
+        ("rllib_sac_vt_500_final2", "RLlib SAC"),
     ],
     "selected_independent_vs_mappo": [
-        ("rllib_independent_ppo_vt_42_final", "RLlib Independent PPO"),
-        ("rllib_sac_vt_300_rerun", "RLlib SAC rerun"),
-        ("mappo_standard_vt_500_final", "MAPPO Standard"),
-        ("mappo_grouped_vt_500_final", "Grouped MAPPO"),
+        ("rllib_independent_ppo_vt_80_final2", "RLlib Independent PPO"),
+        ("rllib_sac_vt_500_final2", "RLlib SAC"),
+        ("mappo_standard_vt_500_final3", "MAPPO Standard"),
+        ("mappo_grouped_vt_500_final3", "Grouped MAPPO"),
     ],
 }
 

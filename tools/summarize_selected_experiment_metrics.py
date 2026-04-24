@@ -45,20 +45,20 @@ MONTH_ENDS: Dict[int, int] = {
 
 SELECTED_EXPERIMENTS: List[str] = [
     "rbc_baseline_vt_february",
-    "mappo_standard_vt_500_final",
-    "mappo_grouped_vt_500_final",
-    "mappo_grouped_comm_v2_vt_500_final",
-    "mappo_grouped_tarmac_vt_500_final",
-    "mappo_grouped_gat_vt_500_final",
-    "mappo_grouped_powernet_vt_500_final",
-    "mappo_grouped_powernet_global_vt_500_final",
-    "mappo_grouped_commnet_vt_500_final",
-    "mappo_grouped_dial_vt_500_final",
-    "rllib_independent_ppo_vt_42_final",
-    "rllib_sac_vt_300_rerun",
-    "mappo_grouped_comm_weighted_default_vt_500_final",
-    "mappo_grouped_comm_weighted_a090_b010_vt_500_final",
-    "mappo_grouped_comm_weighted_a055_b045_vt_500_final",
+    "mappo_grouped_comm_v2_vt_500_final2",
+    "mappo_grouped_comm_weighted_a055_b045_vt_500_final2",
+    "mappo_grouped_comm_weighted_a090_b010_vt_500_final2",
+    "mappo_grouped_comm_weighted_default_vt_500_final2",
+    "mappo_grouped_commnet_vt_500_final2",
+    "mappo_grouped_dial_vt_500_final2",
+    "mappo_grouped_gat_vt_500_final2",
+    "mappo_grouped_powernet_global_vt_500_final2",
+    "mappo_grouped_powernet_vt_500_final2",
+    "mappo_grouped_tarmac_vt_500_final2",
+    "mappo_grouped_vt_500_final3",
+    "mappo_standard_vt_500_final3",
+    "rllib_independent_ppo_vt_80_final2",
+    "rllib_sac_vt_500_final2",
 ]
 
 
@@ -281,7 +281,10 @@ def _method_label(experiment: str) -> str:
     if experiment == "rbc_baseline_vt_february":
         return "BasicBatteryRBC"
     label = experiment
+    label = label.replace("_vt_500_final3", "")
+    label = label.replace("_vt_500_final2", "")
     label = label.replace("_vt_500_final", "")
+    label = label.replace("_vt_80_final2", "")
     label = label.replace("_vt_42_final", "")
     label = label.replace("_vt_50_final", "")
     label = label.replace("mappo_", "MAPPO ")
