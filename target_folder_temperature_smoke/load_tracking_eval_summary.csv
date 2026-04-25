@@ -1,0 +1,2 @@
+status,result_dir,module,timeseries_csv,full_png,week1_png,summary_json,error
+error,C:\Users\16199\Desktop\RL\annex96_common_exercise_1\results\mappo_grouped_powernet_global_vt_500_final2,,,,,,ModuleNotFoundError: No module named 'torch'

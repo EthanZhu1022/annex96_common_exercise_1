@@ -80,7 +80,9 @@ import pandas as pd
 import torch
 from annex96_reporting import (
     build_readme_secondary_daily_log,
+    collect_building_temperature_timeseries,
     compute_secondary_daily_tables,
+    export_building_temperature_artifacts,
     export_secondary_daily_metrics,
     save_secondary_daily_metrics_plot,
 )
@@ -760,6 +762,7 @@ def _run_daily_pipeline(
 ) -> Optional[pd.DataFrame]:
     daily_records = test_result.get("_daily_primary_metrics")
     comfort_records = test_result.get("_building_comfort_metrics")
+    temperature_records = test_result.get("_building_temperature_timeseries")
     step_loads: List[float] = test_result.get("_step_portfolio_loads", [])
     baseline_loads: List[float] = test_result.get("_step_portfolio_loads_baseline", [])
     if not daily_records and not step_loads:
@@ -778,6 +781,21 @@ def _run_daily_pipeline(
     comfort_csv = Path(save_dir) / "test_building_comfort_metrics.csv"
     comfort_df.to_csv(comfort_csv, index=False)
     print(f"  [daily] building comfort CSV -> {comfort_csv}")
+
+    temperature_df = pd.DataFrame(temperature_records or [])
+    temperature_csv, temperature_full_fig, temperature_week_fig = export_building_temperature_artifacts(
+        temperature_df,
+        save_dir,
+        cfg.climate,
+        month_name,
+        algorithm_label="RLlib Independent PPO Temperatures",
+    )
+    if temperature_csv is not None:
+        print(f"  [daily] building temperature CSV -> {temperature_csv}")
+    if temperature_full_fig is not None:
+        print(f"  [daily] building temperature figure -> {temperature_full_fig}")
+    if temperature_week_fig is not None:
+        print(f"  [daily] building temperature week1 figure -> {temperature_week_fig}")
 
     secondary_flexible_df, secondary_baseline_df = compute_secondary_daily_tables(
         step_loads,
@@ -1014,6 +1032,7 @@ def evaluate_on_test(
         "_step_portfolio_loads_baseline": resolve_reference_baseline_series(test_env.base_env)[: len(step_portfolio_loads)].tolist(),
         "_daily_primary_metrics": daily_primary_df.to_dict(orient="records"),
         "_building_comfort_metrics": comfort_building_df.to_dict(orient="records"),
+        "_building_temperature_timeseries": collect_building_temperature_timeseries(test_env.base_env).to_dict(orient="records"),
     }
     for aid, r in per_building_rewards.items():
         result[f"test/{aid}/reward"] = r

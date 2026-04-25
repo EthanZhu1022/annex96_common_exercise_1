@@ -19,6 +19,7 @@ from mappo_grouped_comm import train as base_train
 class Config:
     climate: str = "VT"
     n_buildings: int = 25
+    plot_label: str = "Grouped MAPPO (PowerNet)"
 
     group_k_candidates: List[int] = field(default_factory=lambda: [4, 5])
     cluster_seed: int = 0

@@ -153,3 +153,153 @@ def export_secondary_daily_metrics(
         baseline_path = Path(save_dir) / "test_daily_secondary_baseline_metrics.csv"
         baseline_df.to_csv(baseline_path, index=False)
     return flexible_path, baseline_path
+
+
+def collect_building_temperature_timeseries(base_env: Any) -> pd.DataFrame:
+    records = []
+    buildings = list(getattr(base_env, "buildings", []))
+
+    for building_id, building in enumerate(buildings):
+        building_name = getattr(building, "name", f"building_{building_id}")
+
+        indoor = np.asarray(getattr(building, "indoor_dry_bulb_temperature", []), dtype=float)
+        cooling_sp = np.asarray(
+            getattr(building, "indoor_dry_bulb_temperature_cooling_set_point", []),
+            dtype=float,
+        )
+        heating_sp = np.asarray(
+            getattr(building, "indoor_dry_bulb_temperature_heating_set_point", []),
+            dtype=float,
+        )
+        comfort_band = np.asarray(getattr(building, "comfort_band", []), dtype=float)
+
+        length = max(len(indoor), len(cooling_sp), len(heating_sp), len(comfort_band))
+        if length <= 0:
+            continue
+
+        def _pad(series: np.ndarray) -> np.ndarray:
+            output = np.full(length, np.nan, dtype=float)
+            if len(series) > 0:
+                copy_len = min(length, len(series))
+                output[:copy_len] = series[:copy_len]
+            return output
+
+        indoor = _pad(indoor)
+        cooling_sp = _pad(cooling_sp)
+        heating_sp = _pad(heating_sp)
+        comfort_band = _pad(comfort_band)
+        comfort_low = heating_sp - comfort_band
+        comfort_high = cooling_sp + comfort_band
+
+        for hour in range(length):
+            indoor_value = indoor[hour]
+            lower_value = comfort_low[hour]
+            upper_value = comfort_high[hour]
+            exceeds_comfort = False
+            if np.isfinite(indoor_value):
+                if np.isfinite(lower_value) and indoor_value < lower_value:
+                    exceeds_comfort = True
+                if np.isfinite(upper_value) and indoor_value > upper_value:
+                    exceeds_comfort = True
+
+            records.append(
+                {
+                    "hour": hour,
+                    "day": hour // 24 + 1,
+                    "hour_of_day": hour % 24,
+                    "building_id": building_id,
+                    "building_name": building_name,
+                    "indoor_temperature": indoor_value,
+                    "cooling_set_point": cooling_sp[hour],
+                    "heating_set_point": heating_sp[hour],
+                    "comfort_band": comfort_band[hour],
+                    "comfort_lower_bound": lower_value,
+                    "comfort_upper_bound": upper_value,
+                    "exceeds_comfort_band": int(exceeds_comfort),
+                }
+            )
+
+    return pd.DataFrame.from_records(records)
+
+
+def export_building_temperature_artifacts(
+    temperature_df: pd.DataFrame,
+    save_dir: Path,
+    climate: str,
+    month_name: str,
+    algorithm_label: Optional[str] = None,
+    prefix: str = "test",
+) -> Tuple[Optional[Path], Optional[Path], Optional[Path]]:
+    if temperature_df.empty:
+        return None, None, None
+
+    save_dir = Path(save_dir)
+    csv_path = save_dir / f"{prefix}_building_temperature_timeseries.csv"
+    temperature_df.sort_values(["building_id", "hour"]).to_csv(csv_path, index=False)
+
+    label = algorithm_label or "Temperature Curves"
+    full_path = save_dir / f"{prefix}_building_temperatures_full.png"
+    week1_path = save_dir / f"{prefix}_building_temperatures_week1.png"
+
+    def _plot(frame: pd.DataFrame, out_path: Path, suffix: str) -> Optional[Path]:
+        if frame.empty:
+            return None
+
+        building_ids = sorted(frame["building_id"].dropna().astype(int).unique().tolist())
+        if not building_ids:
+            return None
+
+        ncols = min(5, max(1, len(building_ids)))
+        nrows = int(np.ceil(len(building_ids) / ncols))
+        fig, axes = plt.subplots(
+            nrows,
+            ncols,
+            figsize=(ncols * 3.6, nrows * 2.7),
+            sharex=False,
+            sharey=False,
+        )
+        axes_arr = np.atleast_1d(axes).reshape(nrows, ncols)
+        legend_handles = None
+        legend_labels = None
+
+        for ax, building_id in zip(axes_arr.flat, building_ids):
+            building_frame = frame[frame["building_id"] == building_id].sort_values("hour")
+            building_name = str(building_frame["building_name"].iloc[0])
+            hours = building_frame["hour"].to_numpy(dtype=float)
+            indoor = building_frame["indoor_temperature"].to_numpy(dtype=float)
+            cooling_sp = building_frame["cooling_set_point"].to_numpy(dtype=float)
+            heating_sp = building_frame["heating_set_point"].to_numpy(dtype=float)
+            lower = building_frame["comfort_lower_bound"].to_numpy(dtype=float)
+            upper = building_frame["comfort_upper_bound"].to_numpy(dtype=float)
+
+            ax.plot(hours, indoor, color="#4e79a7", linewidth=1.2, label="Indoor")
+            if np.isfinite(cooling_sp).any():
+                ax.plot(hours, cooling_sp, color="#e15759", linewidth=0.9, linestyle="--", label="Cooling SP")
+            if np.isfinite(heating_sp).any():
+                ax.plot(hours, heating_sp, color="#59a14f", linewidth=0.9, linestyle="--", label="Heating SP")
+            if np.isfinite(lower).any() and np.isfinite(upper).any():
+                ax.fill_between(hours, lower, upper, color="#9c755f", alpha=0.10, label="Comfort band")
+
+            if legend_handles is None:
+                legend_handles, legend_labels = ax.get_legend_handles_labels()
+
+            ax.set_title(f"B{building_id}: {building_name}", fontsize=9)
+            ax.set_xlabel("Hour")
+            ax.set_ylabel("Temp (C)")
+            ax.grid(True, alpha=0.25)
+
+        for ax in axes_arr.flat[len(building_ids):]:
+            ax.axis("off")
+
+        fig.suptitle(f"{label} | {climate} | {month_name} | {suffix}", fontsize=13)
+        if legend_handles and legend_labels:
+            fig.legend(legend_handles, legend_labels, loc="upper center", ncol=min(4, len(legend_labels)))
+        plt.tight_layout(rect=(0, 0, 1, 0.95))
+        plt.savefig(out_path, dpi=130)
+        plt.close()
+        return out_path
+
+    _plot(temperature_df, full_path, "Full Test Window")
+    _plot(temperature_df[temperature_df["hour"] < 24 * 7], week1_path, "Week 1")
+
+    return csv_path, full_path, week1_path

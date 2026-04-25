@@ -23,6 +23,7 @@ from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
+from annex96_reporting import collect_building_temperature_timeseries
 import torch.nn as nn
 
 REPO_DIR = Path(__file__).resolve().parent.parent
@@ -541,6 +542,7 @@ def evaluate_on_test(
         "_step_portfolio_loads_baseline": resolve_reference_baseline_series(test_env.base_env)[: len(step_portfolio_loads)].tolist(),
         "_daily_primary_metrics": daily_primary_df.to_dict(orient="records"),
         "_building_comfort_metrics": comfort_building_df.to_dict(orient="records"),
+        "_building_temperature_timeseries": collect_building_temperature_timeseries(test_env.base_env).to_dict(orient="records"),
     }
     for bid, reward in per_building_rewards.items():
         result[f"test/{bid}/reward"] = reward
