@@ -17,6 +17,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from annex96_reporting import export_building_temperature_artifacts
 
 
 REPO_DIR = Path(__file__).resolve().parent.parent
@@ -622,6 +623,8 @@ def _write_primary_metric_artifacts(
     primary_metrics: Dict[str, Any],
     daily_df: pd.DataFrame,
     comfort_df: pd.DataFrame,
+    temperature_df: Optional[pd.DataFrame] = None,
+    algorithm_label: Optional[str] = None,
 ) -> None:
     metrics_json = {
         "climate": climate,
@@ -660,6 +663,24 @@ def _write_primary_metric_artifacts(
         daily_df.to_csv(output_dir / "test_daily_metrics.csv", index=False)
     if not comfort_df.empty:
         comfort_df.to_csv(output_dir / "test_building_comfort_metrics.csv", index=False)
+    if temperature_df is not None and not temperature_df.empty:
+        export_building_temperature_artifacts(
+            temperature_df,
+            output_dir,
+            climate,
+            MONTH_NAMES.get(test_month, str(test_month)),
+            algorithm_label=algorithm_label or "Temperature Curves",
+        )
+
+
+def _normalize_public_test_metrics(test_result: Dict[str, Any]) -> Dict[str, Any]:
+    public = {k: v for k, v in test_result.items() if not k.startswith("_")}
+    if any(k.startswith("test/") for k in public):
+        return {
+            (k[5:] if k.startswith("test/") else k): v
+            for k, v in public.items()
+        }
+    return public
 
 
 def _run_one(
@@ -711,6 +732,24 @@ def _run_one(
         steps_per_day=steps_per_day,
         controlled_label=result_dir.name,
     )
+
+    normalized_public = _normalize_public_test_metrics(test_result)
+    daily_df = pd.DataFrame(test_result.get("_daily_primary_metrics", []))
+    comfort_df = pd.DataFrame(test_result.get("_building_comfort_metrics", []))
+    temperature_df = pd.DataFrame(test_result.get("_building_temperature_timeseries", []))
+    _write_primary_metric_artifacts(
+        output_dir=output_dir,
+        climate=climate,
+        test_month=test_month,
+        test_start=start_step,
+        test_end=MONTH_ENDS[test_month],
+        primary_metrics=normalized_public,
+        daily_df=daily_df,
+        comfort_df=comfort_df,
+        temperature_df=temperature_df,
+        algorithm_label=result_dir.name,
+    )
+
     return {
         "result_dir": str(result_dir),
         "module": module_name,
