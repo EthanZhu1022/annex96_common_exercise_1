@@ -47,6 +47,81 @@ structured communication between actors.
 这也是本项目使用集中式 critic 和 actor 间结构化通信的原因。
 
 
+\section{Reward Function}
+
+The current training reward uses the custom
+\texttt{annex96\_rewards.ce1.CE1ThreeMetricReward}. It is designed as a
+trainable surrogate of the three CE1 primary objectives: portfolio load bias,
+portfolio tracking error, and per-building thermal comfort. For building $i$ at
+each time step, the reward can be written as
+\[
+r_i = -\Bigg[
+\frac{
+w_{\mathrm{nmbe}}\lvert \mathrm{NMBE}\rvert
++
+w_{\mathrm{cv\_rmse}}\mathrm{CV\mbox{-}RMSE}
+}{N}
+
++
+w_{\mathrm{comfort}}
+\Big(
+w_{\mathrm{binary}}\,\mathbb{I}_{\mathrm{exceed},i}
++
+w_{\mathrm{degree}}\,d_{\mathrm{exceed},i}
+\Big)
+\Bigg].
+\]
+Here, the NMBE and CV-RMSE terms are running portfolio-level surrogates shared
+equally across all buildings, while the comfort term is computed separately for
+each building. In the current code, the actual parameter values are
+\[
+w_{\mathrm{nmbe}} = 1.0,\qquad
+w_{\mathrm{cv\_rmse}} = 1.0,\qquad
+w_{\mathrm{comfort}} = 0.8,\qquad
+w_{\mathrm{binary}} = 1.3,\qquad
+w_{\mathrm{degree}} = 0.3.
+\]
+The binary comfort term adds a penalty whenever the indoor temperature goes
+outside the seasonal comfort band, while the degree term adds an extra penalty
+proportional to how far the temperature is outside that band. For the current
+Vermont experiments, which use the January/February setting, the comfort band
+is \(20^\circ\mathrm{C}\) to \(24^\circ\mathrm{C}\).
+
+中文：当前训练使用的奖励函数是自定义的
+\texttt{annex96\_rewards.ce1.CE1ThreeMetricReward}。
+它被设计成 CE1 三个主要目标的可训练替代形式，也就是组合层面的负荷偏差、组合层面的跟踪误差，以及每栋建筑的热舒适性。
+对每个时间步中的建筑 $i$，奖励可以写成：
+\[
+r_i = -\Bigg[
+\frac{
+w_{\mathrm{nmbe}}\lvert \mathrm{NMBE}\rvert
++
+w_{\mathrm{cv\_rmse}}\mathrm{CV\mbox{-}RMSE}
+}{N}
+
++
+w_{\mathrm{comfort}}
+\Big(
+w_{\mathrm{binary}}\,\mathbb{I}_{\mathrm{exceed},i}
++
+w_{\mathrm{degree}}\,d_{\mathrm{exceed},i}
+\Big)
+\Bigg].
+\]
+其中，NMBE 和 CV-RMSE 是运行过程中的组合级代理指标，并且会平均分配到所有建筑上；舒适性项则按每栋建筑分别计算。
+在当前代码中，这几个参数的实际取值为：
+\[
+w_{\mathrm{nmbe}} = 1.0,\qquad
+w_{\mathrm{cv\_rmse}} = 1.0,\qquad
+w_{\mathrm{comfort}} = 0.8,\qquad
+w_{\mathrm{binary}} = 1.3,\qquad
+w_{\mathrm{degree}} = 0.3.
+\]
+其中，binary comfort 项表示只要室内温度超出季节性舒适区间，就会产生一次超限惩罚；
+degree 项则表示超出得越多，额外惩罚越大。对当前 Vermont 实验所用的 1 月和 2 月设定来说，
+这个舒适温度区间是 \(20^\circ\mathrm{C}\) 到 \(24^\circ\mathrm{C}\)。
+
+
 \section{Environment and Baseline Pipeline}
 
 The first completed component is the environment interface. CityLearn is wrapped
