@@ -8,6 +8,11 @@ practical CTDE backbone, and communication methods provide coordination tools,
 but the effect of structured communication for portfolio-level CityLearn load
 tracking still needs systematic study.
 
+中文：本次中期报告明确了研究问题，回顾了相关文献，并介绍了当前面向 CityLearn 的结构化通信
+MARL 控制器实现。这个项目对应着一个比较明确的研究空缺：CityLearn 提供了合适的建筑能源基准环境，
+MAPPO 提供了实用的 CTDE 方法骨架，通信方法则提供了协调工具，但结构化通信到底会怎样影响
+CityLearn 组合层面的负荷跟踪，仍然需要系统研究。
+
 
 Significant implementation work has been completed. The codebase now includes
 independent PPO/SAC baselines, standard MAPPO, grouped MAPPO, K-means-based
@@ -19,6 +24,13 @@ metrics together with ranking tables and load-tracking figures, and the selected
 Vermont benchmark result set has been completed. The current CE1 data does not
 provide pricing or carbon-intensity time series, so cost and carbon fields are
 kept as unavailable rather than interpreted as algorithm performance.
+
+中文：目前已经完成了较多实现工作。代码中已经包含独立 PPO/SAC 基线、标准 MAPPO、
+分组 MAPPO、基于 K-means 的建筑分组，以及多种带通信的分组 MAPPO 变体，
+包括 CommNet、加权通信、PowerNet、TarMAC、DIAL 和 GAT。这些通信模块都已经接入
+actor 流程，并可以通过标准 PPO 目标进行训练。评估流程也已经能够导出 Annex 96 指标、
+排序表和负荷跟踪图，所选 Vermont 基准结果集也已经完成。由于当前 CE1 数据没有提供
+电价和碳排放强度时间序列，因此 cost 和 carbon 字段在这里保留为不可用，而不是拿来解释算法表现。
 
 
 The main conclusion at this stage is clear. Architecturally, grouped
@@ -35,10 +47,21 @@ recommended-score table but uses a shorter training budget and therefore serves
 mainly as a supplementary reference. TarMAC and the weighted
 \mbox{$\alpha=0.90, \beta=0.10$} setting remain strong MAPPO-family competitors.
 
+中文：这一阶段的主要结论已经比较清楚。从方法结构上看，带模块化通信的分组 MAPPO
+是 CityLearn 组合控制任务中一个可行、也有文献支持的研究方向。从结果上看，
+完整的 Vermont 基准实验说明，通信机制确实会改变负荷跟踪、reward、舒适性和次级指标之间的取舍。
+当前 Vermont 场景下综合表现最强的是
+\texttt{mappo\_grouped\_powernet\_global\_vt\_500\_final2}。与此同时，
+排序表也说明最终答案会受到目标权重设置的影响：默认加权通信在主要指标排名里排第一，
+而独立 PPO 在 recommended-score 表里排第一，但由于它训练预算更短，所以这里主要把它当作补充参考。
+TarMAC 和 \mbox{$\alpha=0.90, \beta=0.10$} 的加权通信也仍然是 MAPPO 家族中很有竞争力的方法。
+
 
 \section{Next Steps}
 
 The work plan for the next stage is:
+
+中文：下一阶段的工作计划如下：
 
 
 \begin{itemize}
@@ -58,8 +81,20 @@ The work plan for the next stage is:
   sensitivity tests, and a concise discussion of limitations.
 \end{itemize}
 
+中文：
+\begin{itemize}
+  \item 将已经完成的 Vermont 对比扩展到 Texas，以便在供暖主导和制冷主导两种场景下检验结论；
+  \item 为表现最强的方法补充多随机种子验证，重点包括 standard MAPPO、grouped MAPPO、PowerNet Global、TarMAC、weighted communication 和 CommNet；
+  \item 将当前 MAPPO 主体与其他 MARL 家族进行比较，例如 SAC/MASAC 和基于价值函数的方法；
+  \item 更详细地分析组合负荷跟踪、舒适性、爬坡、电池行为和公平性，并且只有在提供有效电价或碳排放强度信号时才纳入 cost 和 emissions；
+  \item 更清楚地解释为什么表现最好的通信变体会优于较弱的方法；
+  \item 结合 Texas 完整结果、更多敏感性测试和简洁的局限性讨论，进一步完善最终报告。
+\end{itemize}
+
 If time allows, additional work will test sensitivity to the number of clusters,
 communication rounds, and weighted communication coefficients. A further
 extension is to learn building embeddings for grouping instead of relying only
 on static flexibility features.
 
+中文：如果时间允许，后续还会测试聚类数量、通信轮数以及加权通信系数的敏感性。
+再进一步的扩展方向，是学习用于分组的建筑 embedding，而不只是依赖静态灵活性特征。
