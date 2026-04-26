@@ -1,13 +1,12 @@
 \chapter{Evaluation and Result Analysis}\label{ch:eval}
 
-This chapter reports the Vermont benchmark comparison based on the
-\texttt{final2}/\texttt{final3} experiments. The numerical statements below are
-based on the consolidated outputs from
+This chapter reports the Vermont benchmark comparison based on the selected
+experiment set. The numerical statements below are based on the consolidated
+outputs from
 \texttt{summarize\_selected\_experiment\_metrics}, together with the exported
 \texttt{results}, \texttt{wandb}, and \texttt{target\_folder} files.
 
-中文：本章基于 \texttt{final2}/\texttt{final3} 实验结果，报告当前的
-Vermont 基准对比。下面的数值主要来自
+中文：本章基于当前选定实验集的结果，报告当前的 Vermont 基准对比。下面的数值主要来自
 \texttt{summarize\_selected\_experiment\_metrics} 的汇总表，以及
 \texttt{results}、\texttt{wandb} 和 \texttt{target\_folder} 中导出的测试结果。
 
@@ -61,21 +60,21 @@ sum reward和每个智能体的 reward 大致收敛后作为重要的参考。
 
 The ranking tables show that there is currently no method that is absolutely
 best under every reading of the task. In the current Vermont result set,
-\texttt{mappo\_grouped\_powernet\_global\_vt\_500\_final2} ranks first in the
+\texttt{mappo\_grouped\_powernet\_global} ranks first in the
 overall ranking. The secondary metrics are not explicitly included in the
 reward function, but they are still useful as references, because they show
 which methods already behave well on those objectives even without being
 directly optimized. However, if the comparison is restricted to the primary
 metrics, namely CV-RMSE, $|$NMBE$|$, and comfort, the top method becomes
-\texttt{mappo\_grouped\_comm\_weighted\_default\_vt\_500\_final2}.
+\texttt{mappo\_grouped\_comm\_weighted\_default}.
 
 中文：排序表说明，目前这个任务下并不存在一个在所有理解方式下都绝对最优的方法。
 在当前 Vermont 结果集中，
-\texttt{mappo\_grouped\_powernet\_global\_vt\_500\_final2}
+\texttt{mappo\_grouped\_powernet\_global}
 在综合总排名中排第一（次要指标还未计入reward function中，但是仍然可以作为参考，即在没有计入计算的情况下，哪种方法就已经在次要指标上表现上良好了）。
 但如果只看主要指标，也就是 CV-RMSE、$|$NMBE$|$ 和舒适性，
 排第一的是
-\texttt{mappo\_grouped\_comm\_weighted\_default\_vt\_500\_final2}。
+\texttt{mappo\_grouped\_comm\_weighted\_default}。
 
 \begin{table}[h]
 \scriptsize
@@ -237,11 +236,11 @@ fairness.
 \section{Best Run Diagnostics}
 
 Because the overall best controller in this result set is
-\texttt{mappo\_grouped\_powernet\_global\_vt\_500\_final2}, it is useful to
+\texttt{mappo\_grouped\_powernet\_global}, it is useful to
 look at its exported plots directly.
 
 中文：由于当前新的综合最优实验是
-\texttt{mappo\_grouped\_powernet\_global\_vt\_500\_final2}，
+\texttt{mappo\_grouped\_powernet\_global}，
 下面直接看它导出的图，更容易理解这个结果为什么能排第一。
 
 \begin{figure}[h]

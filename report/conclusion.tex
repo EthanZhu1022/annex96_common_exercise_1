@@ -40,11 +40,11 @@ not a detail but a core design variable. Different communication structures
 change the trade-off between tracking accuracy, comfort, and secondary metrics
 in different ways, so the final conclusion depends on which objective mix is
 emphasized. In the current Vermont results,
-\texttt{mappo\_grouped\_comm\_weighted\_default\_vt\_500\_final2} is the
+\texttt{mappo\_grouped\_comm\_weighted\_default} is the
 strongest method on the primary-only ranking, and the weighted communication
 family shows that whether information from other groups acts as a gain or as
 noise depends heavily on the communication weights. Further,
-\texttt{mappo\_grouped\_powernet\_global\_vt\_500\_final2} gives the strongest
+\texttt{mappo\_grouped\_powernet\_global} gives the strongest
 overall result, which supports the idea that more selective filtering or
 cropping of shared information is useful. Third, many communication methods
 still have large room for improvement. For example, TarMAC remains promising as
@@ -56,9 +56,9 @@ structure combinations should be tested to compare their effects.
 而是结构设计本身已经会显著影响结果。第一，MARL 对这个任务是有帮助的：表现较强的分组 MAPPO
 变体明显优于 RBC，也比单体独立训练方法更能体现组合层面的协同控制。第二，通信不是一个细节，
 而是核心设计变量。不同通信结构会以不同方式改变跟踪精度、舒适性和次要指标之间的取舍，最终结论会受到目标组合方式的影响。
-在当前 Vermont 结果中，\texttt{mappo\_grouped\_comm\_weighted\_default\_vt\_500\_final2}
+在当前 Vermont 结果中，\texttt{mappo\_grouped\_comm\_weighted\_default}
 在主要指标排名中最强，加权通信家族则说明，来自其他组的信息到底是增益还是噪声，很大程度上取决于权重如何设置。
-进一步看，\texttt{mappo\_grouped\_powernet\_global\_vt\_500\_final2} 给出了综合最强结果，这说明
+进一步看，\texttt{mappo\_grouped\_powernet\_global} 给出了综合最强结果，这说明
 PowerNet Global 支持了这样一个判断，即对共享信息做更有选择性的裁剪和筛选是有用的。
 第三，很多通信方式仍然有很大优化空间，比如 TarMAC 作为可学习权重机制仍然很有潜力，但当前实现还没有和 PowerNet 风格的信息裁剪结合起来。
 此外还应该尝试更多不同的 critic 结构组合，以比较不同效果。
