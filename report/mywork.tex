@@ -443,20 +443,66 @@ ranking, while TarMAC and weighted communication with
 
 \section{Current Limitations}
 
-The current comparison is much more complete than the earlier debugging-stage runs,
-but it is still not the last word on the full research question. The selected
-Vermont experiments now have completed test-month exports, yet Texas RL
-experiments and multi-seed validation are still future work. The CE1 schemas
-used in the current pipeline also do not include pricing or grid-carbon time
-series, so cost and carbon metrics cannot be interpreted without adding external
-assumptions. Another limitation is that K-means currently uses static device
-features; future work may replace or extend them with learned features from
-building trajectories.
+Although the current method variants already show clear progress beyond the
+basic baselines, this part of the project is still not finished. A useful
+reference point is the independent PPO baseline. Its advantage is that it is
+simple, stable, and easy to train and debug, and in the current results it
+still remains competitive on some metrics. Its weakness is that each building
+learns largely on its own, so it cannot model portfolio-level coordination
+directly. In addition, PPO has a high training-time cost in multi-agent
+settings, and this usually becomes more severe as the number of agents grows; in
+comparison with shared-structure methods such as MAPPO, this is a major
+disadvantage. The current grouped MAPPO variants show that moving beyond single
+PPO is worthwhile, especially when the goal is to improve overall coordination
+and to study communication design, but the comparison also shows that
+independent PPO is not a trivial baseline and has not been dominated in every
+metric.
 
-中文：当前比较虽然已经比早期版本成熟得多，但仍然有一些限制。
-和早期试跑相比，当前比较已经完整得多，
-但它仍然不是对整个研究问题的最终回答。
-目前选定的 Vermont 实验已经完成测试月指标导出，
-但 Texas 的 RL 实验和多随机种子验证仍然属于后续工作。
-当前流程使用的 CE1 schema 也没有提供电价和电网碳排放时间序列，因此如果不加入外部假设，成本和碳排放指标不能解释。
-另一个限制是，K-means 当前使用的是静态设备特征；未来工作可以用基于建筑轨迹学习得到的特征来替代或补充当前特征。
+中文：虽然当前这些方法变体相比基础基线已经有了比较明显的进展，但这一部分研究还没有完成。
+一个很重要的参照是独立 PPO 基线。它的优点是结构简单、训练比较稳定，也比较容易调试，
+而且在当前结果中它在部分指标上仍然有竞争力。
+它的缺点是每栋建筑基本各学各的，无法直接建模组合层面的协同控制。
+同时，PPO 在多智能体环境里的训练时间成本也很高，而且智能体数量越多，这个问题通常越明显；
+和 MAPPO 这样的共享结构相比，这是一个很大的劣势。
+目前的分组 MAPPO 变体说明，走出单个 PPO、研究多智能体协同和通信设计是值得的，
+但结果也说明独立 PPO 并不是一个很弱的基线，它并没有在所有指标上都被完全超越。
+
+Another limitation comes from the current K-means grouping and the TarMAC-style
+attention mechanism. In the current implementation, K-means determines not only
+the building groups but also the actor-sharing structure, while TarMAC only
+learns dynamic attention weights within this fixed grouped-actor framework.
+These two ideas are not fully aligned: hard grouping can simplify training and
+control parameter size, but it may also restrict the attention module from
+discovering more useful cross-group relationships. Therefore, the current
+pipeline still does not answer which grouping structure is most suitable for
+attention-based communication, or whether softer and learnable actor-assignment
+mechanisms should be studied in the future.
+
+中文：另一个限制来自当前 K-means 分组和 TarMAC 风格注意力机制之间。
+在当前实现里，K-means 不仅决定了建筑分组，也决定了 actor 的共享结构；而 TarMAC 只是在这个固定分组 actor 框架内，根据当前隐藏特征动态学习注意力权重。
+这两种思路并不完全一致：硬分组虽然能简化训练并控制参数规模，但也可能限制注意力模块发现更有用的跨组关系。
+因此，当前流程还没有回答清楚：在已经固定 actor 分组的前提下，什么样的分组方式最适合和注意力通信结合，以及未来是否需要进一步研究软分组或可学习的 actor 分配机制。
+
+There are also several model variants that have not yet been tested. One obvious
+next step is a hybrid of TarMAC and PowerNet, so that the model can combine
+structured message passing with learned attention instead of treating them as
+separate alternatives. Another open direction is PPO-structure variation. The
+current implementation mainly uses one centralized critic, but variants such as
+multiple critics, group-specific critics, or mixed local-global critics may be
+better suited to grouped communication settings, because multi-critic designs
+may lead to more stable and more conservative parameter updates. These
+architectural questions are still open \cite{maddpg2017,centralizedCritics2023}.
+
+中文：此外，还有几类模型变体还没有测试。
+一个直接的下一步是把 TarMAC 和 PowerNet 结合起来，让模型既有结构化消息传递，又能学习注意力权重，而不是把两者完全当成分开的方案。
+另一个开放方向是 PPO 结构本身的变体。当前实现主要使用单个集中式 critic，
+但多个 critic、组内 critic，或者局部与全局结合的 critic 结构，可能更适合这种分组通信设置，因为在参数更新上，多critic 可能会更稳定，更保守。
+这些架构问题目前都还没有系统研究 \cite{maddpg2017,centralizedCritics2023}。
+
+Finally, there are still some extension studies that have not yet been fully
+completed. In particular, Texas RL training with the flatter district target
+has not yet been included in the main comparison, and multi-seed validation is
+also still pending.
+
+中文：最后，还有一些尚未完善的扩展研究。
+具体来说，平稳District Target 的 Texas RL 训练还没有纳入主对比，多随机种子验证也还没完成。
