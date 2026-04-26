@@ -3,16 +3,15 @@
 This chapter describes what has been implemented and what has been completed by
 the midterm stage. The main training pipeline now runs end-to-end, the selected
 Vermont benchmark experiments have completed their planned training budgets, and
-the evaluation utilities export unified test-month metrics, ranking tables, and
-load-tracking figures. At this point, the project has moved beyond early
-pipeline debugging: several baselines and communication variants can now be
-compared within the same MAPPO framework using the completed Vermont result set.
+the evaluation utilities export unified test-month metrics, per-building
+temperature tracking figures, ranking tables, and load-tracking figures. The
+project can now compare several baselines and communication variants within the
+same MAPPO framework using the completed Vermont result set.
 
 中文：本章介绍当前已经实现的方法，以及中期阶段已经完成的工作。
 目前主训练流程已经可以完整运行，选定的 Vermont 基准实验也已经按计划训练完成，
-评估工具能够统一导出测试月指标、排序表和负荷跟踪图。
-这说明项目已经不再只是前期流程调试，
-而是可以在同一个 MAPPO 框架下对多个基线和通信变体进行完整比较。
+评估工具能够统一导出测试月指标、每栋建筑的温度跟踪图、排序表和负荷跟踪图。
+此项目已可以在同一个 MAPPO 框架下对多个基线和通信变体进行完整比较。
 
 
 \section{Problem Definition}
@@ -428,15 +427,18 @@ The most important outcome so far is that the main methods can now be run and
 compared through a common experimental interface. The completed Vermont
 benchmark results show that communication changes the balance between tracking,
 comfort, and secondary metrics. In the current selected benchmark set,
-\texttt{mappo\_grouped\_comm\_v2\_vt\_500\_final} is the strongest overall
-result, while TarMAC, weighted communication with
-\mbox{$\alpha=0.90, \beta=0.10$}, and GAT also show competitive trade-offs.
+\texttt{mappo\_grouped\_powernet\_global} is the strongest overall
+method. The updated ranking tables also show a more nuanced picture:
+the default weighted communication variant is strongest on the primary-only
+ranking, while TarMAC and weighted communication with
+\mbox{$\alpha=0.90, \beta=0.10$} remain competitive all-round options.
 
 中文：目前最重要的成果是，主要方法现在可以通过统一的实验接口运行和比较。
 完整的 Vermont 基准结果说明，通信机制会改变负荷跟踪、舒适性和次级指标之间的取舍。
 在当前选定的基准结果集中，
-\texttt{mappo\_grouped\_comm\_v2\_vt\_500\_final} 是整体表现最强的方法；
-TarMAC、\mbox{$\alpha=0.90, \beta=0.10$} 的加权通信和 GAT 也表现出有竞争力的权衡。
+\texttt{mappo\_grouped\_powernet\_global} 是当前综合表现最强的方法。
+更新后的排序表也说明，默认加权通信在主要指标上最强，而 TarMAC 和
+\mbox{$\alpha=0.90, \beta=0.10$} 的加权通信仍然是比较均衡、很有竞争力的方案。
 
 
 \section{Current Limitations}
