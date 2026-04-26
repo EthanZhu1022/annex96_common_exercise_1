@@ -1,8 +1,8 @@
 \chapter{Evaluation and Result Analysis}\label{ch:eval}
 
-This chapter reports the updated Vermont benchmark comparison after the new
-\texttt{final2}/\texttt{final3} experiments were added. The numerical
-statements below are based on the consolidated outputs from
+This chapter reports the Vermont benchmark comparison based on the
+\texttt{final2}/\texttt{final3} experiments. The numerical statements below are
+based on the consolidated outputs from
 \texttt{summarize\_selected\_experiment\_metrics}, together with the exported
 \texttt{results}, \texttt{wandb}, and \texttt{target\_folder} files.
 
@@ -15,10 +15,10 @@ Vermont 基准对比。下面的数值主要来自
 
 The experiments use the Annex 96 Common Exercise 1 CityLearn portfolios. Each
 portfolio contains 25 single-family homes with photovoltaic generation and
-battery storage. In the current report, the fully summarized comparison is still
-the Vermont setting, where January is used for training and February is used for
-testing. Texas remains future work for the RL comparison, so the conclusions in
-this chapter should be read as Vermont benchmark conclusions rather than
+battery storage. The fully summarized comparison in this report is the Vermont
+setting, where January is used for training and February is used for testing.
+Texas remains future work for the RL comparison, so the conclusions in this
+chapter should be read as Vermont benchmark conclusions rather than
 cross-climate conclusions.
 
 中文：实验使用 Annex 96 Common Exercise 1 的 CityLearn 建筑组合。每个组合包含
@@ -32,7 +32,7 @@ cross-climate conclusions.
 \hline
 Climate & Training month & Testing month & Current status \\
 \hline
-Vermont & January & February & selected benchmark runs completed \\
+Vermont & January & February & fully summarized in this report \\
 Texas & August & September & RL comparison remains future work \\
 \hline
 \end{tabular}
@@ -41,12 +41,15 @@ Texas & August & September & RL comparison remains future work \\
 \label{tab:split}
 \end{table}
 
-The selected Vermont comparison now contains 15 representative runs: RBC,
+The selected Vermont comparison contains 15 representative runs: RBC,
 independent PPO and SAC baselines, standard MAPPO, grouped MAPPO, and the main
-communication variants. Most MAPPO-family runs use 500 training episodes in the
-final set. The independent PPO baseline is still useful, but because it uses a
-shorter training budget, it should be read as a supplementary reference rather
-than as the final answer to the MARL design question.
+communication variants. Under the current hardware constraints, most MAPPO
+experiments in the selected set were trained for about 500 episodes and reached
+rough convergence, although some communication methods such as TarMAC may still
+improve further. The independent PPO and SAC results are also useful
+references, but because these methods require more training time and higher
+computational cost, in this report they are mainly used as important references
+after the sum reward and each agent's reward had roughly converged.
 
 中文：当前选定的 Vermont 对比一共包含 15 个代表性实验：RBC、独立 PPO 和 SAC、
 标准 MAPPO、分组 MAPPO，以及主要通信变体。受当前硬件条件限制，多数 MAPPO 系列实验选取训练到
@@ -56,14 +59,15 @@ sum reward和每个智能体的 reward 大致收敛后作为重要的参考。
 
 \section{Overall Ranking Summary}
 
-The updated ranking tables show that there is no single ``best'' answer under
-every reading of the task. In the current selected Vermont set,
-\texttt{mappo\_grouped\_powernet\_global\_vt\_500\_final2} is ranked first on
-the overall composite table. However, the primary-only table, which focuses on
-CV-RMSE, $|$NMBE$|$, and comfort, is led by
-\texttt{mappo\_grouped\_comm\_weighted\_default\_vt\_500\_final2}. The
-recommended table, which also rewards better peak and ramping behaviour, is led
-by \texttt{rllib\_independent\_ppo\_vt\_80\_final2}.
+The ranking tables show that there is currently no method that is absolutely
+best under every reading of the task. In the current Vermont result set,
+\texttt{mappo\_grouped\_powernet\_global\_vt\_500\_final2} ranks first in the
+overall ranking. The secondary metrics are not explicitly included in the
+reward function, but they are still useful as references, because they show
+which methods already behave well on those objectives even without being
+directly optimized. However, if the comparison is restricted to the primary
+metrics, namely CV-RMSE, $|$NMBE$|$, and comfort, the top method becomes
+\texttt{mappo\_grouped\_comm\_weighted\_default\_vt\_500\_final2}.
 
 中文：排序表说明，目前这个任务下并不存在一个在所有理解方式下都绝对最优的方法。
 在当前 Vermont 结果集中，
@@ -186,10 +190,11 @@ $r_t$ 为参考负荷。核心跟踪指标仍然是 NMBE 和 CV-RMSE：
 {\frac{1}{T}\sum_{t=1}^{T}r_t} \times 100\%.
 \end{equation}
 
-Lower absolute NMBE and lower CV-RMSE mean better tracking. Comfort exceedance
-hours are reported together with them because a controller that tracks the
-target well but causes too many thermal violations is still not practically
-useful.
+Lower absolute NMBE and lower CV-RMSE mean better tracking. At the same time,
+comfort exceedance hours, here mainly temperatures above
+\(24^\circ\mathrm{C}\) or below \(20^\circ\mathrm{C}\), must also be reported,
+because a controller that tracks the target well but causes many temperature
+violations is still not a good practical solution.
 
 中文：$|$NMBE$|$ 越低、CV-RMSE 越低，说明跟踪越好。与此同时，还必须同时看
 舒适性超限小时数（在这里是超过24或者低于20），因为如果一个控制器虽然跟踪好了目标，但造成大量温度越界，
@@ -212,14 +217,15 @@ useful.
 \end{figure}
 
 Figures~\ref{fig:primary-summary} and~\ref{fig:secondary-summary} show the main
-trade-off very clearly. The best CV-RMSE now comes from the PowerNet Global and
-SAC runs, but SAC does so with much worse comfort and much worse NMBE. The
-weighted default communication run is not first overall, yet it gives the best
-primary-score balance because it combines low CV-RMSE with the lowest comfort
-hours among the main MAPPO communication variants. The grouped PowerNet Global
-run ranks first overall because it stays strong across several categories at the
-same time: it is second on the primary table, fourth on peak-demand reduction,
-and sixth on fairness.
+trade-offs in the current results very clearly. The lowest CV-RMSE now comes
+from PowerNet Global and SAC, but SAC is clearly worse in comfort and NMBE. The
+weighted default communication run is not first overall, but it is the most
+balanced method on the primary metrics because it combines a low CV-RMSE with
+the fewest comfort-exceedance hours among the main MAPPO communication methods.
+PowerNet Global ranks first overall because, even without secondary metrics
+being trained explicitly, it has no obvious weakness across several categories:
+it is second on the primary table, fourth on peak reduction, and sixth on
+fairness.
 
 中文：图~\ref{fig:primary-summary} 和图~\ref{fig:secondary-summary}
 把当前结果中的主要取舍展示得很清楚。现在最低的 CV-RMSE 来自 PowerNet Global
@@ -230,7 +236,7 @@ and sixth on fairness.
 
 \section{Best Run Diagnostics}
 
-Because the new best overall controller is
+Because the overall best controller in this result set is
 \texttt{mappo\_grouped\_powernet\_global\_vt\_500\_final2}, it is useful to
 look at its exported plots directly.
 
@@ -278,14 +284,15 @@ demand but weak on ramping and peak-to-valley ratio.
 \label{fig:best-daily}
 \end{figure}
 
-The daily metric plot gives the same message in a more stable form. For the
-best overall run, the daily NMBE mean is close to zero, the daily CV-RMSE mean
-is about 48.7\%, and the daily portfolio comfort exceedance mean is about
-26.0\%. However, the day-to-day variance is still large. Some days have much
-better tracking than others, and the per-building comfort boxplot shows a wide
-spread, with a few buildings contributing a large share of the total violation
-hours. In this run, the worst building reaches 454 exceedance hours, compared
-with a mean of about 174.9 hours, which is roughly 2.6 times the average.
+The daily metric plot gives the same conclusion in a more stable form. For the
+best overall run, the daily NMBE mean is already close to zero, the daily
+CV-RMSE mean is about 48.7\%, and the daily portfolio comfort exceedance mean
+is about 26.0\%. However, the day-to-day variation is still quite large, and
+some days are clearly better than others. The per-building comfort boxplot also
+shows a wide spread: a few buildings contribute a large share of the total
+violation hours. In this run, the worst building reaches about 454 exceedance
+hours, compared with a mean of about 174.9 hours, which is roughly 2.6 times
+the average, or about 160\% higher.
 
 中文：日指标图给出了同样的结论，只是表达得更稳定一些。对这个综合最优实验来说，
 日均 NMBE 已经很接近 0，日均 CV-RMSE 约为 48.7\%，组合层面的日均舒适性超限比例
@@ -324,9 +331,8 @@ buildings stay below 100 hours.
 
 \section{Communication Variant Comparison}
 
-Table~\ref{tab:vt-comm-results} focuses on the grouped communication variants.
-Compared with the older report text, the ordering has changed noticeably after
-the final2/final3 updates.
+Table~\ref{tab:vt-comm-results} focuses only on the grouped communication
+variants.
 
 中文：表~\ref{tab:vt-comm-results} 只聚焦在分组通信变体上。
 
@@ -350,33 +356,36 @@ PowerNet & 13 & 14 & 14 & 50.16 & 7685 & -0.63 \\
 \hline
 \end{tabular}
 \end{center}
-\caption{Updated Vermont comparison for grouped communication variants.}
+\caption{Vermont comparison for grouped communication variants.}
 \label{tab:vt-comm-results}
 \end{table}
 
-Three the communication conclusions can now be stated more clearly. First,
-the strongest overall communication variant is now PowerNet Global rather than
-\texttt{comm\_v2}. A simple interpretation is that the PowerNet-style block
-preserves local information while adding structured peer information; this can
-be understood as a form of information filtering, so useful features are less
-likely to be overwritten during communication
-\cite{powernet2020}. Second, the weighted communication family shows that the
-choice of communication weights matters a lot. Information from other groups can
-act as noise, but it can also contain important portfolio-level context, so
-changing the same-group and other-group weights changes the final result
-substantially. Third, TarMAC can be understood as a stronger extension of
-weighted communication: instead of using fixed coefficients, attention allows
-each agent to learn which other buildings matter more in the current state
-\cite{tarmac2019}. In the current implementation, however, TarMAC still uses
-CommNet-style mean aggregation as its communication base rather than the
-PowerNet-style selective message construction \cite{commnet2016}. This is one
-reason why combining TarMAC with PowerNet is a promising next step. Finally,
-DIAL was originally proposed for DQN-style discrete-action settings, where
-differentiable messages help agents learn from the consequences of their own
-communicated choices; during training, continuous messages are used and then
-discretized through a sigmoid-like mechanism at execution time \cite{dial2016}.
-In the present MAPPO-based continuous-control setting, this adaptation performs
-poorly, which suggests that the original DIAL idea does not transfer directly.
+Based on the current results, several communication conclusions can be stated
+more clearly. First, the strongest overall communication variant is
+PowerNet Global. One direct interpretation is that when the PowerNet-style
+block adds structured information from other agents, it first retains local
+features; this can be understood as a form of information filtering or
+cropping, so useful information is less likely to be overwritten during
+communication \cite{powernet2020}. Second, the weighted communication family
+shows that the weight setting itself has a clear effect on the final result.
+Information from other groups can sometimes act as noise, but it can also
+contain important portfolio-level information, so changing the same-group and
+other-group weights changes the result substantially. Third, TarMAC can be seen
+as an upgraded version of weighted communication: instead of using fixed
+weights, it uses attention to let each agent learn which other buildings matter
+more in the current state \cite{tarmac2019}. However, in the current
+implementation, the underlying communication in TarMAC is still closer to
+CommNet-style mean aggregation and does not yet incorporate the more selective
+PowerNet-style structured information filtering or cropping
+\cite{commnet2016}. This is why combining TarMAC with PowerNet remains a
+promising direction. Finally, DIAL was originally proposed mainly for
+DQN-style discrete-action settings. Its core idea is that differentiable
+messages let agents see the feedback produced by their own communication
+choices; during training, continuous messages are used to pass gradients, and
+at execution time a sigmoid-like mechanism is used to approximate discrete
+messages \cite{dial2016}. In the current MAPPO-based continuous-control
+setting, this adapted DIAL performs poorly, which suggests that the original
+DIAL idea does not transfer directly here.
 
 中文：基于当前结果，可以更明确地给出几条通信结论。第一，当前综合最强的通信变体
 是 PowerNet Global。一个比较直接的解释是，PowerNet 风格模块在加入结构化的其他智能体信息时，
@@ -391,16 +400,17 @@ DQN 这类离散动作场景提出的，它的核心想法是让智能体通过�
 执行时再通过类似 sigmoid 的机制逼近离散消息 \cite{dial2016}。但在当前基于 MAPPO 的连续控制设置里，
 这种改造后的 DIAL 效果并不好，这说明原始 DIAL 思路并不能直接平移到这里。
 
-The communication table also shows why it is necessary to distinguish
-``overall best'' from ``best comfort'' and ``best primary score''. The weighted
-default controller has the best primary score and the lowest comfort hours in
-Table~\ref{tab:vt-comm-results}, but it increases peak demand relative to the
-baseline. In the current setting, the secondary metrics are not explicitly
-included in the reward function, so these differences appear as natural
-outcomes of the learned communication structure. PowerNet Global is not the best
-in comfort, but it gives a more balanced outcome across the primary objective
-and some secondary metrics, so it rises to first overall even though it is not
-the best on comfort alone.
+This communication table also shows why it is necessary to distinguish
+``overall best,'' ``best comfort,'' and ``best primary score.'' In the current
+setting, the secondary metrics are not explicitly included in the reward
+function. The weighted default controller gives the best primary score and the
+fewest comfort exceedance hours in Table~\ref{tab:vt-comm-results}, but it also
+pushes peak demand above the baseline. This means that the secondary-metric
+differences seen here are more natural results brought out by different
+communication structures. PowerNet Global is not the best in comfort, but it is
+more balanced across the primary objective and some secondary metrics, so it
+ultimately ranks first overall. This also gives a useful direction for future
+work that may explicitly include secondary metrics in the training objective.
 
 中文：这张通信表也说明，必须区分“综合最优”“舒适性最优”和“主要指标最优”。
 在当前 reward function 没有显式加入次要指标的情况下，
@@ -412,9 +422,10 @@ the best on comfort alone.
 
 \section{Weighted Communication Ablation}
 
-The weighted communication family is still valuable because it isolates one very
-specific design choice: how much weight should be placed on same-group messages
-relative to other-group context.
+The weighted communication family is still valuable because it studies several
+very specific questions on their own: how same-group and other-group messages
+should be weighted, and whether it is necessary to let the agents learn those
+weights themselves through attention.
 
 中文：加权通信家族仍然很有研究价值，因为它单独研究了几个很具体的问题：
 组内消息和组外消息到底应该如何分配权重，以及有没必要让只能体自己学会如何分配权重（也就是tarMAC的 attention 机制）
@@ -436,14 +447,15 @@ $(0.55,0.45)$ & 8 & 5 & 49.28 & 5376 & 0.54 \\
 \label{tab:weighted-ablation}
 \end{table}
 
-The ablation no longer supports the old claim that the more strongly
-same-group-weighted setting is always the best. The new exported results suggest
-a more nuanced reading. The default weighted setting gives the best primary
-score and the fewest comfort hours, but it does so by worsening peak demand. The
-\mbox{$(0.90,0.10)$} setting is slightly worse on pure primary metrics, yet it
-restores a negative peak-demand change and is therefore a more balanced choice.
-The more even \mbox{$(0.55,0.45)$} setting almost removes NMBE bias, but its
-comfort result becomes clearly worse.
+This ablation shows that the simple claim ``putting more weight on same-group
+information is always better'' is wrong. The exported results suggest that only
+under specific weights does communication work best, and only then does
+information from other groups stop acting like noise and start acting like a
+gain. The default-weight setting \mbox{$\alpha=0.75,\beta=0.25$} is the
+strongest on the primary metrics and also has the fewest comfort exceedance
+hours. The \mbox{$(0.90,0.10)$} setting is slightly weaker on the pure primary
+metrics, but it is more balanced. The more even \mbox{$(0.55,0.45)$} setting
+almost removes NMBE bias, but its comfort result becomes clearly worse.
 
 中文：这组消融结果可以看出“更强调组内信息就一定更好”这个简单说法是错误的。
 导出结果说明，只有在特定的权重下，通讯效果才会最好，来自其他组的信息才不会是一种噪声，而是一种增益。
@@ -491,22 +503,25 @@ CV-RMSE.
 
 \section{Current Interpretation and Remaining Limits}
 
-The updated Vermont benchmark results support four main conclusions. First, MARL
-is useful for this task. The stronger grouped MAPPO variants clearly outperform
-RBC, and compared with independently trained PPO and SAC they better capture
-portfolio-level coordination; in particular, they avoid the larger comfort cost
-seen in SAC while also going beyond the lack of explicit coordination in
-independent PPO. Second,
-communication matters, but the best communication is not fixed in advance. In
-the current result set, PowerNet Global is the strongest all-round variant,
-which suggests that applying more selective filtering or cropping to shared
-information before fusion is effective. Third, the weighted communication family shows that
-message weights themselves matter: information from other groups can either act
-as noise or provide useful portfolio-level context. Fourth, TarMAC and DIAL
-show that not every trainable communication mechanism transfers equally well to
-this setting. Attention-based weighting remains promising, especially if later
-combined with more selective PowerNet-style information filtering, whereas the
-current MAPPO adaptation of DIAL performs poorly.
+The Vermont results support four main conclusions. First, MARL is helpful for
+this task. The stronger grouped MAPPO variants clearly outperform RBC, and
+compared with independently trained PPO and SAC they also better show the
+advantage of portfolio-level cooperative control; in particular, they avoid the
+larger comfort cost seen in SAC and also make up for the lack of explicit
+coordination in independent PPO. Second, communication clearly matters, but
+there is no fixed answer to which communication method is best. In the current
+results, PowerNet Global is the strongest all-round communication variant. This
+suggests that, when structured shared information is added, applying more
+selective filtering or cropping to that shared information is an effective
+direction. Third, the weighted communication family shows that message weights
+themselves clearly affect the result: information from other groups can either
+act as noise or contain important portfolio-level context. Fourth, the results
+of TarMAC and DIAL show that not every trainable communication mechanism
+transfers equally smoothly to this setting. Attention-based weighting remains
+promising, especially after it is further combined with PowerNet-style
+information filtering, whereas the current MAPPO-based adaptation of DIAL
+performs poorly and suggests that the original DIAL idea cannot simply be
+copied into this continuous-control setting.
 
 中文：Vermont 结果支持四条主要结论。第一，MARL 对这个任务是有帮助的。
 较强的分组 MAPPO 变体明显优于 RBC；和单体独立训练的 PPO 与 SAC 相比，它们也更能体现组合层面的协同控制优势，
@@ -519,16 +534,14 @@ PowerNet Global 是综合表现最强的通信变体，这说明在加入结构�
 尤其是在后续与 PowerNet 风格的信息裁剪进一步结合之后，而当前基于 MAPPO 的 DIAL 改造效果较差，
 说明原始 DIAL 思路还不能直接照搬到这个连续控制场景里。
 
-The main remaining limits are now less about unfinished runs and more about what
-has not yet been fully explored in the communication design itself. The current
-comparison still uses one seed and one climate, but the larger methodological
-gap is that most communication modules are still tested as separate designs.
-Future work should therefore focus on upgrading and combining them, especially
-by fusing attention-based weighting with more selective PowerNet-style
-information filtering, while also testing stronger PPO/critic variants and
-cross-family comparisons with methods such as MASAC or value-based MARL. Cost
-and carbon metrics also remain unavailable because the CE1 schemas used here do
-not supply pricing or carbon-intensity files.
+The main remaining limitation is that the communication methods still need to
+be upgraded and studied in more integrated forms. Based on that, future work
+should carry out more targeted and more sufficient training together with
+reward-function parameter tuning, especially by combining attention-based
+weighting with more selective PowerNet-style information filtering. It should
+also test stronger critic-structure variants to obtain more stable parameter
+updates, and extend the comparison to other MARL families such as MASAC or
+value-based methods.
 
 中文：当前主要还不够的地方，是通信方法还需要进一步升级和融合研究，
 并在此基础上进行更有针对性的充分训练和reward function参数调优，尤其是把 attention 加权方式和

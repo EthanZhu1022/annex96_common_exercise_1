@@ -21,16 +21,19 @@ provide pricing or carbon-intensity time series, so cost and carbon fields are
 kept as unavailable rather than interpreted as algorithm performance.
 
 
-The main conclusion at this stage is now more concrete. Architecturally, grouped
+The main conclusion at this stage is clear. Architecturally, grouped
 MAPPO with modular communication is a feasible and well-supported research
 direction for the CityLearn portfolio. Numerically, the completed Vermont
 benchmark results show that communication clearly changes the trade-off between
 tracking, reward, comfort, and secondary metrics. The strongest overall Vermont
-result is currently \texttt{mappo\_grouped\_comm\_v2\_vt\_500\_final}, while
-TarMAC and the weighted \mbox{$\alpha=0.90, \beta=0.10$} setting are also strong
-competitors. GAT gives a different trade-off, with especially good comfort and
-fairness-related behaviour but weaker overall ranking than the best
-communication variants.
+result is currently
+\texttt{mappo\_grouped\_powernet\_global\_vt\_500\_final2}. At the same time,
+the ranking tables show that the answer depends on which objective mix
+is emphasized: the default weighted communication setting leads the
+primary-only ranking, while the independent PPO baseline leads the
+recommended-score table but uses a shorter training budget and therefore serves
+mainly as a supplementary reference. TarMAC and the weighted
+\mbox{$\alpha=0.90, \beta=0.10$} setting remain strong MAPPO-family competitors.
 
 
 \section{Next Steps}
@@ -42,8 +45,8 @@ The work plan for the next stage is:
   \item extend the completed Vermont comparison to Texas so that conclusions can
   be tested in both heating-dominated and cooling-dominated conditions;
   \item add multi-seed evaluation for the strongest methods, especially standard
-  MAPPO, grouped MAPPO, \texttt{comm\_v2}, TarMAC, weighted communication, and
-  GAT;
+  MAPPO, grouped MAPPO, PowerNet Global, TarMAC, weighted communication, and
+  CommNet;
   \item compare the current MAPPO backbone with other MARL families such as
   SAC/MASAC and value-based methods;
   \item analyse aggregate load tracking, comfort, ramping, battery behaviour,
