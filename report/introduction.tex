@@ -78,20 +78,17 @@ clear experimental plan. The completed work includes:
 \end{itemize}
 
 The project has a completed Vermont benchmark comparison for the selected
-controllers, together with exported test-month metrics, ranking tables, and load
-tracking figures generated from the \texttt{results}, \texttt{wandb}, and
-\texttt{target\_folder} outputs. The project can support a mature comparison of
-load tracking, comfort, peak demand, fairness, and communication design. In the
-current Vermont results, the strongest overall method is
-\texttt{mappo\_grouped\_powernet\_global}. At the same time, the primary-only
-ranking is led by the default weighted communication setting, which shows that
-the final conclusion depends on how tracking, comfort, and secondary objectives
-are weighted. Texas RL experiments and multi-seed validation are still part of
-the next stage, but the Texas training pipeline has already been implemented and
-can be launched directly. Vermont was prioritized first because its district
-target is less flat and is therefore more useful for observing performance
-differences during the early training stage. The Vermont comparison reported
-here is a completed benchmark set.
+controllers, together with exported test-month metrics, ranking tables, and
+load-tracking figures generated from the \texttt{results}, \texttt{wandb}, and
+\texttt{target\_folder} outputs. The current Vermont results already support a
+meaningful comparison of load tracking, comfort, peak demand, fairness, and
+communication design. At present, \texttt{mappo\_grouped\_powernet\_global} is
+the strongest overall method, while the default weighted communication setting
+leads the primary-only ranking. Texas RL experiments and multi-seed validation
+remain part of the next stage, although the Texas training pipeline has already
+been implemented and can be launched directly. Vermont was prioritized first
+because its district target is less flat and is therefore more useful for
+observing performance differences during the early training stage.
 
 Chapter~\ref{ch:background} reviews the relevant literature and explains where
 the project fits. Chapter~\ref{ch:method} describes the implemented method and
