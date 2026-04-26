@@ -1,4 +1,4 @@
-\chapter{Literature Review}\label{ch:background}
+﻿\chapter{Literature Review}\label{ch:background}
 
 \section{Building Energy Flexibility and CityLearn}
 
@@ -10,11 +10,6 @@ operational constraints. Recent surveys emphasize that RL is promising for
 adaptive building control, while also noting practical barriers such as safety,
 sample efficiency, sim-to-real transfer, and benchmark comparability
 \cite{zandi2023tenquestions,safeDRL2025}.
-
-中文：建筑能源管理中的强化学习，已经从单栋建筑或单个 HVAC 系统控制，逐渐发展到多个建筑协同控制。
-原因很直接：建筑用电占比很高，同时又有一定灵活性，可以帮助调节需求。
-但控制器不能只追求省电，还要同时考虑舒适性、成本、碳排放和运行约束。
-已有综述认为 RL 在自适应建筑控制中很有潜力，但也指出它仍然面临安全性、样本效率、仿真到现实迁移和公平比较基准等问题 \cite{zandi2023tenquestions,safeDRL2025}。
 
 CityLearn directly addresses the benchmark problem. CityLearn v1 introduced an
 OpenAI Gym-style environment for demand response using deep RL
@@ -28,12 +23,6 @@ environment for this project because the research question is not simply
 whether an agent can reduce energy cost, but whether multiple building agents
 can coordinate under shared portfolio-level objectives.
 
-中文：CityLearn 主要解决的是标准化测试环境的问题。
-CityLearn v1 提供了一个类似 OpenAI Gym 的需求响应环境，用于深度强化学习控制 \cite{citylearn2019}。
-后续 CityLearn 工作进一步标准化了城市需求响应中的多智能体强化学习研究，使不同算法之间的比较更加可复现 \cite{citylearn2020}。
-CityLearn v2 又扩展了能源灵活性、韧性、住户中心和碳感知等社区控制场景，并加入了更丰富的分布式能源模型和评价用例 \cite{citylearnv2}。
-因此，CityLearn 很适合本项目，因为本项目关心的不是单个智能体能不能降低能耗，而是多个建筑智能体能不能在共同的组合目标下协同。
-
 \section{Annex 96 CE1 Experimental Setting}
 
 This project uses Annex 96 Common Exercise 1 (CE1) as a benchmark setting in
@@ -45,12 +34,6 @@ generation, and other time-series observations. The important point for this
 project is that CE1 is a portfolio load-tracking task, not a physical network
 control task.
 
-中文：本项目使用 CityLearn 中的 Annex 96 Common Exercise 1（CE1）作为基准实验设置。
-每个 CE1 schema 定义了 25 栋独栋住宅、一个天气文件、一个区域目标负荷文件，以及每栋住宅各自的能耗仿真文件。
-其中区域目标负荷文件给出了整个建筑组合需要跟踪的参考负荷；
-每栋住宅自己的文件则提供本地需求、室内温度、太阳能发电等时间序列观测。
-对本项目最重要的一点是，CE1 是建筑组合负荷跟踪任务，而不是物理电网拓扑控制任务。
-
 The CE1 schemas used here do not provide a feeder map, floor-plan distribution,
 geographic coordinates, or an adjacency list between homes. Therefore the
 current grouping method cannot use physical proximity or electrical topology.
@@ -59,11 +42,6 @@ are available after CityLearn initializes the environment, mainly electrical
 storage capacity and total HVAC nominal power. This matches the K-means
 implementation used in the experiments.
 
-中文：当前使用的 CE1 schema 没有提供住宅之间的馈线拓扑、楼层或空间分布、地理坐标，也没有提供建筑之间的邻接关系。
-因此，本项目当前的分组方法不能基于物理距离或电气拓扑。
-实际使用的是 CityLearn 初始化环境后可以读取到的灵活性相关设备特征，主要是电池容量和 HVAC 名义总功率。
-这与实验中的 K-means 分组实现一致。
-
 Another data limitation is pricing and carbon intensity. The CE1 schema contains
 observation names for electricity pricing and carbon intensity, but the VT and TX
 CE1 building entries used in this project set both the pricing file and the
@@ -71,11 +49,6 @@ carbon-intensity file to null. CityLearn then fills these series with zeros.
 As a result, cost and carbon-emission metrics still have calculation formulas in
 CityLearn, but they are zero or null in the current experiments and should not be
 interpreted as meaningful performance outcomes.
-
-中文：另一个需要说明的数据限制是电价和碳排放强度。
-CE1 schema 中虽然保留了 electricity pricing 和 carbon intensity 这些观测名称，但本项目使用的 VT 和 TX CE1 建筑条目中，pricing 文件和 carbon-intensity 文件都设置为 null。
-CityLearn 在这种情况下会用全 0 序列填充这些数据。
-因此，成本和碳排放指标在 CityLearn 中仍然有计算公式，但在当前实验中会表现为 0 或 null，不能作为有意义的性能结果解释。
 
 \section{MARL for Energy Systems}
 
@@ -86,11 +59,6 @@ non-stationarity from concurrently learning agents, partial observability, and
 credit assignment under shared rewards \cite{marlOverview2019}. In energy
 systems these issues are amplified by heterogeneous devices, different comfort
 states, network constraints, and long temporal dependencies.
-
-中文：对于能源社区，多智能体强化学习是一个自然的建模方式，
-因为每栋建筑、每个逆变器或每个家庭都可以看作一个智能体。
-MARL 综述中经常提到三个困难：多个智能体同时学习带来的非平稳性、每个智能体只能看到部分信息，以及共享奖励下的信用分配问题 \cite{marlOverview2019}。
-在能源系统中，这些问题会更明显，因为设备不同、舒适状态不同，还存在网络约束和较长的时间依赖。
 
 Recent energy-system studies show why MARL is appropriate but also why
 structure is necessary. PowerGridworld provides a Gym-style environment for
@@ -104,13 +72,6 @@ that graph and physical structure can improve robustness and sample efficiency
 project: scalable energy MARL should not treat agents as an unstructured list;
 it should use building similarity, graph structure, or communication structure.
 
-中文：近年的能源系统研究说明，MARL 适合这类问题，但也需要结构化设计。
-PowerGridworld 提供了一个用于电力系统多智能体控制的 Gym 风格环境，
-并展示了 PPO 和 MADDPG 的应用 \cite{powergridworld2022}。
-Charbonnier 等人研究了住宅能源灵活性的可扩展协同控制，说明集中但分解的 critic 可以提升分散住宅之间的协同和可扩展性 \cite{charbonnier2025}。
-物理信息 MARL 在配电网电压控制中的研究也表明，图结构和物理结构可以提升鲁棒性和样本效率 \cite{physicsMADRL2024}。
-这些工作支持了本项目的基本思路：能源 MARL 不应该把智能体当作没有结构的一组对象，而应该利用建筑相似性、图结构或通信结构。
-
 \section{Rule-Based and Single-Agent Baselines}
 
 Rule-based control (RBC) is an important non-learning baseline in CityLearn.
@@ -120,11 +81,6 @@ It is simple, transparent, and cheap to run, but it cannot adapt its policy to
 the CE1 reference profile or to interactions between buildings. In this project,
 RBC is therefore used as a practical reference point: a MARL method should
 eventually do more than repeat a fixed schedule.
-
-中文：规则控制（RBC）是 CityLearn 中重要的非学习基线。
-RBC 控制器使用固定规则，通常根据一天中的小时来决定储能充放电，以及供暖或制冷设备的可用功率。
-它简单、透明、运行成本低，但不能根据 CE1 的目标负荷曲线或建筑之间的相互影响自适应调整策略。
-因此，本项目把 RBC 作为一个实际参考点：一个有效的 MARL 方法最终应该不只是重复固定时段规则。
 
 Independent single-agent RL baselines are also important. PPO is a robust
 on-policy policy-gradient method that limits destructive policy updates through
@@ -144,23 +100,10 @@ store past experience in a replay buffer and reuse it for many updates. This can
 be more sample-efficient and exploratory, but it can also be more sensitive to
 distribution shift between old data and the current policy.
 
-中文：独立单智能体 RL 基线也很重要。
-PPO 是一种 on-policy 的策略梯度方法，通过裁剪目标函数限制每次策略更新的幅度，因此训练通常比较稳定 \cite{ppo2017}。
-SAC 是一种 off-policy 的最大熵 actor-critic 方法，通过熵正则鼓励探索并学习随机策略 \cite{sac2018,sacApplications2018}。
-在本项目中，独立 PPO 和 SAC 用来回答一个基础问题：如果建筑之间不显式协同，仅靠每栋建筑独立学习，最多能做到什么程度？
-
-on-policy 和 off-policy 的主要区别在于数据怎么使用。
-PPO 和 MAPPO 这类 on-policy 方法使用当前策略采样得到的新轨迹进行更新，训练通常更稳定、更容易控制，但样本利用率较低。
-SAC 这类 off-policy 方法可以把过去的经验放进 replay buffer，并反复用于多次更新，因此样本利用率和探索能力通常更强，但也更容易受到旧数据和当前策略分布不一致的影响。
-
 However, independent baselines are expected to struggle with portfolio-level
 tracking. Each building receives only local observations and cannot know how
 other buildings will respond at the same time step. This motivates moving from
 independent learning to CTDE and communication-aware MARL.
-
-中文：但是，独立基线在组合层面的负荷跟踪任务中可能会遇到困难。
-每栋建筑只能看到自己的局部观测，无法知道其他建筑在同一时刻会怎么响应。
-因此，本项目进一步研究集中训练、分散执行，以及带通信的 MARL 方法。
 
 \section{Centralized Training with Decentralized Execution}
 
@@ -173,12 +116,6 @@ such as VDN and QMIX decompose a team value function into per-agent components.
 QMIX adds a monotonic mixing constraint so that decentralized greedy actions
 remain consistent with the centralized value function \cite{vdn2017,qmix2018}.
 
-中文：集中训练、分散执行（CTDE）是合作 MARL 中常见的框架。
-MADDPG 使用集中式 critic，并把其他智能体的动作纳入价值估计，从而缓解 actor-critic 学习中的非平稳性 \cite{maddpg2017}。
-COMA 使用集中式 critic 和反事实基线来处理信用分配问题，估计每个智能体对整体结果的边际贡献 \cite{coma2018}。
-VDN 和 QMIX 这类价值分解方法，则把团队价值函数拆分到各个智能体上。
-其中 QMIX 使用单调混合约束，使分散选择动作和集中价值函数保持一致 \cite{vdn2017,qmix2018}。
-
 MAPPO is a policy-gradient CTDE method that adapts PPO to cooperative
 multi-agent settings. Yu et al. show that, with careful implementation,
 PPO-style on-policy learning is surprisingly effective in cooperative
@@ -187,11 +124,6 @@ CityLearn has a continuous bounded action space, and the portfolio objective is
 cooperative. This project therefore uses MAPPO as the main learning backbone and
 reuses the existing on-policy implementation rather than reimplementing the
 optimizer.
-
-中文：MAPPO 是一种基于策略梯度的 CTDE 方法，可以理解为把 PPO 扩展到合作型多智能体任务。
-Yu 等人的研究表明，在实现细节合理的情况下，PPO 风格的 on-policy 学习在合作多智能体任务中效果很好 \cite{mappo2022}。
-MAPPO 适合 CityLearn 的一个原因是，CityLearn 的动作空间是连续且有边界的，而且组合负荷跟踪是合作目标。
-因此，本项目当前阶段把 MAPPO 作为主要学习主干，并复用已有 on-policy 实现，而不是重新实现优化器。
 
 \section{Parameter Sharing, Grouping, and K-Means}
 
@@ -204,11 +136,6 @@ parameters within each partition \cite{seps2021}. This idea is directly
 relevant to the CityLearn portfolio, where buildings differ in battery capacity,
 thermal flexibility, and load profile.
 
-中文：参数共享是扩展 MARL 的常见方法：多个智能体使用同一个 actor 网络，可以减少参数数量并提高样本效率。
-但如果所有智能体差异很大，完全共享参数可能会限制性能。
-选择性参数共享通过按照能力或目标把智能体分组，然后只在组内共享参数来解决这个问题 \cite{seps2021}。
-这个思路和 CityLearn 很相关，因为不同建筑在电池容量、热灵活性和负荷曲线方面都有差异。
-
 The grouping method used in this project is K-means clustering. K-means
 partitions data into $K$ sets by minimizing within-cluster squared distances to
 cluster centroids \cite{kmeans1967}. In this implementation, buildings are
@@ -217,12 +144,6 @@ and aggregate HVAC capacity. The result is a grouped actor architecture: agents
 within the same cluster share an actor, while the full portfolio shares a
 centralized critic. This provides a concrete link between classical clustering,
 selective parameter sharing, and building-energy heterogeneity.
-
-中文：本项目使用 K-means 进行建筑分组。
-K-means 的基本思想是把数据划分为 $K$ 个簇，使每个簇内部样本到簇中心的距离尽量小 \cite{kmeans1967}。
-在本实现中，建筑根据与灵活性相关的特征进行聚类，例如电池储能容量和 HVAC 总容量。
-这样得到的是一种分组 actor 架构：同一簇内的建筑共享一个 actor，而整个建筑组合共享一个集中式 critic。
-这把经典聚类方法、选择性参数共享和建筑能源异质性联系了起来。
 
 \section{Communication in MARL}
 
@@ -235,10 +156,6 @@ especially relevant for building portfolios: all-to-all communication may be
 unnecessary or noisy, while no communication may be too weak for aggregate
 tracking.
 
-中文：通信是缓解部分可观测性和非平稳性的另一种方法。
-关于带通信的多智能体深度强化学习综述指出，通信可以扩大智能体的有效观测范围并支持合作，但也带来了消息内容、接收者选择、通信频率和通信开销等设计问题 \cite{commSurvey2024}。
-这对建筑组合尤其相关：全连接通信可能没有必要，甚至会引入噪声；但完全没有通信又可能不足以完成组合层面的负荷跟踪。
-
 Several communication methods guide this project. DIAL trains differentiable
 communication channels under centralized learning and decentralized execution
 \cite{dial2016}. CommNet performs differentiable message passing by averaging
@@ -248,12 +165,6 @@ targeted communication so that agents can learn whom to attend to
 \cite{tarmac2019}. PowerNet, developed for scalable power-grid control, uses
 local-neighbor communication and is closely aligned with the idea that energy
 systems have useful graph structure \cite{powernet2020}.
-
-中文：本项目参考了几类通信方法。
-DIAL 在集中学习、分散执行的框架下训练可微通信通道 \cite{dial2016}。
-CommNet 通过平均其他智能体的隐藏状态并学习神经网络更新，实现可微消息传递 \cite{commnet2016}。
-TarMAC 使用基于注意力的定向通信代替统一广播，使智能体可以学习应该关注谁 \cite{tarmac2019}。
-PowerNet 面向可扩展电网控制，使用局部邻居通信，这和能源系统中天然存在图结构的思想非常接近 \cite{powernet2020}。
 
 The communication modules in this project combine these ideas with the
 CityLearn portfolio structure. CommNet tests simple mean-pooling communication.
@@ -266,12 +177,6 @@ higher weight to messages from similar buildings and lower weight to global
 context. This method is intended to preserve scalability while still allowing
 the policy to coordinate at portfolio level.
 
-中文：本项目中的通信模块把这些方法和 CityLearn 建筑组合结构结合起来。
-CommNet 用来测试简单的均值池化通信。
-PowerNet 风格模块测试更结构化的信息传递：每个智能体先保留自己的编码特征，再汇总一部分其他智能体的信息，把两部分拼接后做残差更新，避免通信后把原本的局部信息覆盖掉。
-TarMAC 用来测试学习得到的注意力通信。
-组内/组间加权通信是本项目设计的折中方法：它给相似建筑之间的消息更高权重，同时保留较弱的全局信息。这样既希望保持可扩展性，又让策略能够在组合层面协同。
-
 \section{Research Gap}
 
 The literature shows that RL for building control is active, CityLearn provides
@@ -279,28 +184,19 @@ a strong benchmark, CTDE methods are effective for cooperative MARL, and
 communication can improve coordination. The gap addressed here is the
 combination of these ideas for CityLearn portfolio load tracking:
 
-中文：已有文献说明，建筑控制中的 RL 研究很活跃，CityLearn 提供了较强的标准化测试平台，CTDE 方法适合合作型 MARL，通信也有助于协同。
-但目前的空白在于，如何把这些思路结合起来，用于 CityLearn 建筑组合负荷跟踪任务：
-
 \begin{itemize}
   \item most CityLearn controllers do not explicitly compare multiple
   structured communication protocols;
-  中文：多数 CityLearn 控制器没有系统比较多种结构化通信协议。
   \item many MARL communication studies use abstract games rather than
   building-energy metrics such as comfort, ramping, peak demand, and load
   tracking. In the current CE1 data, cost and carbon are not interpreted because
   the pricing and carbon-intensity files are absent;
-  中文：很多 MARL 通信研究使用抽象博弈环境，而不是舒适性、爬坡、峰值负荷和负荷跟踪等建筑能源指标。需要注意的是，当前 CE1 数据没有提供电价和碳排放强度文件，因此本实验不解释成本和碳排放结果。
   \item full parameter sharing ignores heterogeneity, while fully separate
   actors lose sample efficiency;
-  中文：完全参数共享会忽略建筑差异，而完全独立 actor 又会降低样本效率。
   \item final performance must be judged by portfolio-level tracking and
   secondary energy impacts, not by reward alone.
-  中文：最终性能不能只看 reward，还需要看组合层面的负荷跟踪和次要能源影响。
 \end{itemize}
 
 This project therefore focuses on grouped MAPPO with structured communication,
 using CityLearn and Annex 96 metrics as the application-grounded evaluation
 setting.
-
-中文：因此，本项目聚焦于带结构化通信的分组 MAPPO，并使用 CityLearn 和 Annex 96 指标作为贴近应用场景的评价环境。
