@@ -35,14 +35,14 @@ trainable surrogate of the three CE1 primary objectives: portfolio load bias,
 portfolio tracking error, and per-building thermal comfort. For building $i$ at
 each time step, the reward can be written as
 \[
+\begin{aligned}
 r_i = -\Bigg[
-\frac{
+&\frac{
 w_{\mathrm{nmbe}}\lvert \mathrm{NMBE}\rvert
 +
 w_{\mathrm{cv\_rmse}}\mathrm{CV\mbox{-}RMSE}
-}{N}
-
-+
+}{N} \\
+&\quad +
 w_{\mathrm{comfort}}
 \Big(
 w_{\mathrm{binary}}\,\mathbb{I}_{\mathrm{exceed},i}
@@ -50,6 +50,7 @@ w_{\mathrm{binary}}\,\mathbb{I}_{\mathrm{exceed},i}
 w_{\mathrm{degree}}\,d_{\mathrm{exceed},i}
 \Big)
 \Bigg].
+\end{aligned}
 \]
 Here, the NMBE and CV-RMSE terms are running portfolio-level surrogates shared
 equally across all buildings, while the comfort term is computed separately for

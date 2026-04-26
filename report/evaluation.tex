@@ -56,6 +56,7 @@ metrics, namely CV-RMSE, $|$NMBE$|$, and comfort, the top method becomes
 \begin{table}[h]
 \scriptsize
 \begin{center}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{|l|r|r|r|r|r|}
 \hline
 Controller & Primary rank & Primary score & CV-RMSE (\%) & $|$NMBE$|$ (\%) & Comfort hours \\
@@ -77,6 +78,7 @@ Grouped MAPPO + PowerNet & 14 & 12.42 & 50.16 & 9.15 & 7685 \\
 RBC baseline & 15 & 14.83 & 138.27 & 109.37 & 11465 \\
 \hline
 \end{tabular}
+}
 \end{center}
 \caption{Primary-only ranking for the selected Vermont experiments.}
 \label{tab:vt-rank-summary}
@@ -105,6 +107,7 @@ the same as the primary-only winner.
 \begin{table}[h]
 \scriptsize
 \begin{center}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{|l|r|r|r|r|r|r|}
 \hline
 Controller & Overall rank & Overall score & Primary rank & Recommended rank & Peak change (\%) & Ramping (kW) \\
@@ -126,6 +129,7 @@ Standard MAPPO & 14 & 10.40 & 12 & 13 & 9.28 & 506.42 \\
 RBC baseline & 15 & 13.06 & 15 & 15 & -8.44 & -- \\
 \hline
 \end{tabular}
+}
 \end{center}
 \caption{Overall composite ranking for the selected Vermont experiments.}
 \label{tab:vt-overall-composite}
@@ -256,6 +260,7 @@ variants.
 \begin{table}[h]
 \scriptsize
 \begin{center}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{|l|r|r|r|r|r|r|}
 \hline
 Method & Overall & Primary & Recommended & CV-RMSE (\%) & Comfort hours & Peak change (\%) \\
@@ -272,6 +277,7 @@ GAT & 12 & 8 & 10 & 51.35 & 3866 & -0.15 \\
 PowerNet & 13 & 14 & 14 & 50.16 & 7685 & -0.63 \\
 \hline
 \end{tabular}
+}
 \end{center}
 \caption{Vermont comparison for grouped communication variants.}
 \label{tab:vt-comm-results}
