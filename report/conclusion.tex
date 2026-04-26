@@ -1,60 +1,65 @@
 \chapter{Conclusion and Work Plan}\label{ch:concl}
 
-This midterm report has defined the research problem, reviewed the relevant
-literature, and described the current implementation of a structured
-communication MARL controller for CityLearn. The project fits into a clear gap:
-CityLearn provides a strong building-energy benchmark, MAPPO provides a
-practical CTDE backbone, and communication methods provide coordination tools,
-but the effect of structured communication for portfolio-level CityLearn load
-tracking still needs systematic study.
+This midterm report has focused on one central question: in the CityLearn
+portfolio load-tracking task, what kinds of MARL structures and communication
+designs are more effective, and why. The earlier chapters reviewed the relevant
+CityLearn and MARL literature, explained the CE1 benchmark setting, and
+described the implemented grouped-control and communication pipeline.
 
-中文：本次中期报告明确了研究问题，回顾了相关文献，并介绍了当前面向 CityLearn 的结构化通信
-MARL 控制器实现。这个项目对应着一个比较明确的研究空缺：CityLearn 提供了合适的建筑能源基准环境，
-MAPPO 提供了实用的 CTDE 方法骨架，通信方法则提供了协调工具，但结构化通信到底会怎样影响
-CityLearn 组合层面的负荷跟踪，仍然需要系统研究。
+中文：本次中期报告围绕一个核心问题展开：在 CityLearn 组合负荷跟踪任务中，
+什么样的 MARL 结构和通信设计更有效，以及它们为什么有效。前面几章已经回顾了相关的
+CityLearn 和 MARL 文献，说明了 CE1 基准设定，并介绍了已经实现的分组控制与通信流程。
 
 
-Significant implementation work has been completed. The codebase now includes
-independent PPO/SAC baselines, standard MAPPO, grouped MAPPO, K-means-based
-building grouping, and several communication-aware grouped MAPPO variants,
-including CommNet, weighted communication, PowerNet, TarMAC, DIAL, and GAT. The
-communication modules are integrated into the actor pipeline and can be trained
-through the standard PPO objective. The evaluation pipeline now exports Annex 96
-metrics together with ranking tables and load-tracking figures, and the selected
-Vermont benchmark result set has been completed. The current CE1 data does not
-provide pricing or carbon-intensity time series, so cost and carbon fields are
-kept as unavailable rather than interpreted as algorithm performance.
+The implementation work is now sufficient to support a meaningful midterm
+conclusion. The codebase includes RBC, independent PPO/SAC, standard MAPPO,
+grouped MAPPO, K-means-based actor grouping, and several communication-aware
+variants such as CommNet, weighted communication, PowerNet, TarMAC, DIAL, and
+GAT. The evaluation pipeline exports Annex 96 metrics, ranking tables, and the
+main diagnostic plots used in this report. The selected Vermont benchmark set
+has also been completed. In the current report, the reward function is designed
+around the three primary objectives, namely CV-RMSE, $|$NMBE$|$, and comfort,
+while the secondary metrics are used only for evaluation and comparison rather
+than direct optimization.
 
-中文：目前已经完成了较多实现工作。代码中已经包含独立 PPO/SAC 基线、标准 MAPPO、
-分组 MAPPO、基于 K-means 的建筑分组，以及多种带通信的分组 MAPPO 变体，
-包括 CommNet、加权通信、PowerNet、TarMAC、DIAL 和 GAT。这些通信模块都已经接入
-actor 流程，并可以通过标准 PPO 目标进行训练。评估流程也已经能够导出 Annex 96 指标、
-排序表和负荷跟踪图，所选 Vermont 基准结果集也已经完成。由于当前 CE1 数据没有提供
-电价和碳排放强度时间序列，因此 cost 和 carbon 字段在这里保留为不可用，而不是拿来解释算法表现。
+中文：目前已经完成的实现工作，已经足以支撑一个有意义的中期结论。代码中已经包含 RBC、
+独立 PPO/SAC、standard MAPPO、grouped MAPPO、基于 K-means 的 actor 分组，以及
+CommNet、加权通信、PowerNet、TarMAC、DIAL 和 GAT 等多种通信变体。评估流程也已经能够导出
+Annex 96 指标、排序表和本报告使用的主要诊断图。所选 Vermont 基准结果集也已经完成。
+在当前报告中，reward function 只围绕三个主要目标设计，也就是 CV-RMSE、$|$NMBE$|$ 和舒适性，
+而次要指标只用于评估和比较，不直接进入优化目标。
 
 
-The main conclusion at this stage is clear. Architecturally, grouped
-MAPPO with modular communication is a feasible and well-supported research
-direction for the CityLearn portfolio. Numerically, the completed Vermont
-benchmark results show that communication clearly changes the trade-off between
-tracking, reward, comfort, and secondary metrics. The strongest overall Vermont
-result is currently
-\texttt{mappo\_grouped\_powernet\_global\_vt\_500\_final2}. At the same time,
-the ranking tables show that the answer depends on which objective mix
-is emphasized: the default weighted communication setting leads the
-primary-only ranking, while the independent PPO baseline leads the
-recommended-score table but uses a shorter training budget and therefore serves
-mainly as a supplementary reference. TarMAC and the weighted
-\mbox{$\alpha=0.90, \beta=0.10$} setting remain strong MAPPO-family competitors.
+The main conclusion at this stage is therefore not that one MARL method has
+been proved universally best, but that the structural choices already matter
+substantially. First, MARL is useful for this task: the stronger grouped MAPPO
+variants clearly outperform RBC and also show more explicit portfolio-level
+coordination than independently trained controllers. Second, communication is
+not a detail but a main design variable. Different communication structures
+change the balance between tracking accuracy, comfort, and secondary metrics in
+different ways. In the current Vermont results,
+\texttt{mappo\_grouped\_powernet\_global\_vt\_500\_final2} gives the strongest
+overall result, while
+\texttt{mappo\_grouped\_comm\_weighted\_default\_vt\_500\_final2} is strongest
+on the primary-only ranking. This means the final answer depends on which
+objective mix is emphasized. Third, the current results already suggest why
+some methods work better: PowerNet Global supports the idea that more selective
+filtering or cropping of shared information is useful, while the weighted
+communication family shows that information from other groups can either help or
+hurt depending on how it is weighted. TarMAC remains promising as a learnable
+weighting mechanism, but its current implementation has not yet been combined
+with the PowerNet-style filtering idea.
 
-中文：这一阶段的主要结论已经比较清楚。从方法结构上看，带模块化通信的分组 MAPPO
-是 CityLearn 组合控制任务中一个可行、也有文献支持的研究方向。从结果上看，
-完整的 Vermont 基准实验说明，通信机制确实会改变负荷跟踪、reward、舒适性和次级指标之间的取舍。
-当前 Vermont 场景下综合表现最强的是
-\texttt{mappo\_grouped\_powernet\_global\_vt\_500\_final2}。与此同时，
-排序表也说明最终答案会受到目标权重设置的影响：默认加权通信在主要指标排名里排第一，
-而独立 PPO 在 recommended-score 表里排第一，但由于它训练预算更短，所以这里主要把它当作补充参考。
-TarMAC 和 \mbox{$\alpha=0.90, \beta=0.10$} 的加权通信也仍然是 MAPPO 家族中很有竞争力的方法。
+中文：因此，这一阶段最主要的结论并不是“已经证明了某一个 MARL 方法在所有情况下都绝对最优”，
+而是结构设计本身已经会显著影响结果。第一，MARL 对这个任务是有帮助的：表现较强的分组 MAPPO
+变体明显优于 RBC，也比单体独立训练方法更能体现组合层面的协同控制。第二，通信不是一个细节，
+而是核心设计变量。不同通信结构会以不同方式改变跟踪精度、舒适性和次要指标之间的取舍，最终结论会受到目标组合方式的影响。
+在当前 Vermont 结果中，\texttt{mappo\_grouped\_comm\_weighted\_default\_vt\_500\_final2}
+在主要指标排名中最强，加权通信家族则说明，来自其他组的信息到底是增益还是噪声，很大程度上取决于权重如何设置。
+然后， \texttt{mappo\_grouped\_powernet\_global\_vt\_500\_final2} 给出了综合最强结果，这说明
+PowerNet Global 支持了这样一个判断，即对共享信息做更有选择性的裁剪和筛选是有用的。
+第三， 很多通讯方式仍然有很大优化空间，比如TarMAC 作为可学习权重机制仍然很有潜力，但当前实现还没有和 PowerNet 风格的信息裁剪结合起来。
+此外还应该尝试更多不同的critic组合，已测试不同效果。
 
 
 \section{Next Steps}
@@ -65,36 +70,45 @@ The work plan for the next stage is:
 
 
 \begin{itemize}
-  \item extend the completed Vermont comparison to Texas so that conclusions can
-  be tested in both heating-dominated and cooling-dominated conditions;
+  \item extend the current comparison from Vermont to Texas; the Texas training
+  pipeline has already been implemented, and the main remaining step is to run
+  and summarize those experiments under the same evaluation framework;
   \item add multi-seed evaluation for the strongest methods, especially standard
   MAPPO, grouped MAPPO, PowerNet Global, TarMAC, weighted communication, and
-  CommNet;
-  \item compare the current MAPPO backbone with other MARL families such as
-  SAC/MASAC and value-based methods;
+  CommNet, so that the current conclusions are supported by variance-aware
+  comparisons rather than single runs;
+  \item continue the communication study itself, especially by combining
+  attention-based weighting with PowerNet-style selective information filtering,
+  and by comparing fixed weighting, learned weighting, and more integrated
+  communication designs;
+  \item test stronger critic-structure and PPO-structure variants, and compare
+  the current MAPPO backbone with other MARL families such as MASAC and
+  value-based methods;
   \item analyse aggregate load tracking, comfort, ramping, battery behaviour,
-  and fairness in more detail, and include cost or emissions only if valid
-  price and carbon-intensity signals are supplied;
-  \item explain more clearly why the best communication variants outperform the
-  weaker ones;
+  and fairness in more detail, while continuing to treat cost and emissions as
+  unavailable unless valid price and carbon-intensity signals are supplied;
   \item refine the final report with the completed Texas results, additional
-  sensitivity tests, and a concise discussion of limitations.
+  sensitivity tests, and a clearer explanation of why the stronger communication
+  designs work better.
 \end{itemize}
 
 中文：
 \begin{itemize}
-  \item 将已经完成的 Vermont 对比扩展到 Texas，以便在供暖主导和制冷主导两种场景下检验结论；
-  \item 为表现最强的方法补充多随机种子验证，重点包括 standard MAPPO、grouped MAPPO、PowerNet Global、TarMAC、weighted communication 和 CommNet；
-  \item 将当前 MAPPO 主体与其他 MARL 家族进行比较，例如 SAC/MASAC 和基于价值函数的方法；
-  \item 更详细地分析组合负荷跟踪、舒适性、爬坡、电池行为和公平性，并且只有在提供有效电价或碳排放强度信号时才纳入 cost 和 emissions；
-  \item 更清楚地解释为什么表现最好的通信变体会优于较弱的方法；
-  \item 结合 Texas 完整结果、更多敏感性测试和简洁的局限性讨论，进一步完善最终报告。
+  \item 将当前对比从 Vermont 扩展到 Texas；Texas 的训练流程其实已经实现好了，接下来主要是按照同样的评估框架跑完并汇总结果；
+  \item 为表现最强的方法补充多随机种子验证，重点包括 standard MAPPO、grouped MAPPO、PowerNet Global、TarMAC、weighted communication 和 CommNet，使当前结论不只是建立在单次实验上；
+  \item 继续推进通信方法本身的研究，尤其是把 attention 加权和 PowerNet 风格更有选择性的信息裁剪结合起来，并比较固定权重、可学习权重和更融合的通信设计；
+  \item 测试更强的 critic 结构和 PPO 结构变体，并将当前 MAPPO 主体与 MASAC 和基于价值函数的方法进行比较；
+  \item 更详细地分析组合负荷跟踪、舒适性、爬坡、电池行为和公平性；
+  \item 结合 Texas 完整结果、更多敏感性测试和更清楚的机制解释，进一步完善最终报告。
 \end{itemize}
 
-If time allows, additional work will test sensitivity to the number of clusters,
-communication rounds, and weighted communication coefficients. A further
-extension is to learn building embeddings for grouping instead of relying only
-on static flexibility features.
+If time allows, additional work will test sensitivity to the number of
+clusters, communication rounds, and weighted communication coefficients. A
+further extension is to learn building embeddings for grouping instead of
+relying only on static flexibility features, so that grouping itself may become
+more adaptive to the control task.
 
 中文：如果时间允许，后续还会测试聚类数量、通信轮数以及加权通信系数的敏感性。
-再进一步的扩展方向，是学习用于分组的建筑 embedding，而不只是依赖静态灵活性特征。
+还有将底层MLP换成LMST的想法，LMST 作为一种更适合处理时序数据的结构，可能会进一步提升性能。
+再进一步的扩展方向，是学习用于分组的建筑 embedding，而不只是依赖静态灵活性特征，
+让分组方式本身也能更适应控制任务。来解决k-means 这种静态分组方法拖累tarMac的attention的局限性。
