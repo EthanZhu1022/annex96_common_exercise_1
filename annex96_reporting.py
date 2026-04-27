@@ -267,18 +267,11 @@ def export_building_temperature_artifacts(
             building_name = str(building_frame["building_name"].iloc[0])
             hours = building_frame["hour"].to_numpy(dtype=float)
             indoor = building_frame["indoor_temperature"].to_numpy(dtype=float)
-            cooling_sp = building_frame["cooling_set_point"].to_numpy(dtype=float)
-            heating_sp = building_frame["heating_set_point"].to_numpy(dtype=float)
-            lower = building_frame["comfort_lower_bound"].to_numpy(dtype=float)
-            upper = building_frame["comfort_upper_bound"].to_numpy(dtype=float)
 
             ax.plot(hours, indoor, color="#4e79a7", linewidth=1.2, label="Indoor")
-            if np.isfinite(cooling_sp).any():
-                ax.plot(hours, cooling_sp, color="#e15759", linewidth=0.9, linestyle="--", label="Cooling SP")
-            if np.isfinite(heating_sp).any():
-                ax.plot(hours, heating_sp, color="#59a14f", linewidth=0.9, linestyle="--", label="Heating SP")
-            if np.isfinite(lower).any() and np.isfinite(upper).any():
-                ax.fill_between(hours, lower, upper, color="#9c755f", alpha=0.10, label="Comfort band")
+            ax.axhline(20.0, color="#59a14f", linewidth=0.9, linestyle="--", label="20C")
+            ax.axhline(24.0, color="#59a14f", linewidth=0.9, linestyle="--", label="24C")
+            ax.fill_between(hours, 20.0, 24.0, color="#59a14f", alpha=0.12, label="20-24C range")
 
             if legend_handles is None:
                 legend_handles, legend_labels = ax.get_legend_handles_labels()
