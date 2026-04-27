@@ -27,10 +27,9 @@ secondary metrics are used only for evaluation rather than direct optimization.
 
 The core research question is:
 
-\begin{quote}
-In the CityLearn portfolio load tracking task, what kinds of MARL structures
-and communication designs are more effective, and why are they effective?
-\end{quote}
+\noindent In the CityLearn portfolio load tracking task, what kinds of MARL
+structures and communication designs are more effective, and why are they
+effective?
 
 This project is organized around three comparisons. First, it compares
 rule-based control and independent building control with MARL-based coordination
@@ -61,19 +60,19 @@ The current stage of the project has produced a working research codebase and a
 clear experimental plan. The completed work includes:
 
 \begin{itemize}
-  \item an RBC notebook baseline for non-learning comparison in Texas and
+  \item An RBC notebook baseline for non-learning comparison in Texas and
   Vermont;
-  \item implementation of CityLearn wrappers for independent PPO/SAC and MAPPO
+  \item Implementation of CityLearn wrappers for independent PPO/SAC and MAPPO
   training;
-  \item implementation of standard MAPPO and grouped MAPPO baselines;
-  \item implementation of grouped actor policies using K-means clustering over
+  \item Implementation of standard MAPPO and grouped MAPPO baselines;
+  \item Implementation of grouped actor policies using K-means clustering over
   building flexibility features;
-  \item implementation of several differentiable communication modules,
+  \item Implementation of several differentiable communication modules,
   including CommNet-style mean pooling, PowerNet-style structured information
   passing, GAT-style graph attention,
   TarMAC-style attention, DIAL-inspired global communication, and weighted
   same-group/other-group communication;
-  \item implementation of logging, checkpointing, testing, and Annex 96 metric
+  \item Implementation of logging, checkpointing, testing, and Annex 96 metric
   export utilities.
 \end{itemize}
 

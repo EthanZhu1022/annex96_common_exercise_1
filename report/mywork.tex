@@ -78,12 +78,12 @@ for several control and learning pipelines:
 
 \begin{itemize}
   \item RBC notebook baseline for non-learning comparison;
-  \item independent PPO and independent SAC baselines, where each building
+  \item Independent PPO and independent SAC baselines, where each building
   learns without communication;
-  \item standard MAPPO, where all buildings use a shared policy and a
+  \item Standard MAPPO, where all buildings use a shared policy and a
   centralized critic;
-  \item grouped MAPPO, where clusters of buildings share group-specific actors;
-  \item communication-aware grouped MAPPO, where a communication layer is
+  \item Grouped MAPPO, where clusters of buildings share group-specific actors;
+  \item Communication-aware grouped MAPPO, where a communication layer is
   inserted between actor encoders and action heads.
 \end{itemize}
 
@@ -276,25 +276,25 @@ At the midterm stage, the following implementation work has been completed:
 
 \begin{itemize}
   \item RBC notebook baseline for non-learning comparison;
-  \item independent PPO and SAC training scripts;
-  \item standard MAPPO training and testing scripts, where all buildings reuse
+  \item Independent PPO and SAC training scripts;
+  \item Standard MAPPO training and testing scripts, where all buildings reuse
   the same actor network through parameter sharing;
-  \item grouped MAPPO with K-means clustering and no communication;
-  \item intra-group communication variants, including no communication,
+  \item Grouped MAPPO with K-means clustering and no communication;
+  \item Intra-group communication variants, including no communication,
   CommNet-style mean communication, and PowerNet-style structured information
   passing;
   \item GAT-style graph attention communication over a fixed building-similarity
   graph;
-  \item weighted same-group and other-group communication, where same-group
+  \item Weighted same-group and other-group communication, where same-group
   messages are weighted more strongly than messages from the rest of the
   portfolio;
-  \item attention and differentiable-message variants, including TarMAC-style
+  \item Attention and differentiable-message variants, including TarMAC-style
   attention and DIAL-style communication;
-  \item shared centralized critic and shared value normalizer for grouped
+  \item Shared centralized critic and shared value normalizer for grouped
   policies;
-  \item grouped replay buffer preserving communication structure during PPO
+  \item Grouped replay buffer preserving communication structure during PPO
   updates;
-  \item checkpoint loading and saving for test-only evaluation;
+  \item Checkpoint loading and saving for test-only evaluation;
   \item Annex 96 metric export, daily metric tables, and plotting utilities,
   with cost and carbon fields marked as unavailable when the CE1 data provides
   no pricing or carbon-intensity signals.

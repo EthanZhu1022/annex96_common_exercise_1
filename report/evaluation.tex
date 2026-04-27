@@ -14,9 +14,10 @@ battery storage. The fully summarized comparison in this report is the Vermont
 setting, where January is used for training and February is used for testing.
 Texas remains future work for the RL comparison, so the conclusions in this
 chapter should be read as Vermont benchmark conclusions rather than
-cross-climate conclusions.
+cross-climate conclusions. Table~\ref{tab:split} summarizes the current
+train and test split used in this report.
 
-\begin{table}[h]
+\begin{table}[!htbp]
 \begin{center}
 \begin{tabular}{|l|l|l|l|}
 \hline
@@ -27,7 +28,7 @@ Texas & August & September & RL comparison remains future work \\
 \hline
 \end{tabular}
 \end{center}
-\caption{Annex 96 train/test split and current evaluation scope.}
+\caption{Annex 96 train and test split and current evaluation scope.}
 \label{tab:split}
 \end{table}
 
@@ -51,9 +52,10 @@ reward function, but they are still useful as references, because they show
 which methods already behave well on those objectives even without being
 directly optimized. However, if the comparison is restricted to the primary
 metrics, namely CV-RMSE, $|$NMBE$|$, and comfort, the top method becomes
-\texttt{mappo\_grouped\_comm\_weighted\_default}.
+\texttt{mappo\_grouped\_comm\_weighted\_default}. Table~\ref{tab:vt-rank-summary}
+reports the primary-only ranking.
 
-\begin{table}[h]
+\begin{table}[!htbp]
 \scriptsize
 \begin{center}
 \resizebox{\textwidth}{!}{%
@@ -104,7 +106,7 @@ table above, this ranking also reflects selected secondary objectives, so it is
 useful for understanding why the final ``overall best'' method is not exactly
 the same as the primary-only winner.
 
-\begin{table}[h]
+\begin{table}[!htbp]
 \scriptsize
 \begin{center}
 \resizebox{\textwidth}{!}{%
@@ -163,7 +165,7 @@ comfort exceedance hours, here mainly temperatures above
 because a controller that tracks the target well but causes many temperature
 violations is still not a good practical solution.
 
-\begin{figure}[h]
+\begin{figure}[!htbp]
 \begin{center}
 \includegraphics[width=0.92\textwidth]{figures/selected_experiment_primary_metrics.png}
 \end{center}
@@ -171,7 +173,7 @@ violations is still not a good practical solution.
 \label{fig:primary-summary}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[!htbp]
 \begin{center}
 \includegraphics[width=0.92\textwidth]{figures/selected_experiment_secondary_metrics.png}
 \end{center}
@@ -196,7 +198,7 @@ Because the overall best controller in this result set is
 \texttt{mappo\_grouped\_powernet\_global}, it is useful to
 look at its exported plots directly.
 
-\begin{figure}[h]
+\begin{figure}[!htbp]
 \begin{center}
 \includegraphics[width=0.92\textwidth]{figures/test_load_tracking_week1.png}
 \end{center}
@@ -204,7 +206,7 @@ look at its exported plots directly.
 \label{fig:best-week1}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[!htbp]
 \begin{center}
 \includegraphics[width=0.92\textwidth]{figures/test_load_tracking_full.png}
 \end{center}
@@ -221,7 +223,7 @@ several deep downward excursions, including negative net-load periods. This is
 consistent with the secondary metrics, where the same run is good on peak
 demand but weak on ramping and peak-to-valley ratio.
 
-\begin{figure}[h]
+\begin{figure}[!htbp]
 \begin{center}
 \includegraphics[width=0.92\textwidth]{figures/test_daily_metrics.png}
 \end{center}
@@ -229,7 +231,7 @@ demand but weak on ramping and peak-to-valley ratio.
 \label{fig:best-daily}
 \end{figure}
 
-The daily metric plot gives the same conclusion in a more stable form. For the
+Figure~\ref{fig:best-daily} gives the same conclusion in a more stable form. For the
 best overall run, the daily NMBE mean is already close to zero, the daily
 CV-RMSE mean is about 48.7\%, and the daily portfolio comfort exceedance mean
 is about 26.0\%. However, the day-to-day variation is still quite large, and
@@ -237,9 +239,9 @@ some days are clearly better than others. The per-building comfort boxplot also
 shows a wide spread: a few buildings contribute a large share of the total
 violation hours. In this run, the worst building reaches about 454 exceedance
 hours, compared with a mean of about 174.9 hours, which is roughly 2.6 times
-the average, or about 160\% higher.
+the average.
 
-\begin{figure}[h]
+\begin{figure}[!htbp]
 \begin{center}
 \includegraphics[width=0.92\textwidth]{figures/test_building_temperatures_week1.png}
 \end{center}
@@ -247,7 +249,7 @@ the average, or about 160\% higher.
 \label{fig:best-temp-week1}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[!htbp]
 \begin{center}
 \includegraphics[width=0.92\textwidth]{figures/test_building_temperatures_full.png}
 \end{center}
@@ -255,7 +257,7 @@ the average, or about 160\% higher.
 \label{fig:best-temp-full}
 \end{figure}
 
-The temperature plots show that comfort is still the hardest part of the task.
+Figures~\ref{fig:best-temp-week1} and~\ref{fig:best-temp-full} show that comfort is still the hardest part of the task.
 Several homes stay near the comfort band for most of the month, but some homes
 spend long periods above the upper bound. This is exactly why the best overall
 controller is not the best comfort controller. In the exported comfort table,
@@ -267,7 +269,7 @@ buildings stay below 100 hours.
 Table~\ref{tab:vt-comm-results} focuses only on the grouped communication
 variants.
 
-\begin{table}[h]
+\begin{table}[!htbp]
 \scriptsize
 \begin{center}
 \resizebox{\textwidth}{!}{%
@@ -337,9 +339,10 @@ work that may explicitly include secondary metrics in the training objective.
 The weighted communication family is still valuable because it studies several
 very specific questions on their own: how same-group and other-group messages
 should be weighted, and whether it is necessary to let the agents learn those
-weights themselves through attention.
+weights themselves through attention. Table~\ref{tab:weighted-ablation}
+summarizes the corresponding ablation results.
 
-\begin{table}[h]
+\begin{table}[!htbp]
 \scriptsize
 \begin{center}
 \begin{tabular}{|l|r|r|r|r|r|}
@@ -373,7 +376,7 @@ comparison for Texas and Vermont. The RBC baseline is still useful as a
 non-learning reference, but it is clearly much weaker than the learned
 controllers on the CE1 load-tracking task.
 
-\begin{table}[h]
+\begin{table}[!htbp]
 \small
 \begin{center}
 \begin{tabular}{|l|r|r|r|r|}
@@ -425,3 +428,4 @@ weighting with more selective PowerNet-style information filtering. It should
 also test stronger critic-structure variants to obtain more stable parameter
 updates, and extend the comparison to other MARL families such as MASAC or
 value-based methods.
+
