@@ -55,6 +55,7 @@ SELECTED_EXPERIMENTS: List[str] = [
     "mappo_grouped_powernet_global_vt_500_final2",
     "mappo_grouped_powernet_vt_500_final2",
     "mappo_grouped_tarmac_vt_500_final2",
+    "mappo_grouped_tarmac_hybrid_vt_500_final2",
     "mappo_grouped_vt_500_final3",
     "mappo_standard_vt_500_final3",
     "rllib_independent_ppo_vt_80_final2",
