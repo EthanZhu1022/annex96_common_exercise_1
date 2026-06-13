@@ -114,6 +114,7 @@ class Config:
     comm_scope: str = "global"
     comm_key_dim: int = 32
     comm_value_dim: int = 64
+    comm_fusion_mode: str = "relu"
 
 
 def _build_grouped_components(
@@ -164,6 +165,7 @@ def _build_grouped_components(
         comm_rounds=cfg.comm_rounds,
         use_residual=cfg.comm_use_residual,
         dropout=cfg.comm_dropout,
+        fusion_mode=cfg.comm_fusion_mode,
     ).to(device)
     controller = GlobalCommActorController(
         actors=[policy.actor for policy in policies],
@@ -220,6 +222,7 @@ def _apply_checkpoint_model_config(cfg: Config, ckpt_meta: Dict[str, Any]) -> No
         "comm_dropout",
         "comm_key_dim",
         "comm_value_dim",
+        "comm_fusion_mode",
     ]:
         if field_name in saved_cfg:
             setattr(cfg, field_name, saved_cfg[field_name])
@@ -445,7 +448,10 @@ def train(cfg: Config) -> None:
 
     print("\nGrouped MAPPO TarMAC hybrid components built:")
     print(f"  n_agents={n_agents} K={K} group_sizes={group_sizes}")
-    print(f"  comm_method={cfg.comm_method} comm_scope=global comm_rounds={cfg.comm_rounds}")
+    print(
+        f"  comm_method={cfg.comm_method} comm_scope=global "
+        f"comm_rounds={cfg.comm_rounds} fusion_mode={cfg.comm_fusion_mode}"
+    )
 
     if use_wandb:
         wandb.log(
@@ -455,6 +461,7 @@ def train(cfg: Config) -> None:
                 "train/comm/rounds": cfg.comm_rounds,
                 "train/comm/hidden_dim": cfg.comm_hidden_dim,
                 "train/comm/use_residual": int(cfg.comm_use_residual),
+                "train/comm/fusion_mode": cfg.comm_fusion_mode,
             },
             step=0,
         )
@@ -652,6 +659,7 @@ def train(cfg: Config) -> None:
         "algorithm": "mappo_grouped_tarmac_hybrid",
         "comm_method": cfg.comm_method,
         "comm_scope": cfg.comm_scope,
+        "comm_fusion_mode": cfg.comm_fusion_mode,
         "n_groups": K,
         "group_sizes": group_sizes,
         "train": {
@@ -813,6 +821,16 @@ def parse_args() -> Config:
     parser.add_argument("--comm_rounds", type=int, default=1)
     parser.add_argument("--comm_key_dim", type=int, default=32)
     parser.add_argument("--comm_value_dim", type=int, default=64)
+    parser.add_argument(
+        "--comm_fusion_mode",
+        default="relu",
+        choices=["relu", "linear", "gated"],
+        help=(
+            "Communication fusion ablation: relu=local Linear+ReLU concat, "
+            "linear=local Linear-only concat, gated=context projection with "
+            "a learned residual gate."
+        ),
+    )
     parser.add_argument("--no_comm_residual", action="store_true", default=False)
     parser.add_argument("--comm_dropout", type=float, default=0.0)
 
@@ -854,6 +872,7 @@ def parse_args() -> Config:
         comm_dropout=args.comm_dropout,
         comm_key_dim=args.comm_key_dim,
         comm_value_dim=args.comm_value_dim,
+        comm_fusion_mode=args.comm_fusion_mode,
     )
 
 
