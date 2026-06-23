@@ -16,7 +16,19 @@ These runs are relatively complete and use comparable settings for the updated f
 - results/mappo_grouped_commnet_vt_500_final2
 - results/mappo_grouped_dial_vt_500_final2
 
-## 2. Weighted Communication Ablation
+## 2. TarMAC Grouping and Soft-Router Ablations
+
+These runs extend the TarMAC hybrid line with alternative grouping features/methods and dynamic soft-router settings.
+
+- results/mappo_grouped_tarmac_hybrid_agglomerative_static_operational_vt_500_final
+- results/mappo_grouped_tarmac_hybrid_gmm_static_operational_vt_500_final
+- results/mappo_grouped_tarmac_hybrid_kmeans_operational_profile_vt_500_final
+- results/mappo_grouped_tarmac_hybrid_kmeans_static_extended_vt_500_final
+- results/mappo_grouped_tarmac_soft_router_vt_500_final_balanced_temperature0.7_warmup50
+- results/mappo_grouped_tarmac_soft_router_vt_500_final_sharp_temperature_0.5_warmup_50
+- results/mappo_grouped_tarmac_soft_router_vt_500_final_stable_temperature_1_warmup_100
+
+## 3. Weighted Communication Ablation
 
 These runs are suitable for a separate ablation table because the main difference is the intra-group and inter-group communication weighting, controlled by alpha and beta.
 
@@ -24,7 +36,7 @@ These runs are suitable for a separate ablation table because the main differenc
 - results/mappo_grouped_comm_weighted_a090_b010_vt_500_final2
 - results/mappo_grouped_comm_weighted_a055_b045_vt_500_final2
 
-## 3. Independent-Agent Baselines
+## 4. Independent-Agent Baselines
 
 These runs can be used as independent-agent baselines or supplementary comparisons. They do not use exactly the same training budget as the main 500-episode MAPPO runs, so avoid using them in the main conclusion to claim absolute superiority.
 
@@ -36,7 +48,7 @@ Notes:
 - `results/rllib_independent_ppo_vt_80_final2` is the PPO independent-agent baseline to use in the updated final summary tables and comparison figures.
 - `results/rllib_sac_vt_500_final2` is the SAC independent-agent baseline to use in the updated final summary tables and comparison figures.
 
-## 4. Early 200-Episode MAPPO Results
+## 5. Early 200-Episode MAPPO Results
 
 These runs are recommended only for discussing early results, training-length effects, or historical midterm-report results. Do not directly mix them with the 500-episode final runs in the main comparison table.
 
