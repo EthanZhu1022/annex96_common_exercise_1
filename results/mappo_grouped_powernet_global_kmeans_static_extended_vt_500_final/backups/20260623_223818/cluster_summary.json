@@ -1,0 +1,104 @@
+{
+  "grouping_method": "kmeans",
+  "grouping_feature_set": "static_extended",
+  "grouping_feature_month": 1,
+  "k": 5,
+  "seed": 8,
+  "balance": -0.33333333333333337,
+  "cluster_sizes": [
+    6,
+    6,
+    6,
+    6,
+    1
+  ],
+  "feature_columns": [
+    "bes_capacity_kwh",
+    "hvac_total_kw",
+    "pv_sizing_nominal_power_kw",
+    "pv_roof_area_m2",
+    "has_dhw_storage",
+    "has_cooling_storage",
+    "has_heating_storage"
+  ],
+  "cluster_centers_original_scale": {
+    "cluster_0": {
+      "bes_capacity_kwh": 32.85,
+      "hvac_total_kw": 21.898682303222206,
+      "pv_sizing_nominal_power_kw": 12.590000000000002,
+      "pv_roof_area_m2": 219.35350015997722,
+      "has_dhw_storage": 0.0,
+      "has_cooling_storage": 0.0,
+      "has_heating_storage": 0.0,
+      "n_buildings": 6
+    },
+    "cluster_1": {
+      "bes_capacity_kwh": 19.466666666666665,
+      "hvac_total_kw": 9.035194054401169,
+      "pv_sizing_nominal_power_kw": 7.103333333333333,
+      "pv_roof_area_m2": 119.27232773671197,
+      "has_dhw_storage": 0.0,
+      "has_cooling_storage": 0.0,
+      "has_heating_storage": 0.0,
+      "n_buildings": 6
+    },
+    "cluster_2": {
+      "bes_capacity_kwh": 15.783333333333333,
+      "hvac_total_kw": 8.136513955580691,
+      "pv_sizing_nominal_power_kw": 6.428333333333334,
+      "pv_roof_area_m2": 227.26483899553628,
+      "has_dhw_storage": 0.0,
+      "has_cooling_storage": 0.0,
+      "has_heating_storage": 0.0,
+      "n_buildings": 6
+    },
+    "cluster_3": {
+      "bes_capacity_kwh": 17.461666666666666,
+      "hvac_total_kw": 14.410574737625817,
+      "pv_sizing_nominal_power_kw": 11.005,
+      "pv_roof_area_m2": 164.76181480490575,
+      "has_dhw_storage": 0.0,
+      "has_cooling_storage": 0.0,
+      "has_heating_storage": 0.0,
+      "n_buildings": 6
+    },
+    "cluster_4": {
+      "bes_capacity_kwh": 40.0,
+      "hvac_total_kw": 28.706289291381836,
+      "pv_sizing_nominal_power_kw": 18.2,
+      "pv_roof_area_m2": 402.69916056799383,
+      "has_dhw_storage": 0.0,
+      "has_cooling_storage": 0.0,
+      "has_heating_storage": 0.0,
+      "n_buildings": 1
+    }
+  },
+  "group_assignments": {
+    "building_0": 0,
+    "building_1": 0,
+    "building_2": 2,
+    "building_3": 0,
+    "building_4": 4,
+    "building_5": 1,
+    "building_6": 2,
+    "building_7": 0,
+    "building_8": 2,
+    "building_9": 1,
+    "building_10": 0,
+    "building_11": 2,
+    "building_12": 3,
+    "building_13": 2,
+    "building_14": 3,
+    "building_15": 3,
+    "building_16": 3,
+    "building_17": 3,
+    "building_18": 0,
+    "building_19": 1,
+    "building_20": 1,
+    "building_21": 3,
+    "building_22": 2,
+    "building_23": 1,
+    "building_24": 1
+  },
+  "selection_rationale": "Chose method=kmeans K=5 seed=8 (balance=-0.333; group 0: 6 buildings, group 1: 6 buildings, group 2: 6 buildings, group 3: 6 buildings, group 4: 1 buildings). Tried 2 K values x 10 fits. Balance = min_cluster_size / max_cluster_size."
+}
