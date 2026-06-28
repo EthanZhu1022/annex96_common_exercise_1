@@ -53,6 +53,10 @@ SELECTED_EXPERIMENTS: List[str] = [
     "mappo_grouped_dial_vt_500_final2",
     "mappo_grouped_gat_vt_500_final2",
     "mappo_grouped_powernet_global_vt_500_final2",
+    "mappo_grouped_powernet_global_agglomerative_static_operational_vt_500_final",
+    "mappo_grouped_powernet_global_gmm_static_operational_vt_500_final",
+    "mappo_grouped_powernet_global_kmeans_operational_profile_vt_500_final",
+    "mappo_grouped_powernet_global_kmeans_static_extended_vt_500_final",
     "mappo_grouped_powernet_vt_500_final2",
     "mappo_grouped_tarmac_vt_500_final2",
     "mappo_grouped_tarmac_hybrid_vt_500_final2",
@@ -268,6 +272,10 @@ def _load_json(path: Path) -> Dict[str, Any]:
         return {}
 
 
+def _repo_relative_posix(path: Path) -> str:
+    return path.relative_to(REPO_DIR).as_posix()
+
+
 def _value(mapping: Dict[str, Any], key: str) -> Any:
     return mapping.get(key)
 
@@ -390,7 +398,7 @@ def _find_wandb_run(experiment: str, wandb_root: Path) -> Dict[str, Any]:
     run_id = run_dir.name.split("-")[-1]
     return {
         "wandb_run_id": run_id,
-        "wandb_run_dir": str(run_dir.relative_to(REPO_DIR)),
+        "wandb_run_dir": _repo_relative_posix(run_dir),
         "wandb_started_at": metadata.get("startedAt"),
         "wandb_program": metadata.get("program"),
         "wandb_runtime_seconds": _round(summary.get("_runtime"), 2),
@@ -559,7 +567,7 @@ def _build_row(experiment: str, wandb_root: Path) -> Dict[str, Any]:
             "experiment": experiment,
             "method": _method_label(experiment),
             "algorithm_family": _algorithm_family(experiment),
-            "result_dir": str(tracking_dir.relative_to(REPO_DIR)),
+            "result_dir": _repo_relative_posix(tracking_dir),
             "n_episodes": None,
             "seed": None,
             "climate": tracking_metrics.get("climate"),
@@ -599,7 +607,7 @@ def _build_row(experiment: str, wandb_root: Path) -> Dict[str, Any]:
         "experiment": experiment,
         "method": _method_label(experiment),
         "algorithm_family": _algorithm_family(experiment),
-        "result_dir": str(result_dir.relative_to(REPO_DIR)),
+        "result_dir": _repo_relative_posix(result_dir),
         "n_episodes": run_config.get("n_episodes") or test_metrics.get("episode"),
         "seed": run_config.get("seed") or test_metrics.get("seed"),
         "climate": run_config.get("climate") or test_metrics.get("climate"),
