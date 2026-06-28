@@ -78,8 +78,9 @@ class Config:
     cluster_retries: int = 10
     cluster_artifact_dir: Optional[str] = None
     grouping_method: str = "kmeans"
-    grouping_feature_set: str = "legacy_capacity_power"
+    grouping_feature_set: str = "control_profile"
     grouping_feature_month: Optional[int] = None
+    grouping_feature_columns: Optional[List[str]] = None
 
     hidden_size: int = 256
     layer_N: int = 2
@@ -230,6 +231,7 @@ def _apply_checkpoint_model_config(cfg: Config, ckpt_meta: Dict[str, Any]) -> No
         "grouping_method",
         "grouping_feature_set",
         "grouping_feature_month",
+        "grouping_feature_columns",
     ]:
         if field_name in saved_cfg:
             setattr(cfg, field_name, saved_cfg[field_name])
@@ -411,6 +413,7 @@ def train(cfg: Config) -> None:
         grouping_method=cfg.grouping_method,
         grouping_feature_set=cfg.grouping_feature_set,
         grouping_feature_month=cfg.grouping_feature_month,
+        grouping_feature_columns=cfg.grouping_feature_columns,
     )
     K = int(group_assignments.max()) + 1
 
@@ -430,6 +433,7 @@ def train(cfg: Config) -> None:
                 "grouping_method": cfg.grouping_method,
                 "grouping_feature_set": cfg.grouping_feature_set,
                 "grouping_feature_month": cfg.grouping_feature_month,
+                "grouping_feature_columns": cfg.grouping_feature_columns,
             }
         )
         wandb.init(project=cfg.wandb_project, name=cfg.wandb_name, config=cfg_dict)
@@ -466,7 +470,8 @@ def train(cfg: Config) -> None:
     print(
         f"  grouping_method={cfg.grouping_method} "
         f"grouping_feature_set={cfg.grouping_feature_set} "
-        f"grouping_feature_month={cfg.grouping_feature_month}"
+        f"grouping_feature_month={cfg.grouping_feature_month} "
+        f"grouping_feature_columns={cfg.grouping_feature_columns}"
     )
     print(
         f"  comm_method={cfg.comm_method} comm_scope=global "
@@ -485,6 +490,9 @@ def train(cfg: Config) -> None:
                 "train/grouping/method": cfg.grouping_method,
                 "train/grouping/feature_set": cfg.grouping_feature_set,
                 "train/grouping/feature_month": cfg.grouping_feature_month,
+                "train/grouping/feature_columns": (
+                    ",".join(cfg.grouping_feature_columns) if cfg.grouping_feature_columns else ""
+                ),
             },
             step=0,
         )
@@ -686,6 +694,7 @@ def train(cfg: Config) -> None:
         "grouping_method": cfg.grouping_method,
         "grouping_feature_set": cfg.grouping_feature_set,
         "grouping_feature_month": cfg.grouping_feature_month,
+        "grouping_feature_columns": cfg.grouping_feature_columns,
         "n_groups": K,
         "group_sizes": group_sizes,
         "train": {
@@ -823,15 +832,25 @@ def parse_args() -> Config:
     )
     parser.add_argument(
         "--grouping_feature_set",
-        default="legacy_capacity_power",
+        default="control_profile",
         choices=[
             "legacy_capacity_power",
             "static_extended",
             "operational_profile",
             "static_operational",
+            "control_profile",
         ],
     )
     parser.add_argument("--grouping_feature_month", type=int, default=None)
+    parser.add_argument(
+        "--grouping_feature_columns",
+        nargs="+",
+        default=None,
+        help=(
+            "Explicit feature columns for grouping. When provided, columns are "
+            "selected from the full static_operational feature pool."
+        ),
+    )
 
     parser.add_argument("--hidden_size", type=int, default=256)
     parser.add_argument("--layer_N", type=int, default=2)
@@ -890,6 +909,7 @@ def parse_args() -> Config:
         grouping_method=args.grouping_method,
         grouping_feature_set=args.grouping_feature_set,
         grouping_feature_month=args.grouping_feature_month,
+        grouping_feature_columns=args.grouping_feature_columns,
         hidden_size=args.hidden_size,
         layer_N=args.layer_N,
         lr=args.lr,

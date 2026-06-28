@@ -6,7 +6,9 @@ grouped MAPPO train scripts, but adds two controls:
 
   grouping_method: kmeans, gmm, agglomerative
   grouping_feature_set: legacy_capacity_power, static_extended,
-                        operational_profile, static_operational
+                        operational_profile, static_operational,
+                        control_profile
+  grouping_feature_columns: optional explicit feature column list
 
 The saved artifact names match mappo_grouped.cluster so downstream reporting
 continues to work.
@@ -35,6 +37,19 @@ GROUPING_FEATURE_SETS = (
     "static_extended",
     "operational_profile",
     "static_operational",
+    "control_profile",
+)
+
+CONTROL_PROFILE_FEATURES = (
+    "bes_capacity_kwh",
+    "hvac_total_kw",
+    "heating_mean",
+    "heating_max",
+    "nsl_mean",
+    "nsl_max",
+    "occupants_mean",
+    "indoor_temp_std",
+    "comfort_lower_excess_mean",
 )
 
 
@@ -173,15 +188,46 @@ def _extract_operational_profile_features(
     return pd.DataFrame(rows)
 
 
+def _extract_static_operational_features(
+    climate: str,
+    n_buildings: int,
+    repo_dir: Path,
+    feature_month: Optional[int],
+) -> pd.DataFrame:
+    static_df = _extract_static_extended_features(climate, n_buildings, repo_dir)
+    operational_df = _extract_operational_profile_features(climate, n_buildings, repo_dir, feature_month)
+    return static_df.merge(operational_df, on="building_idx", how="inner")
+
+
+def _select_feature_columns(feature_df: pd.DataFrame, feature_columns: Iterable[str]) -> pd.DataFrame:
+    selected = list(feature_columns)
+    if not selected:
+        return feature_df
+
+    available = [c for c in feature_df.columns if c != "building_idx"]
+    missing = [c for c in selected if c not in feature_df.columns or c == "building_idx"]
+    if missing:
+        raise ValueError(
+            "Unknown grouping feature column(s): "
+            f"{missing}. Available columns: {available}"
+        )
+    return feature_df[["building_idx", *selected]].copy()
+
+
 def extract_grouping_features(
     climate: str,
     n_buildings: int = 25,
     repo_dir: Path = REPO_DIR,
-    feature_set: str = "legacy_capacity_power",
+    feature_set: str = "control_profile",
     feature_month: Optional[int] = None,
+    feature_columns: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     if feature_set not in GROUPING_FEATURE_SETS:
         raise ValueError(f"Unknown feature_set={feature_set}. Choices: {GROUPING_FEATURE_SETS}")
+
+    if feature_columns:
+        full_df = _extract_static_operational_features(climate, n_buildings, repo_dir, feature_month)
+        return _select_feature_columns(full_df, feature_columns)
 
     if feature_set == "legacy_capacity_power":
         legacy = extract_legacy_features(climate, n_buildings, repo_dir)
@@ -201,7 +247,11 @@ def extract_grouping_features(
     if feature_set == "operational_profile":
         return operational_df
 
-    return static_df.merge(operational_df, on="building_idx", how="inner")
+    static_operational_df = static_df.merge(operational_df, on="building_idx", how="inner")
+    if feature_set == "control_profile":
+        return _select_feature_columns(static_operational_df, CONTROL_PROFILE_FEATURES)
+
+    return static_operational_df
 
 
 def _balance_score(labels: np.ndarray, k: int) -> float:
@@ -300,6 +350,7 @@ def save_grouping_artifacts(
     method: str,
     feature_set: str,
     feature_month: Optional[int],
+    grouping_feature_columns: Optional[List[str]],
 ) -> Dict[str, Path]:
     save_dir = Path(save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -325,6 +376,7 @@ def save_grouping_artifacts(
         "grouping_method": method,
         "grouping_feature_set": feature_set,
         "grouping_feature_month": feature_month,
+        "grouping_feature_columns": grouping_feature_columns,
         "k": k,
         "seed": result["seed"],
         "balance": float(result["balance"]),
@@ -360,8 +412,9 @@ def run_clustering(
     retries: int = 10,
     repo_dir: Path = REPO_DIR,
     grouping_method: str = "kmeans",
-    grouping_feature_set: str = "legacy_capacity_power",
+    grouping_feature_set: str = "control_profile",
     grouping_feature_month: Optional[int] = None,
+    grouping_feature_columns: Optional[List[str]] = None,
     **_unused,
 ) -> Tuple[np.ndarray, Dict]:
     if k_candidates is None:
@@ -371,12 +424,15 @@ def run_clustering(
         f"\n[cluster] method={grouping_method} feature_set={grouping_feature_set} "
         f"month={grouping_feature_month} climate={climate}"
     )
+    if grouping_feature_columns:
+        print(f"  custom feature columns: {', '.join(grouping_feature_columns)}")
     feature_df = extract_grouping_features(
         climate=climate,
         n_buildings=n_buildings,
         repo_dir=repo_dir,
         feature_set=grouping_feature_set,
         feature_month=grouping_feature_month,
+        feature_columns=grouping_feature_columns,
     )
     feature_columns = [c for c in feature_df.columns if c != "building_idx"]
     print(f"  features ({len(feature_columns)}): {', '.join(feature_columns)}")
@@ -391,6 +447,7 @@ def run_clustering(
     result["grouping_method"] = grouping_method
     result["grouping_feature_set"] = grouping_feature_set
     result["grouping_feature_month"] = grouping_feature_month
+    result["grouping_feature_columns"] = grouping_feature_columns
 
     print(
         f"[cluster] Best: method={grouping_method} K={result['k']} "
@@ -407,6 +464,6 @@ def run_clustering(
         method=grouping_method,
         feature_set=grouping_feature_set,
         feature_month=grouping_feature_month,
+        grouping_feature_columns=grouping_feature_columns,
     )
     return result["assignments"], result
-
