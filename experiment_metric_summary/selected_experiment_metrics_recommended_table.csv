@@ -28,3 +28,9 @@ recommended_rank,experiment,recommended_rank_score,primary_rank,primary_rank_sco
 27,mappo_grouped_powernet_global_kmeans_operational_profile_vt_500_final,21.8375,26,21.9167,53.3941,3.7482,31.3571,33.6674,-0.5601,546.3703,-8419.4369,
 28,mappo_grouped_powernet_vt_500_final2,22.6625,28,23.75,50.1563,9.1475,45.744,43.3135,-0.6307,459.1774,-18229.8659,jfptqs43
 29,rbc_baseline_vt_february,25.0875,29,28.5833,138.266,109.3673,68.3458,29.4738,-8.4421,,,
+30,mappo_grouped_powernet_global_agglomerative_capacity_load_5f_vt_500_final,29.95,30,30.0,,,,,,,,
+31,mappo_grouped_powernet_global_gmm_capacity_load_5f_vt_500_final,29.95,31,30.0,,,,,,,,
+32,mappo_grouped_powernet_global_kmeans_capacity_load_5f_vt_500_final,29.95,32,30.0,,,,,,,,
+33,mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_5f_linear_vt_500_final,29.95,33,30.0,,,,,,,,
+34,mappo_grouped_tarmac_hybrid_gmm_capacity_load_5f_linear_vt_500_final,29.95,34,30.0,,,,,,,,
+35,mappo_grouped_tarmac_hybrid_kmeans_capacity_load_5f_linear_vt_500_final,29.95,35,30.0,,,,,,,,

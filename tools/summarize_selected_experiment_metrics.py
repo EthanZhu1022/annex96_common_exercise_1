@@ -54,8 +54,11 @@ SELECTED_EXPERIMENTS: List[str] = [
     "mappo_grouped_gat_vt_500_final2",
     "mappo_grouped_powernet_global_vt_500_final2",
     "mappo_grouped_powernet_global_agglomerative_static_operational_vt_500_final",
+    "mappo_grouped_powernet_global_agglomerative_capacity_load_5f_vt_500_final",
     "mappo_grouped_powernet_global_gmm_static_operational_vt_500_final",
+    "mappo_grouped_powernet_global_gmm_capacity_load_5f_vt_500_final",
     "mappo_grouped_powernet_global_kmeans_operational_profile_vt_500_final",
+    "mappo_grouped_powernet_global_kmeans_capacity_load_5f_vt_500_final",
     "mappo_grouped_powernet_global_kmeans_static_extended_vt_500_final",
     "mappo_grouped_powernet_vt_500_final2",
     "mappo_grouped_tarmac_vt_500_final2",
@@ -63,8 +66,11 @@ SELECTED_EXPERIMENTS: List[str] = [
     "mappo_grouped_tarmac_hybrid_linear_vt_500_final2",
     "mappo_grouped_tarmac_hybrid_gated_vt_500_final2",
     "mappo_grouped_tarmac_hybrid_agglomerative_static_operational_vt_500_final",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_5f_linear_vt_500_final",
     "mappo_grouped_tarmac_hybrid_gmm_static_operational_vt_500_final",
+    "mappo_grouped_tarmac_hybrid_gmm_capacity_load_5f_linear_vt_500_final",
     "mappo_grouped_tarmac_hybrid_kmeans_operational_profile_vt_500_final",
+    "mappo_grouped_tarmac_hybrid_kmeans_capacity_load_5f_linear_vt_500_final",
     "mappo_grouped_tarmac_hybrid_kmeans_static_extended_vt_500_final",
     "mappo_grouped_tarmac_soft_router_vt_500_final_balanced_temperature0.7_warmup50",
     "mappo_grouped_tarmac_soft_router_vt_500_final_sharp_temperature_0.5_warmup_50",
@@ -293,6 +299,11 @@ def _float(value: Any) -> Optional[float]:
 def _round(value: Any, digits: int = 4) -> Optional[float]:
     number = _float(value)
     return None if number is None else round(number, digits)
+
+
+def _abs_round(value: Any, digits: int = 4) -> Optional[float]:
+    number = _float(value)
+    return None if number is None else round(abs(number), digits)
 
 
 def _method_label(experiment: str) -> str:
@@ -593,7 +604,7 @@ def _build_row(experiment: str, wandb_root: Path) -> Dict[str, Any]:
             "wandb_runtime_seconds": None,
         }
         row.update(tracking_metrics)
-        row["primary_abs_nmbe_pct"] = _round(abs(row["primary_load_nmbe_pct"]), 4)
+        row["primary_abs_nmbe_pct"] = _abs_round(row["primary_load_nmbe_pct"], 4)
         return row
 
     result_dir = REPO_DIR / "results" / experiment
@@ -695,7 +706,7 @@ def _build_row(experiment: str, wandb_root: Path) -> Dict[str, Any]:
         ),
     }
 
-    row["primary_abs_nmbe_pct"] = _round(abs(row["primary_load_nmbe_pct"]), 4)
+    row["primary_abs_nmbe_pct"] = _abs_round(row["primary_load_nmbe_pct"], 4)
     row.update(_flatten_latest_metrics(latest_metrics))
     row.update(wandb)
     return row

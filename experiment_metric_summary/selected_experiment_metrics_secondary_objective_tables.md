@@ -32,7 +32,13 @@
 | 26            | mappo_grouped_tarmac_soft_router_vt_500_final_balanced_temperature0.7_warmup50 | 26                  | 0.2497                  | 0.9656                     | 11.61                            |
 | 27            | rllib_independent_ppo_vt_80_final2                                             | 27.33               | 0.2888                  | 0.954                      | 13.62                            |
 | 28            | rllib_sac_vt_500_final2                                                        | 27.67               | 0.2983                  | 0.9529                     | 13.02                            |
-| 29            | rbc_baseline_vt_february                                                       | 29                  |                         |                            |                                  |
+| 29            | mappo_grouped_powernet_global_agglomerative_capacity_load_5f_vt_500_final      | 29                  |                         |                            |                                  |
+| 30            | mappo_grouped_powernet_global_gmm_capacity_load_5f_vt_500_final                | 29                  |                         |                            |                                  |
+| 31            | mappo_grouped_powernet_global_kmeans_capacity_load_5f_vt_500_final             | 29                  |                         |                            |                                  |
+| 32            | mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_5f_linear_vt_500_final | 29                  |                         |                            |                                  |
+| 33            | mappo_grouped_tarmac_hybrid_gmm_capacity_load_5f_linear_vt_500_final           | 29                  |                         |                            |                                  |
+| 34            | mappo_grouped_tarmac_hybrid_kmeans_capacity_load_5f_linear_vt_500_final        | 29                  |                         |                            |                                  |
+| 35            | rbc_baseline_vt_february                                                       | 29                  |                         |                            |                                  |
 
 ## Site Energy
 
@@ -67,6 +73,12 @@
 | 27               | mappo_standard_vt_500_final3                                                   | 27                     | 34.08                            | 7.576e+04                       | 7.195e+04                                |
 | 28               | mappo_grouped_tarmac_hybrid_kmeans_static_extended_vt_500_final                | 28                     | 34.14                            | 7.514e+04                       | 7.24e+04                                 |
 | 29               | mappo_grouped_powernet_vt_500_final2                                           | 29                     | 43.31                            | 7.91e+04                        | 7.247e+04                                |
+| 30               | mappo_grouped_powernet_global_agglomerative_capacity_load_5f_vt_500_final      | 30                     |                                  |                                 |                                          |
+| 31               | mappo_grouped_powernet_global_gmm_capacity_load_5f_vt_500_final                | 30                     |                                  |                                 |                                          |
+| 32               | mappo_grouped_powernet_global_kmeans_capacity_load_5f_vt_500_final             | 30                     |                                  |                                 |                                          |
+| 33               | mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_5f_linear_vt_500_final | 30                     |                                  |                                 |                                          |
+| 34               | mappo_grouped_tarmac_hybrid_gmm_capacity_load_5f_linear_vt_500_final           | 30                     |                                  |                                 |                                          |
+| 35               | mappo_grouped_tarmac_hybrid_kmeans_capacity_load_5f_linear_vt_500_final        | 30                     |                                  |                                 |                                          |
 
 ## Peak Demand
 
@@ -101,6 +113,12 @@
 | 27               | mappo_grouped_tarmac_hybrid_kmeans_static_extended_vt_500_final                | 25                     | 275.1                    | 268.7                             | 2.371                            | D02 20:00                  | D03 09:00                           |
 | 28               | mappo_grouped_comm_weighted_default_vt_500_final2                              | 28                     | 275.4                    | 262                               | 5.129                            | D03 05:00                  | D03 09:00                           |
 | 29               | mappo_standard_vt_500_final3                                                   | 29                     | 299.3                    | 273.9                             | 9.277                            | D03 07:00                  | D03 09:00                           |
+| 30               | mappo_grouped_powernet_global_agglomerative_capacity_load_5f_vt_500_final      | 30                     |                          |                                   |                                  |                            |                                     |
+| 31               | mappo_grouped_powernet_global_gmm_capacity_load_5f_vt_500_final                | 30                     |                          |                                   |                                  |                            |                                     |
+| 32               | mappo_grouped_powernet_global_kmeans_capacity_load_5f_vt_500_final             | 30                     |                          |                                   |                                  |                            |                                     |
+| 33               | mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_5f_linear_vt_500_final | 30                     |                          |                                   |                                  |                            |                                     |
+| 34               | mappo_grouped_tarmac_hybrid_gmm_capacity_load_5f_linear_vt_500_final           | 30                     |                          |                                   |                                  |                            |                                     |
+| 35               | mappo_grouped_tarmac_hybrid_kmeans_capacity_load_5f_linear_vt_500_final        | 30                     |                          |                                   |                                  |                            |                                     |
 
 ## Peak To Valley Ratio
 
@@ -134,7 +152,13 @@
 | 26                        | mappo_grouped_gat_vt_500_final2                                                | 26                              | 3333                               | 212.4                                       |
 | 27                        | mappo_grouped_comm_weighted_a090_b010_vt_500_final2                            | 27                              | 3542                               | 214.7                                       |
 | 28                        | mappo_grouped_comm_weighted_a055_b045_vt_500_final2                            | 28                              | 5209                               | 212.7                                       |
-| 29                        | rbc_baseline_vt_february                                                       | 29                              |                                    |                                             |
+| 29                        | mappo_grouped_powernet_global_agglomerative_capacity_load_5f_vt_500_final      | 29                              |                                    |                                             |
+| 30                        | mappo_grouped_powernet_global_gmm_capacity_load_5f_vt_500_final                | 29                              |                                    |                                             |
+| 31                        | mappo_grouped_powernet_global_kmeans_capacity_load_5f_vt_500_final             | 29                              |                                    |                                             |
+| 32                        | mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_5f_linear_vt_500_final | 29                              |                                    |                                             |
+| 33                        | mappo_grouped_tarmac_hybrid_gmm_capacity_load_5f_linear_vt_500_final           | 29                              |                                    |                                             |
+| 34                        | mappo_grouped_tarmac_hybrid_kmeans_capacity_load_5f_linear_vt_500_final        | 29                              |                                    |                                             |
+| 35                        | rbc_baseline_vt_february                                                       | 29                              |                                    |                                             |
 
 ## Load Factor
 
@@ -168,7 +192,13 @@
 | 26               | mappo_grouped_tarmac_hybrid_kmeans_operational_profile_vt_500_final            | 26                     | 58.38                     | 73.13                              |
 | 27               | mappo_grouped_powernet_global_agglomerative_static_operational_vt_500_final    | 27                     | 56.63                     | 72.85                              |
 | 28               | mappo_grouped_dial_vt_500_final2                                               | 28                     | 55.01                     | 73.29                              |
-| 29               | rbc_baseline_vt_february                                                       | 29                     |                           |                                    |
+| 29               | mappo_grouped_powernet_global_agglomerative_capacity_load_5f_vt_500_final      | 29                     |                           |                                    |
+| 30               | mappo_grouped_powernet_global_gmm_capacity_load_5f_vt_500_final                | 29                     |                           |                                    |
+| 31               | mappo_grouped_powernet_global_kmeans_capacity_load_5f_vt_500_final             | 29                     |                           |                                    |
+| 32               | mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_5f_linear_vt_500_final | 29                     |                           |                                    |
+| 33               | mappo_grouped_tarmac_hybrid_gmm_capacity_load_5f_linear_vt_500_final           | 29                     |                           |                                    |
+| 34               | mappo_grouped_tarmac_hybrid_kmeans_capacity_load_5f_linear_vt_500_final        | 29                     |                           |                                    |
+| 35               | rbc_baseline_vt_february                                                       | 29                     |                           |                                    |
 
 ## System Ramping
 
@@ -202,4 +232,10 @@
 | 26                  | mappo_grouped_powernet_global_kmeans_operational_profile_vt_500_final          | 26                        | 546.4                       | 203.6                                |
 | 27                  | mappo_grouped_tarmac_hybrid_agglomerative_static_operational_vt_500_final      | 27                        | 550.2                       | 204                                  |
 | 28                  | mappo_grouped_powernet_global_agglomerative_static_operational_vt_500_final    | 28                        | 557.8                       | 209.3                                |
-| 29                  | rbc_baseline_vt_february                                                       | 29                        |                             |                                      |
+| 29                  | mappo_grouped_powernet_global_agglomerative_capacity_load_5f_vt_500_final      | 29                        |                             |                                      |
+| 30                  | mappo_grouped_powernet_global_gmm_capacity_load_5f_vt_500_final                | 29                        |                             |                                      |
+| 31                  | mappo_grouped_powernet_global_kmeans_capacity_load_5f_vt_500_final             | 29                        |                             |                                      |
+| 32                  | mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_5f_linear_vt_500_final | 29                        |                             |                                      |
+| 33                  | mappo_grouped_tarmac_hybrid_gmm_capacity_load_5f_linear_vt_500_final           | 29                        |                             |                                      |
+| 34                  | mappo_grouped_tarmac_hybrid_kmeans_capacity_load_5f_linear_vt_500_final        | 29                        |                             |                                      |
+| 35                  | rbc_baseline_vt_february                                                       | 29                        |                             |                                      |
