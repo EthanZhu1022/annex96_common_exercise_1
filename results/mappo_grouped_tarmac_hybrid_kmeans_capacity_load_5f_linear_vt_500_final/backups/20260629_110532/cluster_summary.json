@@ -1,0 +1,99 @@
+{
+  "grouping_method": "kmeans",
+  "grouping_feature_set": "control_profile",
+  "grouping_feature_month": 1,
+  "grouping_feature_columns": [
+    "bes_capacity_kwh",
+    "hvac_total_kw",
+    "heating_mean",
+    "nsl_mean",
+    "comfort_lower_excess_mean"
+  ],
+  "k": 5,
+  "seed": 2,
+  "balance": -0.4,
+  "cluster_sizes": [
+    6,
+    10,
+    6,
+    1,
+    2
+  ],
+  "feature_columns": [
+    "bes_capacity_kwh",
+    "hvac_total_kw",
+    "heating_mean",
+    "nsl_mean",
+    "comfort_lower_excess_mean"
+  ],
+  "cluster_centers_original_scale": {
+    "cluster_0": {
+      "bes_capacity_kwh": 19.228333333333335,
+      "hvac_total_kw": 12.948312000061074,
+      "heating_mean": 5.734989800669802,
+      "nsl_mean": 1.0508269076052867,
+      "comfort_lower_excess_mean": 0.0012145123207885514,
+      "n_buildings": 6
+    },
+    "cluster_1": {
+      "bes_capacity_kwh": 14.540000000000003,
+      "hvac_total_kw": 9.084867699351161,
+      "heating_mean": 4.14913020121559,
+      "nsl_mean": 0.5136217243521506,
+      "comfort_lower_excess_mean": 0.0021127756720430058,
+      "n_buildings": 10
+    },
+    "cluster_2": {
+      "bes_capacity_kwh": 33.1,
+      "hvac_total_kw": 22.221063640705932,
+      "heating_mean": 9.14071564859319,
+      "nsl_mean": 0.7898682601814516,
+      "comfort_lower_excess_mean": 0.0022517865143368444,
+      "n_buildings": 6
+    },
+    "cluster_3": {
+      "bes_capacity_kwh": 38.5,
+      "hvac_total_kw": 26.772001266479492,
+      "heating_mean": 14.20368620846774,
+      "nsl_mean": 0.9313203445161289,
+      "comfort_lower_excess_mean": 0.009787497311827945,
+      "n_buildings": 1
+    },
+    "cluster_4": {
+      "bes_capacity_kwh": 27.75,
+      "hvac_total_kw": 10.477573745884001,
+      "heating_mean": 4.4264931482930105,
+      "nsl_mean": 0.6140447563776882,
+      "comfort_lower_excess_mean": 0.0055736706989246805,
+      "n_buildings": 2
+    }
+  },
+  "group_assignments": {
+    "building_0": 2,
+    "building_1": 2,
+    "building_2": 1,
+    "building_3": 2,
+    "building_4": 2,
+    "building_5": 1,
+    "building_6": 1,
+    "building_7": 3,
+    "building_8": 1,
+    "building_9": 1,
+    "building_10": 2,
+    "building_11": 0,
+    "building_12": 0,
+    "building_13": 1,
+    "building_14": 0,
+    "building_15": 1,
+    "building_16": 0,
+    "building_17": 0,
+    "building_18": 2,
+    "building_19": 4,
+    "building_20": 1,
+    "building_21": 0,
+    "building_22": 1,
+    "building_23": 1,
+    "building_24": 4
+  },
+  "selection_rationale": "Chose method=kmeans K=5 seed=2 (balance=-0.400; group 0: 6 buildings, group 1: 10 buildings, group 2: 6 buildings, group 3: 1 buildings, group 4: 2 buildings). Tried 2 K values x 10 fits. Balance = min_cluster_size / max_cluster_size."
+}
