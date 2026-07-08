@@ -9,6 +9,7 @@ Actor path:
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import shutil
 import sys
@@ -81,6 +82,18 @@ class Config:
     cluster_seed: int = 0
     cluster_retries: int = 10
     cluster_artifact_dir: Optional[str] = None
+    grouping_method: str = "agglomerative"
+    grouping_feature_set: str = "control_profile"
+    grouping_feature_month: Optional[int] = None
+    grouping_feature_columns: Optional[List[str]] = field(
+        default_factory=lambda: [
+            "bes_capacity_kwh",
+            "hvac_total_kw",
+            "heating_mean",
+            "nsl_mean",
+            "comfort_lower_excess_mean",
+        ]
+    )
 
     hidden_size: int = 256
     layer_N: int = 2
@@ -119,14 +132,16 @@ class Config:
     comm_scope: str = "global"
     comm_key_dim: int = 32
     comm_value_dim: int = 64
-    comm_fusion_mode: str = "relu"
+    comm_fusion_mode: str = "linear"
 
     router_hidden_dim: int = 64
-    router_temperature: float = 1.0
+    router_temperature: float = 0.7
     router_prior_start: float = 0.0
-    router_prior_end: float = 1.0
-    router_warmup_episodes: int = 20
-    router_entropy_scale: float = 0.1
+    router_prior_end: float = 0.7
+    router_warmup_episodes: int = 100
+    router_entropy_scale: float = 0.02
+    router_use_capacity_features: bool = True
+    router_eval_hard: bool = True
 
 
 def _build_grouped_components(
@@ -134,6 +149,9 @@ def _build_grouped_components(
     env: CityLearnMAPPOEnv,
     group_assignments: np.ndarray,
     device: torch.device,
+    router_obs_indices: Optional[Dict[str, int]] = None,
+    building_capacity_norm: Optional[np.ndarray] = None,
+    building_hvac_norm: Optional[np.ndarray] = None,
 ) -> Tuple[
     argparse.Namespace,
     List[R_MAPPOPolicy],
@@ -187,6 +205,11 @@ def _build_grouped_components(
         router_temperature=cfg.router_temperature,
         router_entropy_scale=cfg.router_entropy_scale,
         router_alpha=cfg.router_prior_start,
+        router_obs_indices=router_obs_indices,
+        building_capacity_norm=building_capacity_norm,
+        building_hvac_norm=building_hvac_norm,
+        use_capacity_router_features=cfg.router_use_capacity_features,
+        deterministic_hard_routing=cfg.router_eval_hard,
     ).to(device)
     actor_optimizer = torch.optim.Adam(
         controller.parameters(),
@@ -227,6 +250,45 @@ def _router_alpha_for_episode(cfg: Config, episode: int) -> float:
         return float(cfg.router_prior_end)
     progress = min(max((episode - 1) / float(cfg.router_warmup_episodes), 0.0), 1.0)
     return float(cfg.router_prior_start + progress * (cfg.router_prior_end - cfg.router_prior_start))
+
+
+def _get_observation_indices(env: CityLearnMAPPOEnv) -> Dict[str, int]:
+    names = getattr(env._env, "observation_names", None)
+    if names is None:
+        return {}
+    try:
+        first_names = list(names[0])
+    except Exception:
+        return {}
+    wanted = ["electrical_storage_soc", "non_shiftable_load", "heating_demand"]
+    return {name: first_names.index(name) for name in wanted if name in first_names}
+
+
+def _read_router_static_features(cluster_dir: Path, n_buildings: int) -> Tuple[np.ndarray, np.ndarray]:
+    assignment_path = Path(cluster_dir) / "building_cluster_assignment.csv"
+    capacity = np.zeros(n_buildings, dtype=np.float32)
+    hvac = np.zeros(n_buildings, dtype=np.float32)
+    if not assignment_path.exists():
+        print(f"[warn] router static feature file not found: {assignment_path}")
+        return capacity, hvac
+
+    with assignment_path.open(newline="") as f:
+        for row in csv.DictReader(f):
+            try:
+                i = int(row["building_idx"])
+            except Exception:
+                continue
+            if 0 <= i < n_buildings:
+                capacity[i] = float(row.get("bes_capacity_kwh") or 0.0)
+                hvac[i] = float(row.get("hvac_total_kw") or 0.0)
+
+    cap_scale = float(np.nanmax(capacity)) if np.isfinite(capacity).any() else 0.0
+    hvac_scale = float(np.nanmax(hvac)) if np.isfinite(hvac).any() else 0.0
+    if cap_scale > 1e-8:
+        capacity = capacity / cap_scale
+    if hvac_scale > 1e-8:
+        hvac = hvac / hvac_scale
+    return capacity.astype(np.float32), hvac.astype(np.float32)
 
 
 def _train_soft_router_actor(
@@ -350,12 +412,18 @@ def _apply_checkpoint_model_config(cfg: Config, ckpt_meta: Dict[str, Any]) -> No
         "comm_key_dim",
         "comm_value_dim",
         "comm_fusion_mode",
+        "grouping_method",
+        "grouping_feature_set",
+        "grouping_feature_month",
+        "grouping_feature_columns",
         "router_hidden_dim",
         "router_temperature",
         "router_prior_start",
         "router_prior_end",
         "router_warmup_episodes",
         "router_entropy_scale",
+        "router_use_capacity_features",
+        "router_eval_hard",
     ]:
         if field_name in saved_cfg:
             setattr(cfg, field_name, saved_cfg[field_name])
@@ -513,6 +581,8 @@ def train(cfg: Config) -> None:
     test_end = _MONTH_ENDS[test_month] if test_month else None
     cfg.train_month = train_month
     cfg.test_month = test_month
+    if cfg.grouping_feature_month is None:
+        cfg.grouping_feature_month = train_month
 
     seed_everything(cfg.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -532,6 +602,10 @@ def train(cfg: Config) -> None:
         cluster_seed=cfg.cluster_seed,
         retries=cfg.cluster_retries,
         repo_dir=REPO_DIR,
+        grouping_method=cfg.grouping_method,
+        grouping_feature_set=cfg.grouping_feature_set,
+        grouping_feature_month=cfg.grouping_feature_month,
+        grouping_feature_columns=cfg.grouping_feature_columns,
     )
     K = int(group_assignments.max()) + 1
 
@@ -549,6 +623,9 @@ def train(cfg: Config) -> None:
                 "n_groups": K,
                 "group_sizes": cluster_result["sizes"],
                 "router_type": "state_conditioned_soft_mixture",
+                "grouping_method": cfg.grouping_method,
+                "grouping_feature_set": cfg.grouping_feature_set,
+                "grouping_feature_columns": cfg.grouping_feature_columns,
             }
         )
         wandb.init(project=cfg.wandb_project, name=cfg.wandb_name, config=cfg_dict)
@@ -562,6 +639,8 @@ def train(cfg: Config) -> None:
         start_step=train_start,
         end_step=train_end,
     )
+    router_obs_indices = _get_observation_indices(train_env)
+    capacity_norm, hvac_norm = _read_router_static_features(cluster_dir, cfg.n_buildings)
     (
         mappo_args,
         policies,
@@ -570,7 +649,15 @@ def train(cfg: Config) -> None:
         group_indices,
         controller,
         actor_optimizer,
-    ) = _build_grouped_components(cfg, train_env, group_assignments, device)
+    ) = _build_grouped_components(
+        cfg,
+        train_env,
+        group_assignments,
+        device,
+        router_obs_indices=router_obs_indices,
+        building_capacity_norm=capacity_norm,
+        building_hvac_norm=hvac_norm,
+    )
 
     episode_length = train_env._base_env.episode_time_steps
     n_agents = train_env.n_agents
@@ -587,9 +674,17 @@ def train(cfg: Config) -> None:
         f"comm_rounds={cfg.comm_rounds} fusion_mode={cfg.comm_fusion_mode}"
     )
     print(
+        f"  grouping_method={cfg.grouping_method} "
+        f"grouping_feature_set={cfg.grouping_feature_set} "
+        f"grouping_feature_columns={cfg.grouping_feature_columns}"
+    )
+    print(
         f"  router_hidden_dim={cfg.router_hidden_dim} "
         f"router_alpha={cfg.router_prior_start}->{cfg.router_prior_end} "
-        f"warmup={cfg.router_warmup_episodes}"
+        f"warmup={cfg.router_warmup_episodes} "
+        f"capacity_features={cfg.router_use_capacity_features} "
+        f"eval_hard={cfg.router_eval_hard} "
+        f"obs_indices={router_obs_indices}"
     )
 
     if use_wandb:
@@ -601,12 +696,19 @@ def train(cfg: Config) -> None:
                 "train/comm/hidden_dim": cfg.comm_hidden_dim,
                 "train/comm/use_residual": int(cfg.comm_use_residual),
                 "train/comm/fusion_mode": cfg.comm_fusion_mode,
+                "train/grouping/method": cfg.grouping_method,
+                "train/grouping/feature_set": cfg.grouping_feature_set,
+                "train/grouping/feature_columns": (
+                    ",".join(cfg.grouping_feature_columns) if cfg.grouping_feature_columns else ""
+                ),
                 "train/router/hidden_dim": cfg.router_hidden_dim,
                 "train/router/temperature": cfg.router_temperature,
                 "train/router/prior_start": cfg.router_prior_start,
                 "train/router/prior_end": cfg.router_prior_end,
                 "train/router/warmup_episodes": cfg.router_warmup_episodes,
                 "train/router/entropy_scale": cfg.router_entropy_scale,
+                "train/router/use_capacity_features": int(cfg.router_use_capacity_features),
+                "train/router/eval_hard": int(cfg.router_eval_hard),
             },
             step=0,
         )
@@ -818,6 +920,10 @@ def train(cfg: Config) -> None:
         "comm_method": cfg.comm_method,
         "comm_scope": cfg.comm_scope,
         "comm_fusion_mode": cfg.comm_fusion_mode,
+        "grouping_method": cfg.grouping_method,
+        "grouping_feature_set": cfg.grouping_feature_set,
+        "grouping_feature_month": cfg.grouping_feature_month,
+        "grouping_feature_columns": cfg.grouping_feature_columns,
         "router": {
             "type": "state_conditioned_soft_mixture",
             "hidden_dim": cfg.router_hidden_dim,
@@ -826,6 +932,8 @@ def train(cfg: Config) -> None:
             "prior_end": cfg.router_prior_end,
             "warmup_episodes": cfg.router_warmup_episodes,
             "entropy_scale": cfg.router_entropy_scale,
+            "use_capacity_features": cfg.router_use_capacity_features,
+            "eval_hard": cfg.router_eval_hard,
         },
         "n_groups": K,
         "group_sizes": group_sizes,
@@ -901,6 +1009,13 @@ def run_test_only(cfg: Config) -> Dict[str, Any]:
         start_step=train_start,
         end_step=train_end,
     )
+    router_obs_indices = _get_observation_indices(probe_env)
+    router_feature_dir = (
+        Path(cfg.cluster_artifact_dir).resolve()
+        if cfg.cluster_artifact_dir
+        else ckpt_path.parent
+    )
+    capacity_norm, hvac_norm = _read_router_static_features(router_feature_dir, cfg.n_buildings)
     (
         _mappo_args,
         policies,
@@ -909,7 +1024,15 @@ def run_test_only(cfg: Config) -> Dict[str, Any]:
         _group_indices,
         controller,
         actor_optimizer,
-    ) = _build_grouped_components(cfg, probe_env, group_assignments, device)
+    ) = _build_grouped_components(
+        cfg,
+        probe_env,
+        group_assignments,
+        device,
+        router_obs_indices=router_obs_indices,
+        building_capacity_norm=capacity_norm,
+        building_hvac_norm=hvac_norm,
+    )
     load_checkpoint(policies, controller, actor_optimizer, ckpt_path, device)
 
     use_wandb = _WANDB_OK
@@ -954,6 +1077,38 @@ def parse_args() -> Config:
     parser.add_argument("--cluster_seed", type=int, default=0)
     parser.add_argument("--cluster_retries", type=int, default=10)
     parser.add_argument("--cluster_artifact_dir", default=None)
+    parser.add_argument(
+        "--grouping_method",
+        default="agglomerative",
+        choices=["kmeans", "gmm", "agglomerative"],
+    )
+    parser.add_argument(
+        "--grouping_feature_set",
+        default="control_profile",
+        choices=[
+            "legacy_capacity_power",
+            "static_extended",
+            "operational_profile",
+            "static_operational",
+            "control_profile",
+        ],
+    )
+    parser.add_argument("--grouping_feature_month", type=int, default=None)
+    parser.add_argument(
+        "--grouping_feature_columns",
+        nargs="+",
+        default=[
+            "bes_capacity_kwh",
+            "hvac_total_kw",
+            "heating_mean",
+            "nsl_mean",
+            "comfort_lower_excess_mean",
+        ],
+        help=(
+            "Feature columns for the static expert prior. Defaults to the compact "
+            "capacity/load 5-feature set."
+        ),
+    )
 
     parser.add_argument("--hidden_size", type=int, default=256)
     parser.add_argument("--layer_N", type=int, default=2)
@@ -990,7 +1145,7 @@ def parse_args() -> Config:
     parser.add_argument("--comm_value_dim", type=int, default=64)
     parser.add_argument(
         "--comm_fusion_mode",
-        default="relu",
+        default="linear",
         choices=["relu", "linear", "gated"],
         help=(
             "Communication fusion ablation: relu=local Linear+ReLU concat, "
@@ -1002,11 +1157,13 @@ def parse_args() -> Config:
     parser.add_argument("--comm_dropout", type=float, default=0.0)
 
     parser.add_argument("--router_hidden_dim", type=int, default=64)
-    parser.add_argument("--router_temperature", type=float, default=1.0)
+    parser.add_argument("--router_temperature", type=float, default=0.7)
     parser.add_argument("--router_prior_start", type=float, default=0.0)
-    parser.add_argument("--router_prior_end", type=float, default=1.0)
-    parser.add_argument("--router_warmup_episodes", type=int, default=20)
-    parser.add_argument("--router_entropy_scale", type=float, default=0.1)
+    parser.add_argument("--router_prior_end", type=float, default=0.7)
+    parser.add_argument("--router_warmup_episodes", type=int, default=100)
+    parser.add_argument("--router_entropy_scale", type=float, default=0.02)
+    parser.add_argument("--no_router_capacity_features", action="store_true", default=False)
+    parser.add_argument("--router_eval_soft", action="store_true", default=False)
 
     args = parser.parse_args()
     return Config(
@@ -1016,6 +1173,10 @@ def parse_args() -> Config:
         cluster_seed=args.cluster_seed,
         cluster_retries=args.cluster_retries,
         cluster_artifact_dir=args.cluster_artifact_dir,
+        grouping_method=args.grouping_method,
+        grouping_feature_set=args.grouping_feature_set,
+        grouping_feature_month=args.grouping_feature_month,
+        grouping_feature_columns=args.grouping_feature_columns,
         hidden_size=args.hidden_size,
         layer_N=args.layer_N,
         lr=args.lr,
@@ -1053,6 +1214,8 @@ def parse_args() -> Config:
         router_prior_end=args.router_prior_end,
         router_warmup_episodes=args.router_warmup_episodes,
         router_entropy_scale=args.router_entropy_scale,
+        router_use_capacity_features=not args.no_router_capacity_features,
+        router_eval_hard=not args.router_eval_soft,
     )
 
 

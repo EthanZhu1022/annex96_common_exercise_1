@@ -1,6 +1,5 @@
-"""Re-export the grouped clustering pipeline."""
+"""Re-export selectable grouping variants for soft-router priors."""
 
-from mappo_grouped.cluster import run_clustering
+from mappo_grouping_variants.cluster import run_clustering
 
 __all__ = ["run_clustering"]
-
