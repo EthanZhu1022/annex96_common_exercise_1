@@ -1,0 +1,84 @@
+{
+  "grouping_method": "agglomerative",
+  "grouping_feature_set": "control_profile",
+  "grouping_feature_month": 1,
+  "grouping_feature_columns": [
+    "bes_capacity_kwh",
+    "hvac_total_kw",
+    "heating_mean",
+    "nsl_mean"
+  ],
+  "k": 4,
+  "seed": null,
+  "balance": 0.2,
+  "cluster_sizes": [
+    6,
+    7,
+    10,
+    2
+  ],
+  "feature_columns": [
+    "bes_capacity_kwh",
+    "hvac_total_kw",
+    "heating_mean",
+    "nsl_mean"
+  ],
+  "cluster_centers_original_scale": {
+    "cluster_0": {
+      "bes_capacity_kwh": 28.83333333333334,
+      "hvac_total_kw": 20.180403100443073,
+      "heating_mean": 7.977770492560484,
+      "nsl_mean": 0.7621109018189963,
+      "n_buildings": 6
+    },
+    "cluster_1": {
+      "bes_capacity_kwh": 20.981428571428573,
+      "hvac_total_kw": 12.496515514329076,
+      "heating_mean": 5.621122355186252,
+      "nsl_mean": 1.0053375533064517,
+      "n_buildings": 7
+    },
+    "cluster_2": {
+      "bes_capacity_kwh": 15.5,
+      "hvac_total_kw": 8.555576183553786,
+      "heating_mean": 3.7784496807411285,
+      "nsl_mean": 0.511760933657258,
+      "n_buildings": 10
+    },
+    "cluster_3": {
+      "bes_capacity_kwh": 39.25,
+      "hvac_total_kw": 27.739145278930664,
+      "heating_mean": 14.401615481854837,
+      "nsl_mean": 0.80608024344086,
+      "n_buildings": 2
+    }
+  },
+  "group_assignments": {
+    "building_0": 0,
+    "building_1": 0,
+    "building_2": 2,
+    "building_3": 0,
+    "building_4": 3,
+    "building_5": 2,
+    "building_6": 2,
+    "building_7": 3,
+    "building_8": 2,
+    "building_9": 2,
+    "building_10": 0,
+    "building_11": 1,
+    "building_12": 1,
+    "building_13": 2,
+    "building_14": 1,
+    "building_15": 0,
+    "building_16": 1,
+    "building_17": 1,
+    "building_18": 0,
+    "building_19": 1,
+    "building_20": 2,
+    "building_21": 1,
+    "building_22": 2,
+    "building_23": 2,
+    "building_24": 2
+  },
+  "selection_rationale": "Chose method=agglomerative K=4 seed=None (balance=0.200; group 0: 6 buildings, group 1: 7 buildings, group 2: 10 buildings, group 3: 2 buildings). Tried 2 K values x 1 fits. Balance = min_cluster_size / max_cluster_size."
+}
