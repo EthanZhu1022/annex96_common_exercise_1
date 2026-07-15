@@ -142,6 +142,10 @@ class Config:
     router_entropy_scale: float = 0.02
     router_use_capacity_features: bool = True
     router_eval_hard: bool = True
+    expert_checkpoint_dir: Optional[str] = None
+    router_freeze_experts_episodes: int = 0
+    router_only_lr: Optional[float] = None
+    router_finetune_lr: Optional[float] = None
 
 
 def _build_grouped_components(
@@ -250,6 +254,72 @@ def _router_alpha_for_episode(cfg: Config, episode: int) -> float:
         return float(cfg.router_prior_end)
     progress = min(max((episode - 1) / float(cfg.router_warmup_episodes), 0.0), 1.0)
     return float(cfg.router_prior_start + progress * (cfg.router_prior_end - cfg.router_prior_start))
+
+
+def _resolve_checkpoint_path(checkpoint_dir: Optional[str]) -> Optional[Path]:
+    if not checkpoint_dir:
+        return None
+    ckpt = Path(checkpoint_dir).resolve()
+    if ckpt.is_dir():
+        ckpt = ckpt / "checkpoint.pt"
+    if not ckpt.exists():
+        raise FileNotFoundError(f"Expert checkpoint not found: {ckpt}")
+    return ckpt
+
+
+def _load_expert_checkpoint_for_router(
+    policies: List[R_MAPPOPolicy],
+    controller: SoftRouterGlobalCommActorController,
+    ckpt_path: Path,
+    device: torch.device,
+) -> int:
+    """Initialize actor experts and shared critic from a fixed-group checkpoint.
+
+    Fixed TarMAC hybrid checkpoints do not contain router weights. Loading with
+    strict=False keeps the new router randomly initialized while copying the
+    group encoders, action heads, and communication module.
+    """
+    ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
+    policies[0].critic.load_state_dict(ckpt["policy_critic_state_dict"])
+    incompatible = controller.load_state_dict(ckpt["global_actor_state_dict"], strict=False)
+    missing = [key for key in incompatible.missing_keys if not key.startswith("router.")]
+    unexpected = list(incompatible.unexpected_keys)
+    if missing:
+        print(f"  [expert-init] non-router missing keys: {missing}")
+    if unexpected:
+        print(f"  [expert-init] unexpected keys: {unexpected}")
+    episode = int(ckpt.get("episode", 0))
+    print(f"  [expert-init] loaded fixed experts from {ckpt_path} (episode {episode})")
+    return episode
+
+
+def _set_expert_trainable(controller: SoftRouterGlobalCommActorController, trainable: bool) -> None:
+    for module in [controller.group_actors, controller.comm]:
+        for param in module.parameters():
+            param.requires_grad = trainable
+    for param in controller.router.parameters():
+        param.requires_grad = True
+
+
+def _configure_router_training_phase(
+    cfg: Config,
+    controller: SoftRouterGlobalCommActorController,
+    actor_optimizer: torch.optim.Optimizer,
+    episode: int,
+) -> str:
+    freeze_episodes = max(int(cfg.router_freeze_experts_episodes), 0)
+    router_only = episode <= freeze_episodes
+    _set_expert_trainable(controller, trainable=not router_only)
+
+    if router_only:
+        lr = cfg.router_only_lr if cfg.router_only_lr is not None else cfg.lr
+        phase = "router_only"
+    else:
+        lr = cfg.router_finetune_lr if cfg.router_finetune_lr is not None else cfg.lr
+        phase = "joint_finetune"
+    for group in actor_optimizer.param_groups:
+        group["lr"] = float(lr)
+    return phase
 
 
 def _get_observation_indices(env: CityLearnMAPPOEnv) -> Dict[str, int]:
@@ -424,6 +494,10 @@ def _apply_checkpoint_model_config(cfg: Config, ckpt_meta: Dict[str, Any]) -> No
         "router_entropy_scale",
         "router_use_capacity_features",
         "router_eval_hard",
+        "expert_checkpoint_dir",
+        "router_freeze_experts_episodes",
+        "router_only_lr",
+        "router_finetune_lr",
     ]:
         if field_name in saved_cfg:
             setattr(cfg, field_name, saved_cfg[field_name])
@@ -593,6 +667,7 @@ def train(cfg: Config) -> None:
     cluster_dir = Path(cfg.cluster_artifact_dir).resolve() if cfg.cluster_artifact_dir else save_dir
     cluster_dir.mkdir(parents=True, exist_ok=True)
     save_run_config(cfg, save_dir)
+    expert_ckpt_path = _resolve_checkpoint_path(cfg.expert_checkpoint_dir)
 
     group_assignments, cluster_result = run_clustering(
         climate=cfg.climate,
@@ -607,6 +682,18 @@ def train(cfg: Config) -> None:
         grouping_feature_month=cfg.grouping_feature_month,
         grouping_feature_columns=cfg.grouping_feature_columns,
     )
+    if expert_ckpt_path is not None:
+        expert_meta = torch.load(expert_ckpt_path, map_location="cpu", weights_only=False)
+        expert_assignments = np.array(expert_meta.get("group_assignments", []), dtype=group_assignments.dtype)
+        if expert_assignments.shape != group_assignments.shape or not np.array_equal(
+            expert_assignments,
+            group_assignments,
+        ):
+            raise ValueError(
+                "Expert checkpoint group assignments do not match the current router grouping. "
+                "Use the same grouping method, features, k candidates, cluster seed, and retries "
+                f"as the expert run. checkpoint={expert_ckpt_path}"
+            )
     K = int(group_assignments.max()) + 1
 
     use_wandb = _WANDB_OK
@@ -623,6 +710,10 @@ def train(cfg: Config) -> None:
                 "n_groups": K,
                 "group_sizes": cluster_result["sizes"],
                 "router_type": "state_conditioned_soft_mixture",
+                "expert_checkpoint_dir": cfg.expert_checkpoint_dir,
+                "router_freeze_experts_episodes": cfg.router_freeze_experts_episodes,
+                "router_only_lr": cfg.router_only_lr,
+                "router_finetune_lr": cfg.router_finetune_lr,
                 "grouping_method": cfg.grouping_method,
                 "grouping_feature_set": cfg.grouping_feature_set,
                 "grouping_feature_columns": cfg.grouping_feature_columns,
@@ -658,6 +749,13 @@ def train(cfg: Config) -> None:
         building_capacity_norm=capacity_norm,
         building_hvac_norm=hvac_norm,
     )
+    if expert_ckpt_path is not None:
+        _load_expert_checkpoint_for_router(
+            policies=policies,
+            controller=controller,
+            ckpt_path=expert_ckpt_path,
+            device=device,
+        )
 
     episode_length = train_env._base_env.episode_time_steps
     n_agents = train_env.n_agents
@@ -686,6 +784,13 @@ def train(cfg: Config) -> None:
         f"eval_hard={cfg.router_eval_hard} "
         f"obs_indices={router_obs_indices}"
     )
+    if expert_ckpt_path is not None:
+        print(
+            f"  two_stage_expert_init={expert_ckpt_path} "
+            f"freeze_experts_episodes={cfg.router_freeze_experts_episodes} "
+            f"router_only_lr={cfg.router_only_lr or cfg.lr} "
+            f"router_finetune_lr={cfg.router_finetune_lr or cfg.lr}"
+        )
 
     if use_wandb:
         wandb.log(
@@ -709,6 +814,10 @@ def train(cfg: Config) -> None:
                 "train/router/entropy_scale": cfg.router_entropy_scale,
                 "train/router/use_capacity_features": int(cfg.router_use_capacity_features),
                 "train/router/eval_hard": int(cfg.router_eval_hard),
+                "train/router/expert_checkpoint_dir": cfg.expert_checkpoint_dir or "",
+                "train/router/freeze_experts_episodes": cfg.router_freeze_experts_episodes,
+                "train/router/router_only_lr": cfg.router_only_lr or cfg.lr,
+                "train/router/router_finetune_lr": cfg.router_finetune_lr or cfg.lr,
             },
             step=0,
         )
@@ -719,6 +828,12 @@ def train(cfg: Config) -> None:
 
     for episode in range(1, cfg.n_episodes + 1):
         controller.set_router_alpha(_router_alpha_for_episode(cfg, episode))
+        router_phase = _configure_router_training_phase(
+            cfg=cfg,
+            controller=controller,
+            actor_optimizer=actor_optimizer,
+            episode=episode,
+        )
         obs, share_obs = train_env.reset(seed=cfg.seed + episode)
 
         for k, (buf, idx_k) in enumerate(zip(buffers, group_indices)):
@@ -854,6 +969,7 @@ def train(cfg: Config) -> None:
                 f"v_loss {train_info['value_loss']:.4f} | "
                 f"p_loss {train_info['policy_loss']:.4f} | "
                 f"entropy {train_info['dist_entropy']:.4f} | "
+                f"phase {router_phase} | "
                 f"gate_static {train_info['gate_static_weight']:.3f} | "
                 f"NMBE {float(nmbe):.3f}% | CV-RMSE {float(cv_rmse):.3f}%"
             )
@@ -872,6 +988,8 @@ def train(cfg: Config) -> None:
                 "train/router/gate_entropy": train_info["gate_entropy"],
                 "train/router/gate_max": train_info["gate_max"],
                 "train/router/gate_static_weight": train_info["gate_static_weight"],
+                "train/router/phase_router_only": int(router_phase == "router_only"),
+                "train/router/current_lr": float(actor_optimizer.param_groups[0]["lr"]),
             }
             for k in range(K):
                 key = f"gate_expert_{k}_mean"
@@ -934,6 +1052,10 @@ def train(cfg: Config) -> None:
             "entropy_scale": cfg.router_entropy_scale,
             "use_capacity_features": cfg.router_use_capacity_features,
             "eval_hard": cfg.router_eval_hard,
+            "expert_checkpoint_dir": cfg.expert_checkpoint_dir,
+            "freeze_experts_episodes": cfg.router_freeze_experts_episodes,
+            "router_only_lr": cfg.router_only_lr,
+            "router_finetune_lr": cfg.router_finetune_lr,
         },
         "n_groups": K,
         "group_sizes": group_sizes,
@@ -1164,6 +1286,36 @@ def parse_args() -> Config:
     parser.add_argument("--router_entropy_scale", type=float, default=0.02)
     parser.add_argument("--no_router_capacity_features", action="store_true", default=False)
     parser.add_argument("--router_eval_soft", action="store_true", default=False)
+    parser.add_argument(
+        "--expert_checkpoint_dir",
+        default=None,
+        help=(
+            "Optional fixed-group expert checkpoint directory or checkpoint.pt. "
+            "When set, group actor heads, encoders, communication, and critic are "
+            "initialized from that run."
+        ),
+    )
+    parser.add_argument(
+        "--router_freeze_experts_episodes",
+        type=int,
+        default=0,
+        help=(
+            "Number of initial episodes that train only the router while keeping "
+            "expert actors and communication frozen."
+        ),
+    )
+    parser.add_argument(
+        "--router_only_lr",
+        type=float,
+        default=None,
+        help="Actor optimizer learning rate during router-only training.",
+    )
+    parser.add_argument(
+        "--router_finetune_lr",
+        type=float,
+        default=None,
+        help="Actor optimizer learning rate after experts are unfrozen.",
+    )
 
     args = parser.parse_args()
     return Config(
@@ -1216,6 +1368,10 @@ def parse_args() -> Config:
         router_entropy_scale=args.router_entropy_scale,
         router_use_capacity_features=not args.no_router_capacity_features,
         router_eval_hard=not args.router_eval_soft,
+        expert_checkpoint_dir=args.expert_checkpoint_dir,
+        router_freeze_experts_episodes=args.router_freeze_experts_episodes,
+        router_only_lr=args.router_only_lr,
+        router_finetune_lr=args.router_finetune_lr,
     )
 
 
