@@ -69,8 +69,16 @@ SELECTED_EXPERIMENTS: List[str] = [
     "mappo_grouped_tarmac_hybrid_gated_vt_500_final2",
     "mappo_grouped_tarmac_hybrid_agglomerative_static_operational_vt_500_final",
     "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_final",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_seed0",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_seed1",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_seed2",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_seed3",
     "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_4f_linear_vt_500_final",
     "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_5f_linear_vt_500_final",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_5f_linear_vt_500_seed0",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_5f_linear_vt_500_seed1",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_5f_linear_vt_500_seed2",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_5f_linear_vt_500_seed3",
     "mappo_grouped_tarmac_hybrid_gmm_static_operational_vt_500_final",
     "mappo_grouped_tarmac_hybrid_gmm_capacity_load_5f_linear_vt_500_final",
     "mappo_grouped_tarmac_hybrid_kmeans_operational_profile_vt_500_final",
@@ -83,6 +91,11 @@ SELECTED_EXPERIMENTS: List[str] = [
     "mappo_grouped_tarmac_soft_router_agglomerative_5f_capacity_router_prior05_vt_500_final",
     "mappo_grouped_tarmac_soft_router_agglomerative_5f_capacity_router_temp05_vt_500_final",
     "mappo_grouped_tarmac_soft_router_agglomerative_5f_no_capacity_router_vt_500_final",
+    "mappo_grouped_tarmac_soft_router_twostage_3f_expert_freeze200_temp05_prior1_no_capacity_vt_500_final",
+    "mappo_grouped_tarmac_soft_router_twostage_3f_expert_freeze200_temp05_prior1_vt_500_final",
+    "mappo_grouped_tarmac_soft_router_twostage_3f_expert_freeze200_temp05_prior1_vt_500_seed0",
+    "mappo_grouped_tarmac_soft_router_twostage_3f_expert_freeze200_temp07_prior07_vt_500_final",
+    "mappo_grouped_tarmac_soft_router_twostage_3f_expert_routeronly500_temp05_prior1_vt_500_final",
     "mappo_grouped_vt_500_final3",
     "mappo_standard_vt_500_final3",
     "rllib_independent_ppo_vt_80_final2",
@@ -628,7 +641,7 @@ def _build_row(experiment: str, wandb_root: Path) -> Dict[str, Any]:
         "algorithm_family": _algorithm_family(experiment),
         "result_dir": _repo_relative_posix(result_dir),
         "n_episodes": run_config.get("n_episodes") or test_metrics.get("episode"),
-        "seed": run_config.get("seed") or test_metrics.get("seed"),
+        "seed": run_config.get("seed") if run_config.get("seed") is not None else test_metrics.get("seed"),
         "climate": run_config.get("climate") or test_metrics.get("climate"),
         "train_month": run_config.get("train_month"),
         "test_month": run_config.get("test_month") or test_metrics.get("test_month"),
@@ -807,7 +820,14 @@ def _build_ranked_tables(base_df: pd.DataFrame) -> Dict[str, Any]:
     }
 
 
-def _write_markdown_table(path: Path, df: pd.DataFrame, columns: Sequence[str]) -> None:
+def _write_markdown_table(
+    path: Path,
+    df: pd.DataFrame,
+    columns: Sequence[str],
+    *,
+    title: str = "Selected Experiment Metrics Summary",
+    intro_lines: Sequence[str] = (),
+) -> None:
     view = df.loc[:, [column for column in columns if column in df.columns]].copy()
     headers = list(view.columns)
 
@@ -830,12 +850,121 @@ def _write_markdown_table(path: Path, df: pd.DataFrame, columns: Sequence[str]) 
     for row in rows:
         lines.append("| " + " | ".join(row[idx].ljust(widths[idx]) for idx in range(len(headers))) + " |")
 
-    note = ["# Selected Experiment Metrics Summary", ""]
+    note = [f"# {title}", "", *intro_lines]
+    if intro_lines:
+        note.append("")
     path.write_text("\n".join(note + lines) + "\n", encoding="utf-8")
 
 
 def _table_view(df: pd.DataFrame, columns: Sequence[str]) -> pd.DataFrame:
     return df.loc[:, [column for column in columns if column in df.columns]].copy()
+
+
+def _grouping_ablation_labels(experiment: str) -> Optional[Dict[str, str]]:
+    if "tarmac_soft_router" in experiment:
+        if "twostage_3f" in experiment:
+            if "routeronly" in experiment:
+                feature_set = "dynamic_twostage_3f_router_only"
+            elif "no_capacity" in experiment:
+                feature_set = "dynamic_twostage_3f_expert_no_capacity"
+            else:
+                feature_set = "dynamic_twostage_3f_expert"
+        elif "no_capacity_router" in experiment:
+            feature_set = "dynamic_no_capacity_router_5f"
+        elif "capacity_router" in experiment:
+            feature_set = "dynamic_capacity_router_5f"
+        else:
+            feature_set = "dynamic_router_legacy"
+        return {
+            "architecture": "TarMAC soft-router",
+            "grouping_method_short": "soft_router",
+            "grouping_feature_set_short": feature_set,
+            "feature_group": "dynamic soft-router",
+        }
+
+    if "powernet_global" in experiment:
+        architecture = "PowerNet global"
+    elif "tarmac_hybrid" in experiment:
+        architecture = "TarMAC hybrid"
+    else:
+        return None
+
+    grouping_method = next(
+        (method for method in ("agglomerative", "gmm", "kmeans") if f"_{method}_" in experiment),
+        None,
+    )
+    feature_set = next(
+        (
+            feature
+            for feature in (
+                "capacity_load_3f",
+                "capacity_load_4f",
+                "capacity_load_5f",
+                "static_operational",
+                "operational_profile",
+                "static_extended",
+            )
+            if feature in experiment
+        ),
+        None,
+    )
+    if grouping_method is None or feature_set is None:
+        return None
+    return {
+        "architecture": architecture,
+        "grouping_method_short": grouping_method,
+        "grouping_feature_set_short": feature_set,
+        "feature_group": "compact fixed grouping" if feature_set.startswith("capacity_load_") else "previous larger/full",
+    }
+
+
+def _build_grouping_feature_ablation(primary_df: pd.DataFrame) -> pd.DataFrame:
+    rows: List[Dict[str, Any]] = []
+    metric_columns = [
+        "primary_rank",
+        "primary_rank_score",
+        "seed",
+        "experiment",
+        "primary_load_cv_rmse_pct",
+        "primary_load_nmbe_pct",
+        "primary_abs_nmbe_pct",
+        "primary_comfort_exceedance_pct",
+        "primary_comfort_exceedance_hours_total",
+        "primary_comfort_exceedance_hours_mean",
+        "primary_comfort_exceedance_hours_max",
+        "test_reward_sum",
+        "wandb_run_id",
+    ]
+    for _, source_row in primary_df.iterrows():
+        labels = _grouping_ablation_labels(str(source_row["experiment"]))
+        if labels is None:
+            continue
+        row = {column: source_row.get(column) for column in metric_columns}
+        row.update(labels)
+        rows.append(row)
+
+    columns = [
+        "primary_rank",
+        "primary_rank_score",
+        "architecture",
+        "grouping_method_short",
+        "grouping_feature_set_short",
+        "feature_group",
+        "seed",
+        "experiment",
+        "primary_load_cv_rmse_pct",
+        "primary_load_nmbe_pct",
+        "primary_abs_nmbe_pct",
+        "primary_comfort_exceedance_pct",
+        "primary_comfort_exceedance_hours_total",
+        "primary_comfort_exceedance_hours_mean",
+        "primary_comfort_exceedance_hours_max",
+        "test_reward_sum",
+        "wandb_run_id",
+    ]
+    return pd.DataFrame(rows, columns=columns).sort_values(
+        ["primary_rank", "primary_rank_score", "experiment"]
+    )
 
 
 def _write_secondary_markdown(path: Path, secondary_tables: Dict[str, pd.DataFrame]) -> None:
@@ -965,6 +1094,8 @@ def main() -> int:
     recommended_md = output_root / "selected_experiment_metrics_recommended_table.md"
     secondary_csv = output_root / "selected_experiment_metrics_secondary_objective_ranks.csv"
     secondary_md = output_root / "selected_experiment_metrics_secondary_objective_tables.md"
+    grouping_ablation_csv = output_root / "grouping_feature_ablation_primary_only_sorted.csv"
+    grouping_ablation_md = output_root / "grouping_feature_ablation_primary_only_sorted.md"
 
     df.to_csv(full_csv, index=False)
     overall_columns = [column for column in SUMMARY_COLUMNS if column in df.columns]
@@ -974,6 +1105,7 @@ def main() -> int:
     primary_columns = [
         "primary_rank",
         "experiment",
+        "seed",
         "primary_rank_score",
         "primary_load_cv_rmse_pct",
         "primary_load_nmbe_pct",
@@ -1023,12 +1155,28 @@ def main() -> int:
     pd.concat(secondary_frames, ignore_index=True).to_csv(secondary_csv, index=False)
     _write_secondary_markdown(secondary_md, tables["secondary"])
 
+    grouping_ablation = _build_grouping_feature_ablation(tables["primary_only"])
+    grouping_ablation.to_csv(grouping_ablation_csv, index=False)
+    _write_markdown_table(
+        grouping_ablation_md,
+        grouping_ablation,
+        list(grouping_ablation.columns),
+        title="Grouping Feature Ablation + Soft-Router: Primary-Only Sorted",
+        intro_lines=[
+            "Sorted by `primary_rank` from `selected_experiment_metrics_primary_only_table.csv`. Lower rank is better.",
+            "",
+            "Included rows: compact fixed grouping runs, previous larger/full fixed grouping, legacy soft-router, "
+            "upgraded capacity-router, and two-stage soft-router runs.",
+        ],
+    )
+
     print(f"Full metrics table -> {full_csv}")
     print(f"Overall report table -> {report_csv}")
     print(f"Overall report markdown -> {markdown_path}")
     print(f"Primary-only table -> {primary_csv}")
     print(f"Recommended table -> {recommended_csv}")
     print(f"Secondary objective tables -> {secondary_md}")
+    print(f"Grouping feature ablation table -> {grouping_ablation_csv}")
     return 0
 
 
