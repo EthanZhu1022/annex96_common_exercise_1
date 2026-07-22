@@ -1,9 +1,10 @@
 """
 Grouped MAPPO with hybrid TarMAC-style global communication and soft actor routing.
 
-Actor path:
-  obs(group_k) -> encoder_k -> local/TarMAC hybrid communication
-               -> state-conditioned soft mixture over grouped action heads
+The legacy path retains grouped encoders for checkpoint compatibility.  The
+three-stage path uses one shared encoder, so static grouping specializes action
+heads without creating incompatible hidden spaces.  It then trains the router
+and finally fine-tunes the actor under fully dynamic routing.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import numpy as np
 import torch
@@ -140,12 +141,37 @@ class Config:
     router_prior_end: float = 0.7
     router_warmup_episodes: int = 100
     router_entropy_scale: float = 0.02
+    router_balance_coef: float = 0.0
     router_use_capacity_features: bool = True
     router_eval_hard: bool = True
     expert_checkpoint_dir: Optional[str] = None
     router_freeze_experts_episodes: int = 0
     router_only_lr: Optional[float] = None
     router_finetune_lr: Optional[float] = None
+
+    # New mismatch-free schedule.  Legacy remains the default so historical
+    # checkpoints and experiment commands retain their original architecture.
+    training_schedule: str = "legacy"
+    shared_encoder: bool = False
+    full_expert_routing: bool = False
+    static_actor_episodes: int = 0
+    router_only_episodes: int = 0
+    dynamic_actor_episodes: int = 0
+    dynamic_actor_router_freeze_episodes: int = 100
+    dynamic_actor_lr: Optional[float] = None
+    checkpoint_keep_every: int = 50
+
+
+def _unique_parameters(modules: List[nn.Module]) -> List[nn.Parameter]:
+    """Return trainable module parameters once, even when modules share a trunk."""
+    params: List[nn.Parameter] = []
+    seen: Set[int] = set()
+    for module in modules:
+        for param in module.parameters():
+            if id(param) not in seen:
+                params.append(param)
+                seen.add(id(param))
+    return params
 
 
 def _build_grouped_components(
@@ -214,13 +240,31 @@ def _build_grouped_components(
         building_hvac_norm=building_hvac_norm,
         use_capacity_router_features=cfg.router_use_capacity_features,
         deterministic_hard_routing=cfg.router_eval_hard,
+        shared_encoder=cfg.shared_encoder,
+        full_expert_routing=cfg.full_expert_routing,
     ).to(device)
-    actor_optimizer = torch.optim.Adam(
-        controller.parameters(),
-        lr=mappo_args.lr,
-        eps=mappo_args.opti_eps,
-        weight_decay=mappo_args.weight_decay,
-    )
+    if cfg.training_schedule != "legacy":
+        expert_params = _unique_parameters([controller.group_actors, controller.comm])
+        router_params = list(controller.router.parameters())
+        actor_optimizer = torch.optim.Adam(
+            [
+                {"params": expert_params, "lr": mappo_args.lr, "name": "experts"},
+                {
+                    "params": router_params,
+                    "lr": float(cfg.router_only_lr or mappo_args.lr),
+                    "name": "router",
+                },
+            ],
+            eps=mappo_args.opti_eps,
+            weight_decay=mappo_args.weight_decay,
+        )
+    else:
+        actor_optimizer = torch.optim.Adam(
+            controller.parameters(),
+            lr=mappo_args.lr,
+            eps=mappo_args.opti_eps,
+            weight_decay=mappo_args.weight_decay,
+        )
 
     trainers: List[R_MAPPO] = [
         R_MAPPO(args=mappo_args, policy=policies[k], device=device)
@@ -250,6 +294,20 @@ def _build_grouped_components(
 
 
 def _router_alpha_for_episode(cfg: Config, episode: int) -> float:
+    if cfg.training_schedule != "legacy":
+        if episode <= cfg.static_actor_episodes:
+            return 0.0
+        router_episode = episode - cfg.static_actor_episodes
+        if router_episode <= cfg.router_only_episodes:
+            if cfg.router_warmup_episodes <= 0:
+                return 1.0
+            progress = min(
+                max((router_episode - 1) / float(cfg.router_warmup_episodes), 0.0),
+                1.0,
+            )
+            return float(cfg.router_prior_start + progress * (1.0 - cfg.router_prior_start))
+        # Stage 3 is intentionally free of the fixed grouping prior.
+        return 1.0
     if cfg.router_warmup_episodes <= 0:
         return float(cfg.router_prior_end)
     progress = min(max((episode - 1) / float(cfg.router_warmup_episodes), 0.0), 1.0)
@@ -299,6 +357,126 @@ def _set_expert_trainable(controller: SoftRouterGlobalCommActorController, train
             param.requires_grad = trainable
     for param in controller.router.parameters():
         param.requires_grad = True
+
+
+def _set_router_trainable(
+    controller: SoftRouterGlobalCommActorController,
+    trainable: bool,
+) -> None:
+    for param in controller.router.parameters():
+        param.requires_grad = trainable
+
+
+def _set_optimizer_group_lr(
+    actor_optimizer: torch.optim.Optimizer,
+    name: str,
+    lr: float,
+) -> None:
+    matched = False
+    for group in actor_optimizer.param_groups:
+        if group.get("name") == name:
+            group["lr"] = float(lr)
+            matched = True
+    if not matched:
+        raise RuntimeError(f"Optimizer has no parameter group named {name!r}.")
+
+
+def _optimizer_lrs(actor_optimizer: torch.optim.Optimizer) -> Dict[str, float]:
+    return {
+        str(group.get("name", f"group_{i}")): float(group["lr"])
+        for i, group in enumerate(actor_optimizer.param_groups)
+    }
+
+
+def _reset_optimizer_group_state(
+    actor_optimizer: torch.optim.Optimizer,
+    name: str,
+) -> None:
+    """Drop stale Adam moments when a parameter group resumes after a long freeze."""
+    for group in actor_optimizer.param_groups:
+        if group.get("name") != name:
+            continue
+        for param in group["params"]:
+            actor_optimizer.state.pop(param, None)
+        return
+    raise RuntimeError(f"Optimizer has no parameter group named {name!r}.")
+
+
+def _write_router_history(history: List[Dict[str, Any]], save_dir: Path) -> None:
+    if not history:
+        return
+    fieldnames: List[str] = []
+    for row in history:
+        for key in row:
+            if key not in fieldnames:
+                fieldnames.append(key)
+    path = save_dir / "router_training_history.csv"
+    with path.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(history)
+
+
+def _keep_checkpoint_copy(
+    checkpoint_path: Path,
+    save_dir: Path,
+    episode: int,
+    phase: str,
+) -> Path:
+    checkpoint_dir = save_dir / "checkpoints"
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    kept_path = checkpoint_dir / f"checkpoint_ep{episode:04d}_{phase}.pt"
+    shutil.copy2(checkpoint_path, kept_path)
+    print(f"  [ckpt-keep] {kept_path}")
+    return kept_path
+
+
+def _configure_three_stage_phase(
+    cfg: Config,
+    controller: SoftRouterGlobalCommActorController,
+    actor_optimizer: torch.optim.Optimizer,
+    episode: int,
+) -> str:
+    static_end = cfg.static_actor_episodes
+    router_end = static_end + cfg.router_only_episodes
+    dynamic_episode = episode - router_end
+    expert_lr = float(cfg.dynamic_actor_lr or cfg.router_finetune_lr or cfg.lr)
+    router_only_lr = float(cfg.router_only_lr or cfg.lr)
+    router_joint_lr = float(cfg.router_finetune_lr or cfg.router_only_lr or cfg.lr)
+
+    if episode <= static_end:
+        phase = "static_actor"
+        _set_expert_trainable(controller, trainable=True)
+        _set_router_trainable(controller, trainable=False)
+        _set_optimizer_group_lr(actor_optimizer, "experts", cfg.lr)
+        _set_optimizer_group_lr(actor_optimizer, "router", 0.0)
+    elif episode <= router_end:
+        phase = "router_only"
+        _set_expert_trainable(controller, trainable=False)
+        _set_router_trainable(controller, trainable=True)
+        _set_optimizer_group_lr(actor_optimizer, "experts", 0.0)
+        _set_optimizer_group_lr(actor_optimizer, "router", router_only_lr)
+    elif dynamic_episode <= cfg.dynamic_actor_router_freeze_episodes:
+        # Let the shared actor adapt to the learned dynamic traffic while the
+        # router distribution remains stationary.
+        phase = "dynamic_actor_adapt"
+        _set_expert_trainable(controller, trainable=True)
+        _set_router_trainable(controller, trainable=False)
+        _set_optimizer_group_lr(actor_optimizer, "experts", expert_lr)
+        _set_optimizer_group_lr(actor_optimizer, "router", 0.0)
+        if dynamic_episode == 1:
+            _reset_optimizer_group_state(actor_optimizer, "experts")
+    else:
+        phase = "dynamic_joint"
+        _set_expert_trainable(controller, trainable=True)
+        _set_router_trainable(controller, trainable=True)
+        _set_optimizer_group_lr(actor_optimizer, "experts", expert_lr)
+        _set_optimizer_group_lr(actor_optimizer, "router", router_joint_lr)
+        if dynamic_episode == 1:
+            _reset_optimizer_group_state(actor_optimizer, "experts")
+        if dynamic_episode == cfg.dynamic_actor_router_freeze_episodes + 1:
+            _reset_optimizer_group_state(actor_optimizer, "router")
+    return phase
 
 
 def _configure_router_training_phase(
@@ -361,6 +539,29 @@ def _read_router_static_features(cluster_dir: Path, n_buildings: int) -> Tuple[n
     return capacity.astype(np.float32), hvac.astype(np.float32)
 
 
+def _compute_globally_normalized_advantages(
+    trainers: List[R_MAPPO],
+    buffers: List[GroupedSharedReplayBuffer],
+) -> List[np.ndarray]:
+    """Normalize advantages across all agents instead of legacy groups."""
+    raw: List[np.ndarray] = []
+    active_values: List[np.ndarray] = []
+    for trainer, buffer in zip(trainers, buffers):
+        if trainer._use_popart or trainer._use_valuenorm:
+            advantages = buffer.returns[:-1] - trainer.value_normalizer.denormalize(
+                buffer.value_preds[:-1]
+            )
+        else:
+            advantages = buffer.returns[:-1] - buffer.value_preds[:-1]
+        raw.append(advantages)
+        active_values.append(advantages[buffer.active_masks[:-1] > 0.0])
+
+    flat = np.concatenate(active_values) if active_values else np.array([0.0])
+    mean_adv = float(np.mean(flat))
+    std_adv = float(np.std(flat))
+    return [(advantages - mean_adv) / (std_adv + 1e-5) for advantages in raw]
+
+
 def _train_soft_router_actor(
     cfg: Config,
     controller: SoftRouterGlobalCommActorController,
@@ -370,10 +571,13 @@ def _train_soft_router_actor(
 ) -> Tuple[Dict[str, float], List[Dict[str, float]]]:
     controller.train()
     device = next(controller.parameters()).device
-    advantages_by_group = [
-        _compute_advantages(trainer, buffer)
-        for trainer, buffer in zip(trainers, buffers)
-    ]
+    if cfg.training_schedule != "legacy":
+        advantages_by_group = _compute_globally_normalized_advantages(trainers, buffers)
+    else:
+        advantages_by_group = [
+            _compute_advantages(trainer, buffer)
+            for trainer, buffer in zip(trainers, buffers)
+        ]
 
     train_info: Dict[str, float] = {
         "policy_loss": 0.0,
@@ -384,6 +588,7 @@ def _train_soft_router_actor(
         "gate_entropy": 0.0,
         "gate_max": 0.0,
         "gate_static_weight": 0.0,
+        "gate_balance_loss": 0.0,
     }
     for k in range(len(buffers)):
         train_info[f"gate_expert_{k}_mean"] = 0.0
@@ -416,6 +621,8 @@ def _train_soft_router_actor(
             current_log_probs, entropies = controller.evaluate_actions(tensor_batches)
 
             policy_losses: List[torch.Tensor] = []
+            policy_loss_numerators: List[torch.Tensor] = []
+            active_counts: List[torch.Tensor] = []
             entropy_terms: List[torch.Tensor] = []
             ratios: List[torch.Tensor] = []
             for k, (curr_logp, entropy_k, batch) in enumerate(zip(current_log_probs, entropies, tensor_batches)):
@@ -431,6 +638,13 @@ def _train_soft_router_actor(
                 ).sum() / batch["active_masks"].sum()
 
                 policy_losses.append(policy_action_loss)
+                policy_loss_numerators.append(
+                    (
+                        -torch.sum(torch.min(surr1, surr2), dim=-1, keepdim=True)
+                        * batch["active_masks"]
+                    ).sum()
+                )
+                active_counts.append(batch["active_masks"].sum())
                 entropy_terms.append(entropy_k)
                 ratios.append(imp_weights.mean())
 
@@ -438,12 +652,32 @@ def _train_soft_router_actor(
                 per_group_info[k]["dist_entropy"] += float(entropy_k.item())
                 per_group_info[k]["ratio"] += float(imp_weights.mean().item())
 
-            total_policy_loss = torch.stack(policy_losses).mean()
-            total_entropy = torch.stack(entropy_terms).mean()
-            total_ratio = torch.stack(ratios).mean()
+            if cfg.training_schedule != "legacy":
+                total_active = torch.stack(active_counts).sum().clamp_min(1.0)
+                total_policy_loss = torch.stack(policy_loss_numerators).sum() / total_active
+                total_entropy = torch.stack(
+                    [entropy * count for entropy, count in zip(entropy_terms, active_counts)]
+                ).sum() / total_active
+                total_ratio = torch.stack(
+                    [ratio * count for ratio, count in zip(ratios, active_counts)]
+                ).sum() / total_active
+            else:
+                total_policy_loss = torch.stack(policy_losses).mean()
+                total_entropy = torch.stack(entropy_terms).mean()
+                total_ratio = torch.stack(ratios).mean()
+
+            gate_balance_loss = controller.last_gate_balance_loss
+            router_trainable = any(param.requires_grad for param in controller.router.parameters())
+            if gate_balance_loss is None or not router_trainable:
+                gate_balance_loss = total_policy_loss.new_zeros(())
+            actor_objective = (
+                total_policy_loss
+                - total_entropy * cfg.entropy_coef
+                + gate_balance_loss * cfg.router_balance_coef
+            )
 
             actor_optimizer.zero_grad()
-            (total_policy_loss - total_entropy * cfg.entropy_coef).backward()
+            actor_objective.backward()
             actor_grad_norm = nn.utils.clip_grad_norm_(controller.parameters(), cfg.max_grad_norm)
             actor_optimizer.step()
 
@@ -451,6 +685,7 @@ def _train_soft_router_actor(
             train_info["dist_entropy"] += float(total_entropy.item())
             train_info["actor_grad_norm"] += float(actor_grad_norm)
             train_info["ratio"] += float(total_ratio.item())
+            train_info["gate_balance_loss"] += float(gate_balance_loss.item())
             for key, value in controller.last_gate_stats.items():
                 if key in train_info:
                     train_info[key] += float(value)
@@ -492,12 +727,22 @@ def _apply_checkpoint_model_config(cfg: Config, ckpt_meta: Dict[str, Any]) -> No
         "router_prior_end",
         "router_warmup_episodes",
         "router_entropy_scale",
+        "router_balance_coef",
         "router_use_capacity_features",
         "router_eval_hard",
         "expert_checkpoint_dir",
         "router_freeze_experts_episodes",
         "router_only_lr",
         "router_finetune_lr",
+        "training_schedule",
+        "shared_encoder",
+        "full_expert_routing",
+        "static_actor_episodes",
+        "router_only_episodes",
+        "dynamic_actor_episodes",
+        "dynamic_actor_router_freeze_episodes",
+        "dynamic_actor_lr",
+        "checkpoint_keep_every",
     ]:
         if field_name in saved_cfg:
             setattr(cfg, field_name, saved_cfg[field_name])
@@ -640,7 +885,64 @@ def evaluate_on_test(
     return result
 
 
+def _prepare_training_config(cfg: Config) -> None:
+    if cfg.training_schedule not in {"legacy", "three_stage", "pretrained_full_expert"}:
+        raise ValueError(f"Unsupported training_schedule={cfg.training_schedule!r}.")
+    if cfg.training_schedule != "three_stage":
+        if cfg.training_schedule == "legacy":
+            return
+        if cfg.static_actor_episodes != 0:
+            raise ValueError(
+                "pretrained_full_expert treats the external checkpoint as stage 1; "
+                "static_actor_episodes must be 0."
+            )
+        if cfg.router_only_episodes <= 0 or cfg.dynamic_actor_episodes <= 0:
+            raise ValueError(
+                "pretrained_full_expert requires positive router_only_episodes and "
+                "dynamic_actor_episodes."
+            )
+        if cfg.dynamic_actor_router_freeze_episodes < 0:
+            raise ValueError("dynamic_actor_router_freeze_episodes must be non-negative.")
+        if cfg.dynamic_actor_router_freeze_episodes > cfg.dynamic_actor_episodes:
+            raise ValueError(
+                "dynamic_actor_router_freeze_episodes cannot exceed dynamic_actor_episodes."
+            )
+        cfg.shared_encoder = False
+        cfg.full_expert_routing = True
+        cfg.router_prior_end = 1.0
+        cfg.n_episodes = int(cfg.router_only_episodes + cfg.dynamic_actor_episodes)
+        return
+
+    stage_lengths = {
+        "static_actor_episodes": cfg.static_actor_episodes,
+        "router_only_episodes": cfg.router_only_episodes,
+        "dynamic_actor_episodes": cfg.dynamic_actor_episodes,
+    }
+    invalid = {name: value for name, value in stage_lengths.items() if int(value) <= 0}
+    if invalid:
+        raise ValueError(
+            "Three-stage training requires positive episode counts for every stage: "
+            f"{invalid}"
+        )
+    if cfg.dynamic_actor_router_freeze_episodes < 0:
+        raise ValueError("dynamic_actor_router_freeze_episodes must be non-negative.")
+    if cfg.dynamic_actor_router_freeze_episodes > cfg.dynamic_actor_episodes:
+        raise ValueError(
+            "dynamic_actor_router_freeze_episodes cannot exceed dynamic_actor_episodes."
+        )
+
+    cfg.shared_encoder = True
+    cfg.full_expert_routing = False
+    cfg.router_prior_end = 1.0
+    cfg.n_episodes = int(
+        cfg.static_actor_episodes
+        + cfg.router_only_episodes
+        + cfg.dynamic_actor_episodes
+    )
+
+
 def train(cfg: Config) -> None:
+    _prepare_training_config(cfg)
     defaults = _CLIMATE_DEFAULTS.get(cfg.climate, {})
     train_month = cfg.train_month or defaults.get("train_month")
     test_month = cfg.test_month or defaults.get("test_month")
@@ -668,6 +970,11 @@ def train(cfg: Config) -> None:
     cluster_dir.mkdir(parents=True, exist_ok=True)
     save_run_config(cfg, save_dir)
     expert_ckpt_path = _resolve_checkpoint_path(cfg.expert_checkpoint_dir)
+    if cfg.full_expert_routing and expert_ckpt_path is None:
+        raise ValueError(
+            "pretrained_full_expert requires --expert_checkpoint_dir pointing to the "
+            "trained grouped TarMAC checkpoint."
+        )
 
     group_assignments, cluster_result = run_clustering(
         climate=cfg.climate,
@@ -684,6 +991,19 @@ def train(cfg: Config) -> None:
     )
     if expert_ckpt_path is not None:
         expert_meta = torch.load(expert_ckpt_path, map_location="cpu", weights_only=False)
+        expert_cfg = expert_meta.get("cfg", {})
+        if cfg.shared_encoder and not bool(expert_cfg.get("shared_encoder", False)):
+            raise ValueError(
+                "Refusing to load a legacy grouped-encoder expert checkpoint into the "
+                "shared-encoder controller: its action heads were trained in incompatible "
+                "latent spaces. Run the static actor stage in three_stage mode, or load a "
+                "checkpoint whose cfg.shared_encoder is true."
+            )
+        if cfg.full_expert_routing and bool(expert_cfg.get("shared_encoder", False)):
+            raise ValueError(
+                "Full-expert routing requires the original grouped-encoder checkpoint, "
+                "not a shared-encoder checkpoint."
+            )
         expert_assignments = np.array(expert_meta.get("group_assignments", []), dtype=group_assignments.dtype)
         if expert_assignments.shape != group_assignments.shape or not np.array_equal(
             expert_assignments,
@@ -784,6 +1104,19 @@ def train(cfg: Config) -> None:
         f"eval_hard={cfg.router_eval_hard} "
         f"obs_indices={router_obs_indices}"
     )
+    print(
+        f"  training_schedule={cfg.training_schedule} "
+        f"shared_encoder={cfg.shared_encoder} "
+        f"full_expert_routing={cfg.full_expert_routing}"
+    )
+    if cfg.training_schedule != "legacy":
+        print(
+            "  stages="
+            f"static_actor:{cfg.static_actor_episodes}, "
+            f"router_only:{cfg.router_only_episodes}, "
+            f"dynamic_actor:{cfg.dynamic_actor_episodes} "
+            f"(router_frozen_first={cfg.dynamic_actor_router_freeze_episodes})"
+        )
     if expert_ckpt_path is not None:
         print(
             f"  two_stage_expert_init={expert_ckpt_path} "
@@ -824,16 +1157,26 @@ def train(cfg: Config) -> None:
 
     all_rewards: List[float] = []
     all_primary_metrics: List[Dict[str, Any]] = []
+    router_history: List[Dict[str, Any]] = []
+    previous_expert_usage: Optional[np.ndarray] = None
     save_every = max(cfg.n_episodes // 10, 1)
 
     for episode in range(1, cfg.n_episodes + 1):
         controller.set_router_alpha(_router_alpha_for_episode(cfg, episode))
-        router_phase = _configure_router_training_phase(
-            cfg=cfg,
-            controller=controller,
-            actor_optimizer=actor_optimizer,
-            episode=episode,
-        )
+        if cfg.training_schedule != "legacy":
+            router_phase = _configure_three_stage_phase(
+                cfg=cfg,
+                controller=controller,
+                actor_optimizer=actor_optimizer,
+                episode=episode,
+            )
+        else:
+            router_phase = _configure_router_training_phase(
+                cfg=cfg,
+                controller=controller,
+                actor_optimizer=actor_optimizer,
+                episode=episode,
+            )
         obs, share_obs = train_env.reset(seed=cfg.seed + episode)
 
         for k, (buf, idx_k) in enumerate(zip(buffers, group_indices)):
@@ -951,6 +1294,7 @@ def train(cfg: Config) -> None:
             "gate_entropy": actor_train_info["gate_entropy"],
             "gate_max": actor_train_info["gate_max"],
             "gate_static_weight": actor_train_info["gate_static_weight"],
+            "gate_balance_loss": actor_train_info["gate_balance_loss"],
         }
 
         all_rewards.append(episode_reward)
@@ -960,6 +1304,42 @@ def train(cfg: Config) -> None:
             cfg.train_month,
         )
         all_primary_metrics.append(primary_metrics)
+
+        optimizer_lrs = _optimizer_lrs(actor_optimizer)
+        expert_usage = np.asarray(
+            [actor_train_info.get(f"gate_expert_{k}_mean", 0.0) for k in range(K)],
+            dtype=np.float64,
+        )
+        usage_l1_delta = (
+            float(np.abs(expert_usage - previous_expert_usage).sum())
+            if previous_expert_usage is not None
+            else 0.0
+        )
+        previous_expert_usage = expert_usage
+        history_row: Dict[str, Any] = {
+            "episode": episode,
+            "phase": router_phase,
+            "episode_reward_sum": episode_reward,
+            "router_alpha": train_info["router_alpha"],
+            "gate_entropy": train_info["gate_entropy"],
+            "gate_max": train_info["gate_max"],
+            "gate_static_weight": train_info["gate_static_weight"],
+            "gate_balance_loss": train_info["gate_balance_loss"],
+            "expert_usage_l1_delta": usage_l1_delta,
+            "actor_grad_norm": train_info["actor_grad_norm"],
+            "policy_loss": train_info["policy_loss"],
+            "lr_experts": optimizer_lrs.get("experts", optimizer_lrs.get("group_0", 0.0)),
+            "lr_router": optimizer_lrs.get("router", optimizer_lrs.get("group_0", 0.0)),
+        }
+        for k, value in enumerate(expert_usage):
+            history_row[f"expert_{k}_mean"] = float(value)
+        for key in (
+            "primary/load_tracking/nmbe_pct",
+            "primary/load_tracking/cv_rmse_pct",
+            "primary/thermal_comfort/portfolio_exceedance_pct",
+        ):
+            history_row[key] = primary_metrics.get(key)
+        router_history.append(history_row)
 
         if episode % 10 == 0 or episode == 1:
             nmbe = primary_metrics.get("primary/load_tracking/nmbe_pct")
@@ -988,8 +1368,14 @@ def train(cfg: Config) -> None:
                 "train/router/gate_entropy": train_info["gate_entropy"],
                 "train/router/gate_max": train_info["gate_max"],
                 "train/router/gate_static_weight": train_info["gate_static_weight"],
+                "train/router/gate_balance_loss": train_info["gate_balance_loss"],
+                "train/router/expert_usage_l1_delta": usage_l1_delta,
                 "train/router/phase_router_only": int(router_phase == "router_only"),
-                "train/router/current_lr": float(actor_optimizer.param_groups[0]["lr"]),
+                "train/router/phase_static_actor": int(router_phase == "static_actor"),
+                "train/router/phase_dynamic_actor_adapt": int(router_phase == "dynamic_actor_adapt"),
+                "train/router/phase_dynamic_joint": int(router_phase == "dynamic_joint"),
+                "train/router/expert_lr": history_row["lr_experts"],
+                "train/router/router_lr": history_row["lr_router"],
             }
             for k in range(K):
                 key = f"gate_expert_{k}_mean"
@@ -1005,8 +1391,18 @@ def train(cfg: Config) -> None:
                     log[f"train/{kk}"] = value
             wandb.log(_filter_wandb(log), step=episode)
 
-        if episode % save_every == 0 or episode == cfg.n_episodes:
-            save_checkpoint(
+        phase_boundaries = {
+            cfg.static_actor_episodes,
+            cfg.static_actor_episodes + cfg.router_only_episodes,
+            cfg.n_episodes,
+        }
+        keep_due = (
+            cfg.training_schedule != "legacy"
+            and cfg.checkpoint_keep_every > 0
+            and episode % cfg.checkpoint_keep_every == 0
+        )
+        if episode % save_every == 0 or episode == cfg.n_episodes or keep_due or episode in phase_boundaries:
+            checkpoint_path = save_checkpoint(
                 policies=policies,
                 controller=controller,
                 actor_optimizer=actor_optimizer,
@@ -1016,6 +1412,14 @@ def train(cfg: Config) -> None:
                 episode=episode,
                 cfg=cfg,
             )
+            if cfg.training_schedule != "legacy" and (keep_due or episode in phase_boundaries):
+                _keep_checkpoint_copy(
+                    checkpoint_path=checkpoint_path,
+                    save_dir=save_dir,
+                    episode=episode,
+                    phase=router_phase,
+                )
+            _write_router_history(router_history, save_dir)
             save_plots(all_rewards, all_primary_metrics, save_dir)
 
     test_result: Optional[Dict[str, Any]] = None
@@ -1038,6 +1442,9 @@ def train(cfg: Config) -> None:
         "comm_method": cfg.comm_method,
         "comm_scope": cfg.comm_scope,
         "comm_fusion_mode": cfg.comm_fusion_mode,
+        "training_schedule": cfg.training_schedule,
+        "shared_encoder": cfg.shared_encoder,
+        "full_expert_routing": cfg.full_expert_routing,
         "grouping_method": cfg.grouping_method,
         "grouping_feature_set": cfg.grouping_feature_set,
         "grouping_feature_month": cfg.grouping_feature_month,
@@ -1050,12 +1457,18 @@ def train(cfg: Config) -> None:
             "prior_end": cfg.router_prior_end,
             "warmup_episodes": cfg.router_warmup_episodes,
             "entropy_scale": cfg.router_entropy_scale,
+            "balance_coef": cfg.router_balance_coef,
             "use_capacity_features": cfg.router_use_capacity_features,
             "eval_hard": cfg.router_eval_hard,
             "expert_checkpoint_dir": cfg.expert_checkpoint_dir,
             "freeze_experts_episodes": cfg.router_freeze_experts_episodes,
             "router_only_lr": cfg.router_only_lr,
             "router_finetune_lr": cfg.router_finetune_lr,
+            "static_actor_episodes": cfg.static_actor_episodes,
+            "router_only_episodes": cfg.router_only_episodes,
+            "dynamic_actor_episodes": cfg.dynamic_actor_episodes,
+            "dynamic_actor_router_freeze_episodes": cfg.dynamic_actor_router_freeze_episodes,
+            "dynamic_actor_lr": cfg.dynamic_actor_lr,
         },
         "n_groups": K,
         "group_sizes": group_sizes,
@@ -1132,11 +1545,12 @@ def run_test_only(cfg: Config) -> Dict[str, Any]:
         end_step=train_end,
     )
     router_obs_indices = _get_observation_indices(probe_env)
-    router_feature_dir = (
-        Path(cfg.cluster_artifact_dir).resolve()
-        if cfg.cluster_artifact_dir
-        else ckpt_path.parent
-    )
+    if cfg.cluster_artifact_dir:
+        router_feature_dir = Path(cfg.cluster_artifact_dir).resolve()
+    elif ckpt_path.parent.name == "checkpoints":
+        router_feature_dir = ckpt_path.parent.parent
+    else:
+        router_feature_dir = ckpt_path.parent
     capacity_norm, hvac_norm = _read_router_static_features(router_feature_dir, cfg.n_buildings)
     (
         _mappo_args,
@@ -1284,6 +1698,15 @@ def parse_args() -> Config:
     parser.add_argument("--router_prior_end", type=float, default=0.7)
     parser.add_argument("--router_warmup_episodes", type=int, default=100)
     parser.add_argument("--router_entropy_scale", type=float, default=0.02)
+    parser.add_argument(
+        "--router_balance_coef",
+        type=float,
+        default=0.0,
+        help=(
+            "Penalty on batch expert utilization drift from the static-stage proportions; "
+            "applied only while the router is trainable."
+        ),
+    )
     parser.add_argument("--no_router_capacity_features", action="store_true", default=False)
     parser.add_argument("--router_eval_soft", action="store_true", default=False)
     parser.add_argument(
@@ -1315,6 +1738,39 @@ def parse_args() -> Config:
         type=float,
         default=None,
         help="Actor optimizer learning rate after experts are unfrozen.",
+    )
+    parser.add_argument(
+        "--training_schedule",
+        default="legacy",
+        choices=["legacy", "three_stage", "pretrained_full_expert"],
+        help=(
+            "three_stage trains one shared encoder from scratch; pretrained_full_expert "
+            "loads grouped encoder/head pairs and routes complete experts."
+        ),
+    )
+    parser.add_argument("--static_actor_episodes", type=int, default=0)
+    parser.add_argument("--router_only_episodes", type=int, default=0)
+    parser.add_argument("--dynamic_actor_episodes", type=int, default=0)
+    parser.add_argument(
+        "--dynamic_actor_router_freeze_episodes",
+        type=int,
+        default=100,
+        help=(
+            "Initial dynamic-actor episodes that keep the converged router fixed while "
+            "the actor adapts to dynamic expert traffic."
+        ),
+    )
+    parser.add_argument(
+        "--dynamic_actor_lr",
+        type=float,
+        default=None,
+        help="Expert encoder/communication/head learning rate in stage 3.",
+    )
+    parser.add_argument(
+        "--checkpoint_keep_every",
+        type=int,
+        default=50,
+        help="Keep a permanent staged checkpoint every N episodes (0 disables).",
     )
 
     args = parser.parse_args()
@@ -1366,12 +1822,20 @@ def parse_args() -> Config:
         router_prior_end=args.router_prior_end,
         router_warmup_episodes=args.router_warmup_episodes,
         router_entropy_scale=args.router_entropy_scale,
+        router_balance_coef=args.router_balance_coef,
         router_use_capacity_features=not args.no_router_capacity_features,
         router_eval_hard=not args.router_eval_soft,
         expert_checkpoint_dir=args.expert_checkpoint_dir,
         router_freeze_experts_episodes=args.router_freeze_experts_episodes,
         router_only_lr=args.router_only_lr,
         router_finetune_lr=args.router_finetune_lr,
+        training_schedule=args.training_schedule,
+        static_actor_episodes=args.static_actor_episodes,
+        router_only_episodes=args.router_only_episodes,
+        dynamic_actor_episodes=args.dynamic_actor_episodes,
+        dynamic_actor_router_freeze_episodes=args.dynamic_actor_router_freeze_episodes,
+        dynamic_actor_lr=args.dynamic_actor_lr,
+        checkpoint_keep_every=args.checkpoint_keep_every,
     )
 
 

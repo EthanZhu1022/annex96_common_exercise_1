@@ -1,13 +1,15 @@
 """
 Global communication actor controller with state-conditioned soft routing.
 
-The encoder path stays aligned with the grouped TarMAC hybrid baseline:
+The controller supports two encoder paths:
 
-  obs(group_k) -> encoder_k -> global communication
+  legacy:       obs(group_k) -> encoder_k -> global communication
+  three-stage:  obs(all agents) -> shared encoder -> global communication
 
 After communication, each building receives a router distribution over all
-grouped action heads. For continuous actions the resulting policy is a
-mixture of diagonal Gaussian actor heads.
+grouped action heads. The shared path guarantees that every action head sees
+one common latent coordinate system. For continuous actions the resulting
+policy is a mixture of diagonal Gaussian actor heads.
 """
 
 from __future__ import annotations
@@ -37,6 +39,8 @@ class SoftRouterGlobalCommActorController(nn.Module):
         building_hvac_norm: Optional[Sequence[float]] = None,
         use_capacity_router_features: bool = True,
         deterministic_hard_routing: bool = True,
+        shared_encoder: bool = False,
+        full_expert_routing: bool = False,
     ) -> None:
         super().__init__()
         self.group_actors = nn.ModuleList(list(actors))
@@ -54,6 +58,16 @@ class SoftRouterGlobalCommActorController(nn.Module):
         self.router_entropy_scale = float(router_entropy_scale)
         self.use_capacity_router_features = bool(use_capacity_router_features)
         self.deterministic_hard_routing = bool(deterministic_hard_routing)
+        # In three-stage training every agent must live in the same latent
+        # coordinate system.  The legacy controller selected encoder_k from a
+        # fixed cluster and then allowed the router to select any head_j.  That
+        # silently fed head_j features produced by an unrelated encoder_k.
+        # shared_encoder=True makes actor 0's encoder the common trunk while
+        # retaining all K action heads as experts.
+        self.shared_encoder = bool(shared_encoder)
+        self.full_expert_routing = bool(full_expert_routing)
+        if self.shared_encoder and self.full_expert_routing:
+            raise ValueError("shared_encoder and full_expert_routing are mutually exclusive.")
         self.router_obs_indices = dict(router_obs_indices or {})
 
         action_layer = ref_actor.act
@@ -95,6 +109,8 @@ class SoftRouterGlobalCommActorController(nn.Module):
         self.register_buffer("router_alpha", torch.tensor(float(router_alpha), dtype=torch.float32))
 
         self.last_gate_stats: Dict[str, float] = {}
+        self.last_gate_balance_loss: Optional[torch.Tensor] = None
+        self.last_dynamic_gate: Optional[torch.Tensor] = None
 
     def set_router_alpha(self, alpha: float) -> None:
         """Set the dynamic-router mixing strength in [0, 1]."""
@@ -175,6 +191,7 @@ class SoftRouterGlobalCommActorController(nn.Module):
         temperature = max(self.router_temperature, 1e-6)
         logits = self.router(router_inputs) / temperature
         dynamic_gate = torch.softmax(logits, dim=-1)
+        self.last_dynamic_gate = dynamic_gate
 
         alpha = self.router_alpha.to(device=dynamic_gate.device, dtype=dynamic_gate.dtype)
         static_prior = self.static_prior.to(device=dynamic_gate.device, dtype=dynamic_gate.dtype)
@@ -183,6 +200,12 @@ class SoftRouterGlobalCommActorController(nn.Module):
         gates = (1.0 - alpha) * static_prior + alpha * dynamic_gate
         gates = gates.clamp_min(1e-8)
         gates = gates / gates.sum(dim=-1, keepdim=True)
+        reduce_dims = tuple(range(gates.dim() - 1))
+        mean_usage = gates.mean(dim=reduce_dims)
+        target_usage = self.static_prior.to(
+            device=gates.device, dtype=gates.dtype
+        ).mean(dim=0)
+        self.last_gate_balance_loss = (mean_usage - target_usage).square().mean()
         self._update_gate_stats(gates)
         return gates
 
@@ -228,6 +251,142 @@ class SoftRouterGlobalCommActorController(nn.Module):
             torch.stack(stds, dim=1),
             torch.stack(entropies, dim=1),
         )
+
+    def _expert_component_normals(
+        self,
+        expert_features: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Evaluate head_k only on features produced by encoder_k."""
+        if expert_features.dim() != 3 or expert_features.shape[1] != self.n_experts:
+            raise ValueError(
+                "expert_features must have shape (samples, n_experts, hidden_size), "
+                f"got {tuple(expert_features.shape)}."
+            )
+        means: List[torch.Tensor] = []
+        stds: List[torch.Tensor] = []
+        entropies: List[torch.Tensor] = []
+        for k, actor in enumerate(self.group_actors):
+            dist = actor.act.action_out(expert_features[:, k, :])
+            means.append(dist.mean)
+            stds.append(dist.stddev)
+            entropies.append(dist.entropy())
+        return (
+            torch.stack(means, dim=1),
+            torch.stack(stds, dim=1),
+            torch.stack(entropies, dim=1),
+        )
+
+    def _static_component_normal(
+        self,
+        static_features: torch.Tensor,
+        static_expert_ids: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Reproduce the original fixed-group policy distribution exactly."""
+        ref_dist = self.group_actors[0].act.action_out(static_features)
+        means = torch.zeros_like(ref_dist.mean)
+        stds = torch.zeros_like(ref_dist.stddev)
+        entropies = torch.zeros_like(ref_dist.entropy())
+        for k, actor in enumerate(self.group_actors):
+            mask = static_expert_ids == k
+            if not torch.any(mask):
+                continue
+            dist = actor.act.action_out(static_features[mask])
+            means[mask] = dist.mean
+            stds[mask] = dist.stddev
+            entropies[mask] = dist.entropy()
+        return means, stds, entropies
+
+    def _full_expert_weights(self, dynamic_gate: torch.Tensor) -> torch.Tensor:
+        """Weights for [original static policy, K complete dynamic experts]."""
+        alpha = self.router_alpha.to(device=dynamic_gate.device, dtype=dynamic_gate.dtype)
+        static_weight = torch.ones_like(dynamic_gate[..., :1]) * (1.0 - alpha)
+        return torch.cat([static_weight, alpha * dynamic_gate], dim=-1)
+
+    def _full_expert_log_probs_and_entropy(
+        self,
+        static_features: torch.Tensor,
+        expert_features: torch.Tensor,
+        static_expert_ids: torch.Tensor,
+        dynamic_gate: torch.Tensor,
+        actions: torch.Tensor,
+        active_masks: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        static_mean, static_std, static_entropy = self._static_component_normal(
+            static_features, static_expert_ids
+        )
+        expert_means, expert_stds, expert_entropies = self._expert_component_normals(
+            expert_features
+        )
+        means = torch.cat([static_mean.unsqueeze(1), expert_means], dim=1)
+        stds = torch.cat([static_std.unsqueeze(1), expert_stds], dim=1)
+        component_entropies = torch.cat(
+            [static_entropy.unsqueeze(1), expert_entropies], dim=1
+        )
+        weights = self._full_expert_weights(dynamic_gate)
+        weights = weights / weights.sum(dim=-1, keepdim=True)
+        safe_log_weights = weights.clamp_min(1e-20).log()
+
+        actions_expanded = actions.unsqueeze(1).expand_as(means)
+        component_log_probs = torch.distributions.Normal(means, stds).log_prob(
+            actions_expanded
+        ).sum(dim=-1)
+        log_probs = torch.logsumexp(
+            safe_log_weights + component_log_probs, dim=-1, keepdim=True
+        )
+
+        mixture_entropy = -(weights * safe_log_weights).sum(dim=-1)
+        entropy_per_sample = (
+            weights * component_entropies
+        ).sum(dim=-1) + self.router_entropy_scale * mixture_entropy
+        if active_masks is not None:
+            dist_entropy = (
+                entropy_per_sample * active_masks.squeeze(-1)
+            ).sum() / active_masks.sum()
+        else:
+            dist_entropy = entropy_per_sample.mean()
+        return log_probs, dist_entropy
+
+    def _sample_from_full_experts(
+        self,
+        static_features: torch.Tensor,
+        expert_features: torch.Tensor,
+        static_expert_ids: torch.Tensor,
+        dynamic_gate: torch.Tensor,
+        deterministic: bool,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        static_mean, static_std, _ = self._static_component_normal(
+            static_features, static_expert_ids
+        )
+        expert_means, expert_stds, _ = self._expert_component_normals(expert_features)
+        means = torch.cat([static_mean.unsqueeze(1), expert_means], dim=1)
+        stds = torch.cat([static_std.unsqueeze(1), expert_stds], dim=1)
+        weights = self._full_expert_weights(dynamic_gate)
+        weights = weights / weights.sum(dim=-1, keepdim=True)
+
+        if deterministic and not self.deterministic_hard_routing:
+            actions = (weights.unsqueeze(-1) * means).sum(dim=1)
+        else:
+            component_ids = (
+                weights.argmax(dim=-1)
+                if deterministic
+                else torch.distributions.Categorical(probs=weights).sample()
+            )
+            gather_idx = component_ids.view(-1, 1, 1).expand(-1, 1, means.shape[-1])
+            selected_means = means.gather(1, gather_idx).squeeze(1)
+            if deterministic:
+                actions = selected_means
+            else:
+                selected_stds = stds.gather(1, gather_idx).squeeze(1)
+                actions = torch.distributions.Normal(selected_means, selected_stds).sample()
+
+        log_probs, _ = self._full_expert_log_probs_and_entropy(
+            static_features=static_features,
+            expert_features=expert_features,
+            static_expert_ids=static_expert_ids,
+            dynamic_gate=dynamic_gate,
+            actions=actions,
+        )
+        return actions, log_probs
 
     def _mixture_log_probs_and_entropy(
         self,
@@ -297,22 +456,54 @@ class SoftRouterGlobalCommActorController(nn.Module):
         )
         new_rnn_states = rnn_states.clone()
 
-        for actor, idx_k in zip(self.group_actors, self.group_indices):
-            feats_k, rnn_k = self._encode_group(
-                actor=actor,
-                obs=obs[idx_k],
-                rnn_states=rnn_states[idx_k],
-                masks=masks[idx_k],
+        if self.shared_encoder:
+            global_features, new_rnn_states = self._encode_group(
+                actor=self.group_actors[0],
+                obs=obs,
+                rnn_states=rnn_states,
+                masks=masks,
             )
-            global_features[idx_k] = feats_k
-            new_rnn_states[idx_k] = rnn_k
+        else:
+            for actor, idx_k in zip(self.group_actors, self.group_indices):
+                feats_k, rnn_k = self._encode_group(
+                    actor=actor,
+                    obs=obs[idx_k],
+                    rnn_states=rnn_states[idx_k],
+                    masks=masks[idx_k],
+                )
+                global_features[idx_k] = feats_k
+                new_rnn_states[idx_k] = rnn_k
 
         global_features = self._apply_global_comm(global_features.unsqueeze(0)).squeeze(0)
         router_extra = self._capacity_router_features(obs)
         if router_extra is not None:
             router_extra = router_extra.unsqueeze(0)
         gates = self._compute_gates(global_features.unsqueeze(0), router_extra).squeeze(0)
-        actions, log_probs = self._sample_from_mixture(global_features, gates, deterministic)
+        if self.full_expert_routing:
+            expert_features: List[torch.Tensor] = []
+            for actor in self.group_actors:
+                features_k, _ = self._encode_group(
+                    actor=actor,
+                    obs=obs,
+                    rnn_states=rnn_states,
+                    masks=masks,
+                )
+                expert_features.append(
+                    self._apply_global_comm(features_k.unsqueeze(0)).squeeze(0)
+                )
+            all_expert_features = torch.stack(expert_features, dim=1)
+            if self.last_dynamic_gate is None:
+                raise RuntimeError("Router did not produce a dynamic gate.")
+            dynamic_gate = self.last_dynamic_gate.squeeze(0)
+            actions, log_probs = self._sample_from_full_experts(
+                static_features=global_features,
+                expert_features=all_expert_features,
+                static_expert_ids=self.static_group_ids.to(obs.device),
+                dynamic_gate=dynamic_gate,
+                deterministic=deterministic,
+            )
+        else:
+            actions, log_probs = self._sample_from_mixture(global_features, gates, deterministic)
 
         return actions, log_probs, new_rnn_states
 
@@ -326,6 +517,8 @@ class SoftRouterGlobalCommActorController(nn.Module):
 
         encoded_groups: List[torch.Tensor] = []
         obs_groups: List[torch.Tensor] = []
+        rnn_groups: List[torch.Tensor] = []
+        mask_groups: List[torch.Tensor] = []
         timesteps_in_batch: Optional[int] = None
 
         for actor, idx_k, batch in zip(self.group_actors, self.group_indices, group_batches):
@@ -333,60 +526,141 @@ class SoftRouterGlobalCommActorController(nn.Module):
             rnn_states = batch["rnn_states"]
             masks = batch["masks"]
 
-            feats_k, _ = self._encode_group(actor=actor, obs=obs, rnn_states=rnn_states, masks=masks)
             n_k = len(idx_k)
-            if feats_k.shape[0] % n_k != 0:
+            if obs.shape[0] % n_k != 0:
                 raise ValueError(
-                    f"Batch size {feats_k.shape[0]} is not divisible by group size {n_k}."
+                    f"Batch size {obs.shape[0]} is not divisible by group size {n_k}."
                 )
-            t_mb = feats_k.shape[0] // n_k
+            t_mb = obs.shape[0] // n_k
             if timesteps_in_batch is None:
                 timesteps_in_batch = t_mb
             elif timesteps_in_batch != t_mb:
                 raise ValueError("All group mini-batches must contain the same sampled timesteps.")
 
-            encoded_groups.append(feats_k.view(t_mb, n_k, self.hidden_size))
             obs_groups.append(obs.view(t_mb, n_k, -1))
+            rnn_groups.append(rnn_states.view(t_mb, n_k, *rnn_states.shape[1:]))
+            mask_groups.append(masks.view(t_mb, n_k, -1))
+            if not self.shared_encoder:
+                feats_k, _ = self._encode_group(
+                    actor=actor,
+                    obs=obs,
+                    rnn_states=rnn_states,
+                    masks=masks,
+                )
+                encoded_groups.append(feats_k.view(t_mb, n_k, self.hidden_size))
 
         assert timesteps_in_batch is not None
-        global_features = torch.zeros(
+        global_obs = torch.zeros(
             timesteps_in_batch,
             self.n_agents_total,
-            self.hidden_size,
-            dtype=encoded_groups[0].dtype,
-            device=encoded_groups[0].device,
+            obs_groups[0].shape[-1],
+            dtype=obs_groups[0].dtype,
+            device=obs_groups[0].device,
         )
-        for idx_k, feats_k in zip(self.group_indices, encoded_groups):
-            global_features[:, idx_k, :] = feats_k
+        global_rnn = torch.zeros(
+            timesteps_in_batch,
+            self.n_agents_total,
+            *rnn_groups[0].shape[2:],
+            dtype=rnn_groups[0].dtype,
+            device=rnn_groups[0].device,
+        )
+        global_masks = torch.zeros(
+            timesteps_in_batch,
+            self.n_agents_total,
+            mask_groups[0].shape[-1],
+            dtype=mask_groups[0].dtype,
+            device=mask_groups[0].device,
+        )
+        for idx_k, obs_k, rnn_k, masks_k in zip(
+            self.group_indices, obs_groups, rnn_groups, mask_groups
+        ):
+            global_obs[:, idx_k, :] = obs_k
+            global_rnn[:, idx_k, ...] = rnn_k
+            global_masks[:, idx_k, :] = masks_k
 
-        global_features = self._apply_global_comm(global_features)
-        router_extra = None
-        if self.router_extra_dim > 0:
-            global_obs = torch.zeros(
+        if self.shared_encoder:
+            flat_features, _ = self._encode_group(
+                actor=self.group_actors[0],
+                obs=global_obs.reshape(-1, global_obs.shape[-1]),
+                rnn_states=global_rnn.reshape(-1, *global_rnn.shape[2:]),
+                masks=global_masks.reshape(-1, global_masks.shape[-1]),
+            )
+            global_features = flat_features.view(
+                timesteps_in_batch, self.n_agents_total, self.hidden_size
+            )
+        else:
+            global_features = torch.zeros(
                 timesteps_in_batch,
                 self.n_agents_total,
-                obs_groups[0].shape[-1],
-                dtype=obs_groups[0].dtype,
-                device=obs_groups[0].device,
+                self.hidden_size,
+                dtype=encoded_groups[0].dtype,
+                device=encoded_groups[0].device,
             )
-            for idx_k, obs_k in zip(self.group_indices, obs_groups):
-                global_obs[:, idx_k, :] = obs_k
+            for idx_k, feats_k in zip(self.group_indices, encoded_groups):
+                global_features[:, idx_k, :] = feats_k
+
+        global_features = self._apply_global_comm(global_features)
+        full_expert_features: Optional[torch.Tensor] = None
+        if self.full_expert_routing:
+            expert_branches: List[torch.Tensor] = []
+            flat_obs = global_obs.reshape(-1, global_obs.shape[-1])
+            flat_rnn = global_rnn.reshape(-1, *global_rnn.shape[2:])
+            flat_masks = global_masks.reshape(-1, global_masks.shape[-1])
+            for actor in self.group_actors:
+                branch_features, _ = self._encode_group(
+                    actor=actor,
+                    obs=flat_obs,
+                    rnn_states=flat_rnn,
+                    masks=flat_masks,
+                )
+                branch_features = branch_features.view(
+                    timesteps_in_batch, self.n_agents_total, self.hidden_size
+                )
+                expert_branches.append(self._apply_global_comm(branch_features))
+            full_expert_features = torch.stack(expert_branches, dim=2)
+
+        router_extra = None
+        if self.router_extra_dim > 0:
             router_extra = self._capacity_router_features(global_obs)
         gates = self._compute_gates(global_features, router_extra)
 
         action_log_probs: List[torch.Tensor] = []
         entropies: List[torch.Tensor] = []
-        for idx_k, batch in zip(self.group_indices, group_batches):
+        for static_k, (idx_k, batch) in enumerate(zip(self.group_indices, group_batches)):
             features_k = global_features[:, idx_k, :].reshape(-1, self.hidden_size)
             gates_k = gates[:, idx_k, :].reshape(-1, self.n_experts)
             active_masks = batch.get("active_masks")
 
-            logp_k, entropy_k = self._mixture_log_probs_and_entropy(
-                features=features_k,
-                gates=gates_k,
-                actions=batch["action"],
-                active_masks=(active_masks if self._use_policy_active_masks else None),
-            )
+            if self.full_expert_routing:
+                if full_expert_features is None or self.last_dynamic_gate is None:
+                    raise RuntimeError("Full-expert features or dynamic gates are missing.")
+                expert_features_k = full_expert_features[:, idx_k, :, :].reshape(
+                    -1, self.n_experts, self.hidden_size
+                )
+                dynamic_gate_k = self.last_dynamic_gate[:, idx_k, :].reshape(
+                    -1, self.n_experts
+                )
+                static_ids = torch.full(
+                    (features_k.shape[0],),
+                    static_k,
+                    dtype=torch.long,
+                    device=features_k.device,
+                )
+                logp_k, entropy_k = self._full_expert_log_probs_and_entropy(
+                    static_features=features_k,
+                    expert_features=expert_features_k,
+                    static_expert_ids=static_ids,
+                    dynamic_gate=dynamic_gate_k,
+                    actions=batch["action"],
+                    active_masks=(active_masks if self._use_policy_active_masks else None),
+                )
+            else:
+                logp_k, entropy_k = self._mixture_log_probs_and_entropy(
+                    features=features_k,
+                    gates=gates_k,
+                    actions=batch["action"],
+                    active_masks=(active_masks if self._use_policy_active_masks else None),
+                )
             action_log_probs.append(logp_k)
             entropies.append(entropy_k)
 
