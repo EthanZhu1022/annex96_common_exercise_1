@@ -129,6 +129,9 @@ export -f run_one
 export PYTHON_EXE THREADS_PER_JOB EPISODES USE_GPU FORCE REPO_DIR LOG_DIR
 
 WAVES="$(((JOB_COUNT + MAX_JOBS - 1) / MAX_JOBS))"
+IDEAL_HOURS="$(awk -v waves="$WAVES" 'BEGIN {printf "%.1f", waves * 8.1}')"
+PLANNING_LOW_HOURS="$(awk -v hours="$IDEAL_HOURS" 'BEGIN {printf "%.1f", hours * 1.1}')"
+PLANNING_HIGH_HOURS="$(awk -v hours="$IDEAL_HOURS" 'BEGIN {printf "%.1f", hours * 1.5}')"
 
 echo "Repository: $REPO_DIR"
 echo "Feature combinations: ${#VARIANTS[@]} (completed baseline excluded)"
@@ -142,8 +145,8 @@ echo "GPU enabled: $USE_GPU"
 echo "Logs: $LOG_DIR"
 echo
 echo "Previous 500-episode runs took about 8.1 hours per job."
-echo "With $WAVES queue waves, the ideal lower-bound estimate is about 16.2 hours."
-echo "Plan for roughly 18-24 hours because concurrent simulation and I/O can add overhead."
+echo "With $WAVES queue wave(s), the ideal lower-bound estimate is about $IDEAL_HOURS hours."
+echo "Plan for roughly $PLANNING_LOW_HOURS-$PLANNING_HIGH_HOURS hours because concurrent simulation and I/O can add overhead."
 echo "GNU Parallel will display job-level progress and ETA below."
 echo
 
