@@ -2,11 +2,18 @@
 set -Eeuo pipefail
 
 PYTHON_EXE="${PYTHON_EXE:-python}"
-MAX_JOBS="${MAX_JOBS:-16}"
-THREADS_PER_JOB="${THREADS_PER_JOB:-2}"
+MAX_JOBS="${MAX_JOBS:-14}"
+THREADS_PER_JOB="${THREADS_PER_JOB:-1}"
 EPISODES="${EPISODES:-500}"
 USE_GPU="${USE_GPU:-0}"
 FORCE="${FORCE:-0}"
+if [[ -z "${JOB_HOURS_ESTIMATE:-}" ]]; then
+  if ((THREADS_PER_JOB == 1)); then
+    JOB_HOURS_ESTIMATE="10.0"
+  else
+    JOB_HOURS_ESTIMATE="8.1"
+  fi
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -29,6 +36,13 @@ if ((LOGICAL_CPUS < REQUIRED_CPUS)); then
 fi
 
 "$PYTHON_EXE" -c "import torch, sklearn, pandas, numpy"
+AVAILABLE_CPU_IDS="$("$PYTHON_EXE" -c \
+  'import os; print(" ".join(str(cpu) for cpu in sorted(os.sched_getaffinity(0))))')"
+read -r -a AVAILABLE_CPU_ID_ARRAY <<<"$AVAILABLE_CPU_IDS"
+if ((${#AVAILABLE_CPU_ID_ARRAY[@]} < REQUIRED_CPUS)); then
+  echo "Need $REQUIRED_CPUS allowed CPU IDs, but affinity exposes ${#AVAILABLE_CPU_ID_ARRAY[@]}." >&2
+  exit 1
+fi
 
 # The completed baseline is intentionally omitted:
 # bes_capacity_kwh + heating_mean + nsl_mean
@@ -76,8 +90,16 @@ run_one() {
   local f3="$5"
   local slot="$6"
 
-  local core_start="$(((slot - 1) * THREADS_PER_JOB))"
-  local core_end="$((core_start + THREADS_PER_JOB - 1))"
+  local -a available_cpu_ids
+  read -r -a available_cpu_ids <<<"$AVAILABLE_CPU_IDS"
+  local cpu_spec=""
+  local offset cpu_index cpu_id
+  for ((offset = 0; offset < THREADS_PER_JOB; offset++)); do
+    cpu_index="$(((slot - 1) * THREADS_PER_JOB + offset))"
+    cpu_id="${available_cpu_ids[$cpu_index]}"
+    cpu_spec+="${cpu_spec:+,}${cpu_id}"
+  done
+
   local run_name="mappo_grouped_tarmac_hybrid_agglomerative_3f_${label}_vt_500_seed${seed}"
   local save_dir="$REPO_DIR/results/$run_name"
   local stdout_path="$LOG_DIR/$run_name.stdout.log"
@@ -88,7 +110,7 @@ run_one() {
     return 0
   fi
 
-  echo "[start] slot=$slot cores=$core_start-$core_end $run_name"
+  echo "[start] slot=$slot cpus=$cpu_spec $run_name"
 
   local -a env_args=(
     "PYTHONUNBUFFERED=1"
@@ -101,7 +123,7 @@ run_one() {
     env_args+=("CUDA_VISIBLE_DEVICES=")
   fi
 
-  if taskset -c "$core_start-$core_end" env "${env_args[@]}" \
+  if taskset -c "$cpu_spec" env "${env_args[@]}" \
     "$PYTHON_EXE" -m mappo_grouped_tarmac_hybrid_grouping.train \
       --climate VT \
       --n_episodes "$EPISODES" \
@@ -126,10 +148,11 @@ run_one() {
 }
 
 export -f run_one
-export PYTHON_EXE THREADS_PER_JOB EPISODES USE_GPU FORCE REPO_DIR LOG_DIR
+export PYTHON_EXE THREADS_PER_JOB EPISODES USE_GPU FORCE REPO_DIR LOG_DIR AVAILABLE_CPU_IDS
 
 WAVES="$(((JOB_COUNT + MAX_JOBS - 1) / MAX_JOBS))"
-IDEAL_HOURS="$(awk -v waves="$WAVES" 'BEGIN {printf "%.1f", waves * 8.1}')"
+IDEAL_HOURS="$(awk -v waves="$WAVES" -v job_hours="$JOB_HOURS_ESTIMATE" \
+  'BEGIN {printf "%.1f", waves * job_hours}')"
 PLANNING_LOW_HOURS="$(awk -v hours="$IDEAL_HOURS" 'BEGIN {printf "%.1f", hours * 1.1}')"
 PLANNING_HIGH_HOURS="$(awk -v hours="$IDEAL_HOURS" 'BEGIN {printf "%.1f", hours * 1.5}')"
 
@@ -140,12 +163,14 @@ echo "Total jobs: $JOB_COUNT"
 echo "Concurrent jobs: $MAX_JOBS"
 echo "CPU cores per job: $THREADS_PER_JOB"
 echo "Logical CPUs available: $LOGICAL_CPUS"
+echo "Allowed CPU IDs used: $(echo "$AVAILABLE_CPU_IDS" | cut -d' ' -f1-"$REQUIRED_CPUS")"
 echo "Queue waves: $WAVES"
 echo "GPU enabled: $USE_GPU"
 echo "Logs: $LOG_DIR"
 echo
-echo "Previous 500-episode runs took about 8.1 hours per job."
-echo "With $WAVES queue wave(s), the ideal lower-bound estimate is about $IDEAL_HOURS hours."
+echo "Previous 2-core, 500-episode runs took about 8.1 hours per job."
+echo "This queue uses $JOB_HOURS_ESTIMATE hours per job as its planning estimate."
+echo "With $WAVES queue wave(s), the nominal queue estimate is about $IDEAL_HOURS hours."
 echo "Plan for roughly $PLANNING_LOW_HOURS-$PLANNING_HIGH_HOURS hours because concurrent simulation and I/O can add overhead."
 echo "GNU Parallel will display job-level progress and ETA below."
 echo
