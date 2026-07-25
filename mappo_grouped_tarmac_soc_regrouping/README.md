@@ -24,6 +24,9 @@ Run both variants sequentially from the repository root:
 bash scripts/run_tarmac_soc_regrouping_two_stage.sh
 ```
 
+The queue collects the deterministic source SOC trajectory once, then trains
+each regrouping variant with seeds `42`, `0`, and `1` (six fresh models total).
+
 Stage 1 writes:
 
 - `soc_hourly_trajectory.csv`
