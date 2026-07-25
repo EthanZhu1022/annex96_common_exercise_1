@@ -1,0 +1,85 @@
+{
+  "grouping_method": "agglomerative",
+  "grouping_feature_set": "control_profile",
+  "grouping_feature_month": 1,
+  "grouping_feature_columns": [
+    "bes_capacity_kwh",
+    "hvac_total_kw",
+    "nsl_max"
+  ],
+  "k": 5,
+  "seed": null,
+  "balance": 0.2857142857142857,
+  "cluster_sizes": [
+    5,
+    7,
+    5,
+    2,
+    6
+  ],
+  "feature_columns": [
+    "bes_capacity_kwh",
+    "hvac_total_kw",
+    "nsl_max"
+  ],
+  "cluster_centers_original_scale": {
+    "cluster_0": {
+      "bes_capacity_kwh": 32.720000000000006,
+      "hvac_total_kw": 22.910724672069772,
+      "nsl_max": 4.8108623999999995,
+      "n_buildings": 5
+    },
+    "cluster_1": {
+      "bes_capacity_kwh": 17.63857142857143,
+      "hvac_total_kw": 12.303414660106812,
+      "nsl_max": 4.584148585714287,
+      "n_buildings": 7
+    },
+    "cluster_2": {
+      "bes_capacity_kwh": 21.18,
+      "hvac_total_kw": 11.461893316358328,
+      "nsl_max": 11.5557192,
+      "n_buildings": 5
+    },
+    "cluster_3": {
+      "bes_capacity_kwh": 36.75,
+      "hvac_total_kw": 22.772379875183105,
+      "nsl_max": 11.715179,
+      "n_buildings": 2
+    },
+    "cluster_4": {
+      "bes_capacity_kwh": 14.483333333333334,
+      "hvac_total_kw": 7.676721213851124,
+      "nsl_max": 6.837140033333334,
+      "n_buildings": 6
+    }
+  },
+  "group_assignments": {
+    "building_0": 0,
+    "building_1": 0,
+    "building_2": 4,
+    "building_3": 0,
+    "building_4": 0,
+    "building_5": 4,
+    "building_6": 1,
+    "building_7": 3,
+    "building_8": 4,
+    "building_9": 2,
+    "building_10": 0,
+    "building_11": 1,
+    "building_12": 1,
+    "building_13": 1,
+    "building_14": 2,
+    "building_15": 1,
+    "building_16": 1,
+    "building_17": 1,
+    "building_18": 3,
+    "building_19": 2,
+    "building_20": 4,
+    "building_21": 2,
+    "building_22": 4,
+    "building_23": 4,
+    "building_24": 2
+  },
+  "selection_rationale": "Chose method=agglomerative K=5 seed=None (balance=0.286; group 0: 5 buildings, group 1: 7 buildings, group 2: 5 buildings, group 3: 2 buildings, group 4: 6 buildings). Tried 2 K values x 1 fits. Balance = min_cluster_size / max_cluster_size."
+}

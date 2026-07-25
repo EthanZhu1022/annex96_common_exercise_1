@@ -1,0 +1,78 @@
+{
+  "grouping_method": "agglomerative",
+  "grouping_feature_set": "control_profile",
+  "grouping_feature_month": 1,
+  "grouping_feature_columns": [
+    "bes_capacity_kwh",
+    "heating_max",
+    "nsl_max"
+  ],
+  "k": 4,
+  "seed": null,
+  "balance": 0.4,
+  "cluster_sizes": [
+    6,
+    5,
+    10,
+    4
+  ],
+  "feature_columns": [
+    "bes_capacity_kwh",
+    "heating_max",
+    "nsl_max"
+  ],
+  "cluster_centers_original_scale": {
+    "cluster_0": {
+      "bes_capacity_kwh": 22.383333333333336,
+      "heating_max": 12.180999166666666,
+      "nsl_max": 11.637597166666666,
+      "n_buildings": 6
+    },
+    "cluster_1": {
+      "bes_capacity_kwh": 36.220000000000006,
+      "heating_max": 23.928391800000004,
+      "nsl_max": 5.931896920000001,
+      "n_buildings": 5
+    },
+    "cluster_2": {
+      "bes_capacity_kwh": 16.557,
+      "heating_max": 9.832723300000001,
+      "nsl_max": 5.23865883,
+      "n_buildings": 10
+    },
+    "cluster_3": {
+      "bes_capacity_kwh": 18.1,
+      "heating_max": 20.375334,
+      "nsl_max": 6.6258726,
+      "n_buildings": 4
+    }
+  },
+  "group_assignments": {
+    "building_0": 1,
+    "building_1": 3,
+    "building_2": 2,
+    "building_3": 1,
+    "building_4": 1,
+    "building_5": 2,
+    "building_6": 2,
+    "building_7": 1,
+    "building_8": 2,
+    "building_9": 0,
+    "building_10": 1,
+    "building_11": 2,
+    "building_12": 2,
+    "building_13": 2,
+    "building_14": 3,
+    "building_15": 3,
+    "building_16": 3,
+    "building_17": 2,
+    "building_18": 0,
+    "building_19": 0,
+    "building_20": 0,
+    "building_21": 0,
+    "building_22": 2,
+    "building_23": 2,
+    "building_24": 0
+  },
+  "selection_rationale": "Chose method=agglomerative K=4 seed=None (balance=0.400; group 0: 6 buildings, group 1: 5 buildings, group 2: 10 buildings, group 3: 4 buildings). Tried 2 K values x 1 fits. Balance = min_cluster_size / max_cluster_size."
+}

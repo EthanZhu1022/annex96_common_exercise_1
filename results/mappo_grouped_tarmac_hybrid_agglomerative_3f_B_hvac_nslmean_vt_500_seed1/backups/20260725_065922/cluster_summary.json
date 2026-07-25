@@ -1,0 +1,78 @@
+{
+  "grouping_method": "agglomerative",
+  "grouping_feature_set": "control_profile",
+  "grouping_feature_month": 1,
+  "grouping_feature_columns": [
+    "bes_capacity_kwh",
+    "hvac_total_kw",
+    "nsl_mean"
+  ],
+  "k": 4,
+  "seed": null,
+  "balance": 0.18181818181818182,
+  "cluster_sizes": [
+    7,
+    11,
+    5,
+    2
+  ],
+  "feature_columns": [
+    "bes_capacity_kwh",
+    "hvac_total_kw",
+    "nsl_mean"
+  ],
+  "cluster_centers_original_scale": {
+    "cluster_0": {
+      "bes_capacity_kwh": 33.871428571428574,
+      "hvac_total_kw": 22.87119758724501,
+      "nsl_mean": 0.810075700800691,
+      "n_buildings": 7
+    },
+    "cluster_1": {
+      "bes_capacity_kwh": 15.400000000000004,
+      "hvac_total_kw": 9.274371625940232,
+      "nsl_mean": 0.5119913935239492,
+      "n_buildings": 11
+    },
+    "cluster_2": {
+      "bes_capacity_kwh": 18.074,
+      "hvac_total_kw": 14.000224475190043,
+      "nsl_mean": 1.086794301282258,
+      "n_buildings": 5
+    },
+    "cluster_3": {
+      "bes_capacity_kwh": 28.25,
+      "hvac_total_kw": 8.737243112176657,
+      "nsl_mean": 0.8016956833669355,
+      "n_buildings": 2
+    }
+  },
+  "group_assignments": {
+    "building_0": 0,
+    "building_1": 0,
+    "building_2": 1,
+    "building_3": 0,
+    "building_4": 0,
+    "building_5": 1,
+    "building_6": 1,
+    "building_7": 0,
+    "building_8": 1,
+    "building_9": 1,
+    "building_10": 0,
+    "building_11": 3,
+    "building_12": 2,
+    "building_13": 1,
+    "building_14": 2,
+    "building_15": 1,
+    "building_16": 2,
+    "building_17": 2,
+    "building_18": 0,
+    "building_19": 3,
+    "building_20": 1,
+    "building_21": 2,
+    "building_22": 1,
+    "building_23": 1,
+    "building_24": 1
+  },
+  "selection_rationale": "Chose method=agglomerative K=4 seed=None (balance=0.182; group 0: 7 buildings, group 1: 11 buildings, group 2: 5 buildings, group 3: 2 buildings). Tried 2 K values x 1 fits. Balance = min_cluster_size / max_cluster_size."
+}

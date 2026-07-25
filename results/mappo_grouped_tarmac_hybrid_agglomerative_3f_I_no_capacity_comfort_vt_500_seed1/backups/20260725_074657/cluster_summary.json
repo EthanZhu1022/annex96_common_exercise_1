@@ -1,0 +1,85 @@
+{
+  "grouping_method": "agglomerative",
+  "grouping_feature_set": "control_profile",
+  "grouping_feature_month": 1,
+  "grouping_feature_columns": [
+    "heating_mean",
+    "nsl_mean",
+    "comfort_lower_excess_mean"
+  ],
+  "k": 5,
+  "seed": null,
+  "balance": -0.3888888888888889,
+  "cluster_sizes": [
+    9,
+    3,
+    1,
+    4,
+    8
+  ],
+  "feature_columns": [
+    "heating_mean",
+    "nsl_mean",
+    "comfort_lower_excess_mean"
+  ],
+  "cluster_centers_original_scale": {
+    "cluster_0": {
+      "heating_mean": 6.46045597474761,
+      "nsl_mean": 1.0157188123864995,
+      "comfort_lower_excess_mean": 0.0016340155316606705,
+      "n_buildings": 9
+    },
+    "cluster_1": {
+      "heating_mean": 10.707724433051075,
+      "nsl_mean": 0.5854865704345878,
+      "comfort_lower_excess_mean": 0.0013056702508960564,
+      "n_buildings": 3
+    },
+    "cluster_2": {
+      "heating_mean": 14.20368620846774,
+      "nsl_mean": 0.9313203445161289,
+      "comfort_lower_excess_mean": 0.009787497311827945,
+      "n_buildings": 1
+    },
+    "cluster_3": {
+      "heating_mean": 4.86787831720094,
+      "nsl_mean": 0.6509284635483872,
+      "comfort_lower_excess_mean": 0.004852661626344049,
+      "n_buildings": 4
+    },
+    "cluster_4": {
+      "heating_mean": 3.732466332954301,
+      "nsl_mean": 0.4883543607526881,
+      "comfort_lower_excess_mean": 0.0018798867607526738,
+      "n_buildings": 8
+    }
+  },
+  "group_assignments": {
+    "building_0": 3,
+    "building_1": 1,
+    "building_2": 4,
+    "building_3": 0,
+    "building_4": 1,
+    "building_5": 4,
+    "building_6": 4,
+    "building_7": 2,
+    "building_8": 3,
+    "building_9": 4,
+    "building_10": 0,
+    "building_11": 0,
+    "building_12": 0,
+    "building_13": 4,
+    "building_14": 0,
+    "building_15": 1,
+    "building_16": 0,
+    "building_17": 0,
+    "building_18": 0,
+    "building_19": 3,
+    "building_20": 4,
+    "building_21": 0,
+    "building_22": 4,
+    "building_23": 4,
+    "building_24": 3
+  },
+  "selection_rationale": "Chose method=agglomerative K=5 seed=None (balance=-0.389; group 0: 9 buildings, group 1: 3 buildings, group 2: 1 buildings, group 3: 4 buildings, group 4: 8 buildings). Tried 2 K values x 1 fits. Balance = min_cluster_size / max_cluster_size."
+}

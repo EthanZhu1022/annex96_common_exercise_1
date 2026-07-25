@@ -1,0 +1,78 @@
+{
+  "grouping_method": "agglomerative",
+  "grouping_feature_set": "control_profile",
+  "grouping_feature_month": 1,
+  "grouping_feature_columns": [
+    "bes_capacity_kwh",
+    "heating_mean",
+    "comfort_lower_excess_mean"
+  ],
+  "k": 4,
+  "seed": null,
+  "balance": -0.4166666666666667,
+  "cluster_sizes": [
+    5,
+    12,
+    7,
+    1
+  ],
+  "feature_columns": [
+    "bes_capacity_kwh",
+    "heating_mean",
+    "comfort_lower_excess_mean"
+  ],
+  "cluster_centers_original_scale": {
+    "cluster_0": {
+      "bes_capacity_kwh": 35.34,
+      "heating_mean": 8.278503920666667,
+      "comfort_lower_excess_mean": 0.0031712755376343063,
+      "n_buildings": 5
+    },
+    "cluster_1": {
+      "bes_capacity_kwh": 15.516666666666667,
+      "heating_mean": 3.8491183065663077,
+      "comfort_lower_excess_mean": 0.0026548213485663124,
+      "n_buildings": 12
+    },
+    "cluster_2": {
+      "bes_capacity_kwh": 21.71,
+      "heating_mean": 7.430940246027267,
+      "comfort_lower_excess_mean": 0.000765522465437787,
+      "n_buildings": 7
+    },
+    "cluster_3": {
+      "bes_capacity_kwh": 38.5,
+      "heating_mean": 14.20368620846774,
+      "comfort_lower_excess_mean": 0.009787497311827945,
+      "n_buildings": 1
+    }
+  },
+  "group_assignments": {
+    "building_0": 0,
+    "building_1": 2,
+    "building_2": 1,
+    "building_3": 0,
+    "building_4": 0,
+    "building_5": 1,
+    "building_6": 1,
+    "building_7": 3,
+    "building_8": 1,
+    "building_9": 1,
+    "building_10": 2,
+    "building_11": 2,
+    "building_12": 1,
+    "building_13": 1,
+    "building_14": 2,
+    "building_15": 2,
+    "building_16": 2,
+    "building_17": 2,
+    "building_18": 0,
+    "building_19": 0,
+    "building_20": 1,
+    "building_21": 1,
+    "building_22": 1,
+    "building_23": 1,
+    "building_24": 1
+  },
+  "selection_rationale": "Chose method=agglomerative K=4 seed=None (balance=-0.417; group 0: 5 buildings, group 1: 12 buildings, group 2: 7 buildings, group 3: 1 buildings). Tried 2 K values x 1 fits. Balance = min_cluster_size / max_cluster_size."
+}

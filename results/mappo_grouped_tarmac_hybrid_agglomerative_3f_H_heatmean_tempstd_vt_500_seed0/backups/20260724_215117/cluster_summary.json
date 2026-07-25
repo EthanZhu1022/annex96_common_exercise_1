@@ -1,0 +1,78 @@
+{
+  "grouping_method": "agglomerative",
+  "grouping_feature_set": "control_profile",
+  "grouping_feature_month": 1,
+  "grouping_feature_columns": [
+    "bes_capacity_kwh",
+    "heating_mean",
+    "indoor_temp_std"
+  ],
+  "k": 4,
+  "seed": null,
+  "balance": 0.2222222222222222,
+  "cluster_sizes": [
+    6,
+    9,
+    8,
+    2
+  ],
+  "feature_columns": [
+    "bes_capacity_kwh",
+    "heating_mean",
+    "indoor_temp_std"
+  ],
+  "cluster_centers_original_scale": {
+    "cluster_0": {
+      "bes_capacity_kwh": 22.850000000000005,
+      "heating_mean": 5.001913471225358,
+      "indoor_temp_std": 1.5333875990783363,
+      "n_buildings": 6
+    },
+    "cluster_1": {
+      "bes_capacity_kwh": 14.855555555555558,
+      "heating_mean": 4.048301888740144,
+      "indoor_temp_std": 0.6882923505250321,
+      "n_buildings": 9
+    },
+    "cluster_2": {
+      "bes_capacity_kwh": 25.50875,
+      "heating_mean": 7.319097302883065,
+      "indoor_temp_std": 0.47952170214210316,
+      "n_buildings": 8
+    },
+    "cluster_3": {
+      "bes_capacity_kwh": 39.25,
+      "heating_mean": 14.401615481854837,
+      "indoor_temp_std": 0.6803927680108434,
+      "n_buildings": 2
+    }
+  },
+  "group_assignments": {
+    "building_0": 0,
+    "building_1": 2,
+    "building_2": 1,
+    "building_3": 0,
+    "building_4": 3,
+    "building_5": 1,
+    "building_6": 1,
+    "building_7": 3,
+    "building_8": 0,
+    "building_9": 1,
+    "building_10": 2,
+    "building_11": 2,
+    "building_12": 1,
+    "building_13": 1,
+    "building_14": 2,
+    "building_15": 1,
+    "building_16": 2,
+    "building_17": 2,
+    "building_18": 2,
+    "building_19": 2,
+    "building_20": 0,
+    "building_21": 0,
+    "building_22": 1,
+    "building_23": 1,
+    "building_24": 0
+  },
+  "selection_rationale": "Chose method=agglomerative K=4 seed=None (balance=0.222; group 0: 6 buildings, group 1: 9 buildings, group 2: 8 buildings, group 3: 2 buildings). Tried 2 K values x 1 fits. Balance = min_cluster_size / max_cluster_size."
+}
