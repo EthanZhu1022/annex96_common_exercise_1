@@ -1,0 +1,95 @@
+{
+  "grouping_method": "agglomerative",
+  "grouping_feature_set": "policy_soc_energy4f",
+  "grouping_feature_month": 1,
+  "grouping_feature_columns": [
+    "bes_capacity_kwh",
+    "soc_q10",
+    "heating_mean",
+    "nsl_mean"
+  ],
+  "k": 5,
+  "seed": null,
+  "balance": 0.2,
+  "cluster_sizes": [
+    6,
+    5,
+    2,
+    2,
+    10
+  ],
+  "feature_columns": [
+    "bes_capacity_kwh",
+    "soc_q10",
+    "heating_mean",
+    "nsl_mean"
+  ],
+  "cluster_centers_original_scale": {
+    "cluster_0": {
+      "bes_capacity_kwh": 19.228333333333335,
+      "soc_q10": 0.08767848927527666,
+      "heating_mean": 5.734989800669802,
+      "nsl_mean": 1.0508269076052867,
+      "n_buildings": 6
+    },
+    "cluster_1": {
+      "bes_capacity_kwh": 33.82000000000001,
+      "soc_q10": 0.09271698363125319,
+      "heating_mean": 7.056182418747312,
+      "nsl_mean": 0.8458894538978494,
+      "n_buildings": 5
+    },
+    "cluster_2": {
+      "bes_capacity_kwh": 17.7,
+      "soc_q10": 0.4506586238741874,
+      "heating_mean": 8.761814271955645,
+      "nsl_mean": 0.5378097844690861,
+      "n_buildings": 2
+    },
+    "cluster_3": {
+      "bes_capacity_kwh": 39.25,
+      "soc_q10": 0.8830572009086609,
+      "heating_mean": 14.401615481854837,
+      "nsl_mean": 0.80608024344086,
+      "n_buildings": 2
+    },
+    "cluster_4": {
+      "bes_capacity_kwh": 15.5,
+      "soc_q10": 0.01363503221422433,
+      "heating_mean": 3.7784496807411285,
+      "nsl_mean": 0.511760933657258,
+      "n_buildings": 10
+    }
+  },
+  "group_assignments": {
+    "building_0": 1,
+    "building_1": 2,
+    "building_2": 4,
+    "building_3": 1,
+    "building_4": 3,
+    "building_5": 4,
+    "building_6": 4,
+    "building_7": 3,
+    "building_8": 4,
+    "building_9": 4,
+    "building_10": 1,
+    "building_11": 0,
+    "building_12": 0,
+    "building_13": 4,
+    "building_14": 0,
+    "building_15": 2,
+    "building_16": 0,
+    "building_17": 0,
+    "building_18": 1,
+    "building_19": 1,
+    "building_20": 4,
+    "building_21": 0,
+    "building_22": 4,
+    "building_23": 4,
+    "building_24": 4
+  },
+  "selection_rationale": "Chose method=agglomerative K=5 seed=None (balance=0.200; group 0: 6 buildings, group 1: 5 buildings, group 2: 2 buildings, group 3: 2 buildings, group 4: 10 buildings). Tried 2 K values x 1 fits. Balance = min_cluster_size / max_cluster_size.",
+  "soc_grouping_mode": "energy4f",
+  "soc_statistics_path": "/home/yue/EthanZhu/annex96_common_exercise_1/results/mappo_grouped_tarmac_soc_regrouping_source_3f_vt_january/soc_statistics.csv",
+  "policy_induced_features": true
+}
