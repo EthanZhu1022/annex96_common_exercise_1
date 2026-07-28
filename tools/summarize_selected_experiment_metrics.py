@@ -73,6 +73,30 @@ SELECTED_EXPERIMENTS: List[str] = [
     "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_seed1",
     "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_seed2",
     "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_seed3",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_B_hvac_nslmean_vt_500_seed0",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_B_hvac_nslmean_vt_500_seed1",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_B_hvac_nslmean_vt_500_seed2",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_C_heatmax_nslmean_vt_500_seed0",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_C_heatmax_nslmean_vt_500_seed1",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_C_heatmax_nslmean_vt_500_seed2",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_D_heatmean_nslmax_vt_500_seed0",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_D_heatmean_nslmax_vt_500_seed1",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_D_heatmean_nslmax_vt_500_seed2",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_E_hvac_nslmax_vt_500_seed0",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_E_hvac_nslmax_vt_500_seed1",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_E_hvac_nslmax_vt_500_seed2",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_F_heatmax_nslmax_vt_500_seed0",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_F_heatmax_nslmax_vt_500_seed1",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_F_heatmax_nslmax_vt_500_seed2",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_G_heatmean_comfort_vt_500_seed0",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_G_heatmean_comfort_vt_500_seed1",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_G_heatmean_comfort_vt_500_seed2",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_H_heatmean_tempstd_vt_500_seed0",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_H_heatmean_tempstd_vt_500_seed1",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_H_heatmean_tempstd_vt_500_seed2",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_I_no_capacity_comfort_vt_500_seed0",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_I_no_capacity_comfort_vt_500_seed1",
+    "mappo_grouped_tarmac_hybrid_agglomerative_3f_I_no_capacity_comfort_vt_500_seed2",
     "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_4f_linear_vt_500_final",
     "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_5f_linear_vt_500_final",
     "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_5f_linear_vt_500_seed0",
@@ -84,6 +108,13 @@ SELECTED_EXPERIMENTS: List[str] = [
     "mappo_grouped_tarmac_hybrid_kmeans_operational_profile_vt_500_final",
     "mappo_grouped_tarmac_hybrid_kmeans_capacity_load_5f_linear_vt_500_final",
     "mappo_grouped_tarmac_hybrid_kmeans_static_extended_vt_500_final",
+    "mappo_grouped_tarmac_energy4f_agglomerative_linear_vt_500_seed0",
+    "mappo_grouped_tarmac_energy4f_agglomerative_linear_vt_500_seed1",
+    "mappo_grouped_tarmac_energy4f_agglomerative_linear_vt_500_seed42",
+    "mappo_grouped_tarmac_soc_regrouping_source_3f_vt_january",
+    "mappo_grouped_tarmac_soc6f_agglomerative_linear_vt_500_seed0",
+    "mappo_grouped_tarmac_soc6f_agglomerative_linear_vt_500_seed1",
+    "mappo_grouped_tarmac_soc6f_agglomerative_linear_vt_500_seed42",
     "mappo_grouped_tarmac_soft_router_vt_500_final_balanced_temperature0.7_warmup50",
     "mappo_grouped_tarmac_soft_router_vt_500_final_sharp_temperature_0.5_warmup_50",
     "mappo_grouped_tarmac_soft_router_vt_500_final_stable_temperature_1_warmup_100",
@@ -91,11 +122,17 @@ SELECTED_EXPERIMENTS: List[str] = [
     "mappo_grouped_tarmac_soft_router_agglomerative_5f_capacity_router_prior05_vt_500_final",
     "mappo_grouped_tarmac_soft_router_agglomerative_5f_capacity_router_temp05_vt_500_final",
     "mappo_grouped_tarmac_soft_router_agglomerative_5f_no_capacity_router_vt_500_final",
+    "mappo_grouped_tarmac_soft_router_three_stage_full_expert_3f_vt_seed42",
+    "mappo_grouped_tarmac_soft_router_three_stage_shared_3f_vt_1500_seed42",
     "mappo_grouped_tarmac_soft_router_twostage_3f_expert_freeze200_temp05_prior1_no_capacity_vt_500_final",
     "mappo_grouped_tarmac_soft_router_twostage_3f_expert_freeze200_temp05_prior1_vt_500_final",
     "mappo_grouped_tarmac_soft_router_twostage_3f_expert_freeze200_temp05_prior1_vt_500_seed0",
     "mappo_grouped_tarmac_soft_router_twostage_3f_expert_freeze200_temp07_prior07_vt_500_final",
     "mappo_grouped_tarmac_soft_router_twostage_3f_expert_routeronly500_temp05_prior1_vt_500_final",
+    "mappo_grouped_tarmac_soft_router_twostage_3f_expert_routeronly500_temp05_prior1_vt_500_seed0",
+    "mappo_grouped_tarmac_soft_router_twostage_3f_expert_routeronly500_temp05_prior1_vt_500_seed1",
+    "mappo_grouped_tarmac_soft_router_twostage_3f_expert_routeronly500_temp05_prior1_vt_500_seed2",
+    "mappo_grouped_tarmac_soft_router_twostage_3f_expert_routeronly500_temp05_prior1_vt_500_seed3",
     "mappo_grouped_vt_500_final3",
     "mappo_standard_vt_500_final3",
     "rllib_independent_ppo_vt_80_final2",
@@ -862,7 +899,11 @@ def _table_view(df: pd.DataFrame, columns: Sequence[str]) -> pd.DataFrame:
 
 def _grouping_ablation_labels(experiment: str) -> Optional[Dict[str, str]]:
     if "tarmac_soft_router" in experiment:
-        if "twostage_3f" in experiment:
+        if "three_stage_full_expert_3f" in experiment:
+            feature_set = "dynamic_three_stage_3f_full_expert"
+        elif "three_stage_shared_3f" in experiment:
+            feature_set = "dynamic_three_stage_3f_shared"
+        elif "twostage_3f" in experiment:
             if "routeronly" in experiment:
                 feature_set = "dynamic_twostage_3f_router_only"
             elif "no_capacity" in experiment:
@@ -882,6 +923,25 @@ def _grouping_ablation_labels(experiment: str) -> Optional[Dict[str, str]]:
             "feature_group": "dynamic soft-router",
         }
 
+    if "tarmac_soc_regrouping" in experiment or "tarmac_soc6f" in experiment or "tarmac_energy4f" in experiment:
+        if "source_3f" in experiment:
+            grouping_method = "source"
+            feature_set = "soc_source_3f"
+        else:
+            grouping_method = next(
+                (method for method in ("agglomerative", "gmm", "kmeans") if f"_{method}_" in experiment),
+                None,
+            )
+            feature_set = next((feature for feature in ("energy4f", "soc6f") if feature in experiment), None)
+        if grouping_method is None or feature_set is None:
+            return None
+        return {
+            "architecture": "TarMAC SOC regrouping",
+            "grouping_method_short": grouping_method,
+            "grouping_feature_set_short": feature_set,
+            "feature_group": "policy-induced SOC regrouping",
+        }
+
     if "powernet_global" in experiment:
         architecture = "PowerNet global"
     elif "tarmac_hybrid" in experiment:
@@ -893,10 +953,12 @@ def _grouping_ablation_labels(experiment: str) -> Optional[Dict[str, str]]:
         (method for method in ("agglomerative", "gmm", "kmeans") if f"_{method}_" in experiment),
         None,
     )
+    three_feature_variant = re.search(r"_agglomerative_(3f_[A-I]_.+?)_vt_", experiment)
     feature_set = next(
         (
             feature
             for feature in (
+                three_feature_variant.group(1) if three_feature_variant else "",
                 "capacity_load_3f",
                 "capacity_load_4f",
                 "capacity_load_5f",
@@ -914,7 +976,13 @@ def _grouping_ablation_labels(experiment: str) -> Optional[Dict[str, str]]:
         "architecture": architecture,
         "grouping_method_short": grouping_method,
         "grouping_feature_set_short": feature_set,
-        "feature_group": "compact fixed grouping" if feature_set.startswith("capacity_load_") else "previous larger/full",
+        "feature_group": (
+            "3f feature ablation"
+            if feature_set.startswith("3f_")
+            else "compact fixed grouping"
+            if feature_set.startswith("capacity_load_")
+            else "previous larger/full"
+        ),
     }
 
 
