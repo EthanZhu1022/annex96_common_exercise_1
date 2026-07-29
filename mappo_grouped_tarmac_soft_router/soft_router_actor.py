@@ -22,6 +22,60 @@ import torch.nn.functional as F
 from onpolicy.algorithms.utils.util import check
 
 
+class RecurrentSoftRouter(nn.Module):
+    """GRU router that keeps one temporal hidden state per building."""
+
+    def __init__(self, input_dim: int, hidden_dim: int, n_experts: int) -> None:
+        super().__init__()
+        self.hidden_dim = int(hidden_dim)
+        self.input_projection = nn.Sequential(
+            nn.Linear(input_dim, self.hidden_dim),
+            nn.ReLU(),
+        )
+        self.gru = nn.GRUCell(self.hidden_dim, self.hidden_dim)
+        self.output = nn.Linear(self.hidden_dim, n_experts)
+        # Begin from a uniform dynamic gate, matching the feed-forward router.
+        nn.init.zeros_(self.output.weight)
+        nn.init.zeros_(self.output.bias)
+
+    def forward(
+        self,
+        inputs: torch.Tensor,
+        rnn_states: torch.Tensor,
+        masks: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Unroll a contiguous ``(time, building, feature)`` sequence."""
+        if inputs.dim() != 3:
+            raise ValueError(
+                "Recurrent router inputs must have shape (time, agents, features), "
+                f"got {tuple(inputs.shape)}."
+            )
+        if rnn_states.dim() != 4:
+            raise ValueError(
+                "Router rnn_states must have shape (time, agents, recurrent_N, hidden), "
+                f"got {tuple(rnn_states.shape)}."
+            )
+        if masks.dim() != 3:
+            raise ValueError(
+                "Router masks must have shape (time, agents, 1), "
+                f"got {tuple(masks.shape)}."
+            )
+        if rnn_states.shape[-1] < self.hidden_dim:
+            raise ValueError(
+                f"Actor state width {rnn_states.shape[-1]} is smaller than router GRU "
+                f"hidden width {self.hidden_dim}."
+            )
+
+        hidden = rnn_states[0, :, 0, : self.hidden_dim]
+        logits: List[torch.Tensor] = []
+        projected = self.input_projection(inputs)
+        for t in range(inputs.shape[0]):
+            hidden = hidden * masks[t]
+            hidden = self.gru(projected[t], hidden)
+            logits.append(self.output(hidden))
+        return torch.stack(logits, dim=0), hidden
+
+
 class SoftRouterGlobalCommActorController(nn.Module):
     """Run global communication and softly route each agent over action heads."""
 
@@ -41,6 +95,7 @@ class SoftRouterGlobalCommActorController(nn.Module):
         deterministic_hard_routing: bool = True,
         shared_encoder: bool = False,
         full_expert_routing: bool = False,
+        router_recurrent: bool = False,
     ) -> None:
         super().__init__()
         self.group_actors = nn.ModuleList(list(actors))
@@ -66,8 +121,17 @@ class SoftRouterGlobalCommActorController(nn.Module):
         # retaining all K action heads as experts.
         self.shared_encoder = bool(shared_encoder)
         self.full_expert_routing = bool(full_expert_routing)
+        self.router_recurrent = bool(router_recurrent)
         if self.shared_encoder and self.full_expert_routing:
             raise ValueError("shared_encoder and full_expert_routing are mutually exclusive.")
+        if self.router_recurrent and any(
+            actor._use_naive_recurrent_policy or actor._use_recurrent_policy
+            for actor in self.group_actors
+        ):
+            raise ValueError(
+                "router_recurrent currently requires feed-forward experts because the "
+                "router stores its hidden state in the actor rnn-state buffer."
+            )
         self.router_obs_indices = dict(router_obs_indices or {})
 
         action_layer = ref_actor.act
@@ -89,15 +153,29 @@ class SoftRouterGlobalCommActorController(nn.Module):
             router_extra_dim = 7
         self.router_extra_dim = router_extra_dim
 
-        self.router = nn.Sequential(
-            nn.Linear(self.hidden_size + self.router_extra_dim, router_hidden_dim),
-            nn.ReLU(),
-            nn.Linear(router_hidden_dim, self.n_experts),
-        )
-        final_layer = self.router[-1]
-        if isinstance(final_layer, nn.Linear):
-            nn.init.zeros_(final_layer.weight)
-            nn.init.zeros_(final_layer.bias)
+        router_input_dim = self.hidden_size + self.router_extra_dim
+        if self.router_recurrent:
+            if router_hidden_dim > self.hidden_size:
+                raise ValueError(
+                    "router_hidden_dim cannot exceed actor hidden_size when router GRU "
+                    "state is stored in the existing rollout buffer."
+                )
+            self.router = RecurrentSoftRouter(
+                input_dim=router_input_dim,
+                hidden_dim=router_hidden_dim,
+                n_experts=self.n_experts,
+            )
+        else:
+            self.router = nn.Sequential(
+                nn.Linear(router_input_dim, router_hidden_dim),
+                nn.ReLU(),
+                nn.Linear(router_hidden_dim, self.n_experts),
+            )
+            final_layer = self.router[-1]
+            if isinstance(final_layer, nn.Linear):
+                nn.init.zeros_(final_layer.weight)
+                nn.init.zeros_(final_layer.bias)
+        self.router_state_dim = int(router_hidden_dim) if self.router_recurrent else 0
 
         static_group_ids = torch.empty(self.n_agents_total, dtype=torch.long)
         for group_id, idx_k in enumerate(self.group_indices):
@@ -111,6 +189,7 @@ class SoftRouterGlobalCommActorController(nn.Module):
         self.last_gate_stats: Dict[str, float] = {}
         self.last_gate_balance_loss: Optional[torch.Tensor] = None
         self.last_dynamic_gate: Optional[torch.Tensor] = None
+        self.last_router_hidden: Optional[torch.Tensor] = None
 
     def set_router_alpha(self, alpha: float) -> None:
         """Set the dynamic-router mixing strength in [0, 1]."""
@@ -169,6 +248,8 @@ class SoftRouterGlobalCommActorController(nn.Module):
         self,
         global_features: torch.Tensor,
         router_extra_features: Optional[torch.Tensor] = None,
+        router_rnn_states: Optional[torch.Tensor] = None,
+        router_masks: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Return final gates with shape (..., n_agents, n_experts)."""
         if global_features.shape[-2] != self.n_agents_total:
@@ -189,7 +270,20 @@ class SoftRouterGlobalCommActorController(nn.Module):
             router_inputs = torch.cat([global_features, router_extra_features], dim=-1)
 
         temperature = max(self.router_temperature, 1e-6)
-        logits = self.router(router_inputs) / temperature
+        if self.router_recurrent:
+            if router_rnn_states is None or router_masks is None:
+                raise ValueError(
+                    "router_rnn_states and router_masks are required for router GRU."
+                )
+            logits, self.last_router_hidden = self.router(
+                router_inputs,
+                router_rnn_states,
+                router_masks,
+            )
+        else:
+            logits = self.router(router_inputs)
+            self.last_router_hidden = None
+        logits = logits / temperature
         dynamic_gate = torch.softmax(logits, dim=-1)
         self.last_dynamic_gate = dynamic_gate
 
@@ -478,7 +572,17 @@ class SoftRouterGlobalCommActorController(nn.Module):
         router_extra = self._capacity_router_features(obs)
         if router_extra is not None:
             router_extra = router_extra.unsqueeze(0)
-        gates = self._compute_gates(global_features.unsqueeze(0), router_extra).squeeze(0)
+        gates = self._compute_gates(
+            global_features.unsqueeze(0),
+            router_extra,
+            router_rnn_states=rnn_states.unsqueeze(0) if self.router_recurrent else None,
+            router_masks=masks.unsqueeze(0) if self.router_recurrent else None,
+        ).squeeze(0)
+        if self.router_recurrent:
+            if self.last_router_hidden is None:
+                raise RuntimeError("Router GRU did not return its next hidden state.")
+            new_rnn_states = new_rnn_states.clone()
+            new_rnn_states[:, 0, : self.router_state_dim] = self.last_router_hidden
         if self.full_expert_routing:
             expert_features: List[torch.Tensor] = []
             for actor in self.group_actors:
@@ -622,7 +726,12 @@ class SoftRouterGlobalCommActorController(nn.Module):
         router_extra = None
         if self.router_extra_dim > 0:
             router_extra = self._capacity_router_features(global_obs)
-        gates = self._compute_gates(global_features, router_extra)
+        gates = self._compute_gates(
+            global_features,
+            router_extra,
+            router_rnn_states=global_rnn if self.router_recurrent else None,
+            router_masks=global_masks if self.router_recurrent else None,
+        )
 
         action_log_probs: List[torch.Tensor] = []
         entropies: List[torch.Tensor] = []

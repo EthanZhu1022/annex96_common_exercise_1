@@ -17,7 +17,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Set, Tuple
 
 import numpy as np
 import torch
@@ -144,6 +144,7 @@ class Config:
     router_balance_coef: float = 0.0
     router_use_capacity_features: bool = True
     router_eval_hard: bool = True
+    router_recurrent: bool = False
     expert_checkpoint_dir: Optional[str] = None
     router_freeze_experts_episodes: int = 0
     router_only_lr: Optional[float] = None
@@ -159,6 +160,7 @@ class Config:
     dynamic_actor_episodes: int = 0
     dynamic_actor_router_freeze_episodes: int = 100
     dynamic_actor_lr: Optional[float] = None
+    dynamic_actor_update_scope: str = "all"
     checkpoint_keep_every: int = 50
 
 
@@ -242,6 +244,7 @@ def _build_grouped_components(
         deterministic_hard_routing=cfg.router_eval_hard,
         shared_encoder=cfg.shared_encoder,
         full_expert_routing=cfg.full_expert_routing,
+        router_recurrent=cfg.router_recurrent,
     ).to(device)
     if cfg.training_schedule != "legacy":
         expert_params = _unique_parameters([controller.group_actors, controller.comm])
@@ -351,10 +354,35 @@ def _load_expert_checkpoint_for_router(
     return episode
 
 
-def _set_expert_trainable(controller: SoftRouterGlobalCommActorController, trainable: bool) -> None:
+def _set_expert_trainable(
+    controller: SoftRouterGlobalCommActorController,
+    trainable: bool,
+    scope: str = "all",
+) -> None:
+    """Configure which pretrained actor parameters stage 3 may update.
+
+    ``heads`` keeps every encoder and the global TarMAC module fixed, and only
+    adapts the Gaussian action heads.  This is the conservative option for a
+    pretrained full-expert run because it cannot destroy the latent spaces that
+    made the fixed 3f checkpoint work.
+    """
+    if scope not in {"all", "heads"}:
+        raise ValueError(f"Unknown expert update scope: {scope!r}")
+
+    # Always clear the previous phase first.  Otherwise parameters enabled by
+    # an earlier ``all`` phase would remain trainable in a later ``heads`` phase.
     for module in [controller.group_actors, controller.comm]:
         for param in module.parameters():
-            param.requires_grad = trainable
+            param.requires_grad = False
+    if trainable:
+        if scope == "all":
+            for module in [controller.group_actors, controller.comm]:
+                for param in module.parameters():
+                    param.requires_grad = True
+        else:
+            for actor in controller.group_actors:
+                for param in actor.act.parameters():
+                    param.requires_grad = True
     for param in controller.router.parameters():
         param.requires_grad = True
 
@@ -460,7 +488,11 @@ def _configure_three_stage_phase(
         # Let the shared actor adapt to the learned dynamic traffic while the
         # router distribution remains stationary.
         phase = "dynamic_actor_adapt"
-        _set_expert_trainable(controller, trainable=True)
+        _set_expert_trainable(
+            controller,
+            trainable=True,
+            scope=cfg.dynamic_actor_update_scope,
+        )
         _set_router_trainable(controller, trainable=False)
         _set_optimizer_group_lr(actor_optimizer, "experts", expert_lr)
         _set_optimizer_group_lr(actor_optimizer, "router", 0.0)
@@ -468,7 +500,11 @@ def _configure_three_stage_phase(
             _reset_optimizer_group_state(actor_optimizer, "experts")
     else:
         phase = "dynamic_joint"
-        _set_expert_trainable(controller, trainable=True)
+        _set_expert_trainable(
+            controller,
+            trainable=True,
+            scope=cfg.dynamic_actor_update_scope,
+        )
         _set_router_trainable(controller, trainable=True)
         _set_optimizer_group_lr(actor_optimizer, "experts", expert_lr)
         _set_optimizer_group_lr(actor_optimizer, "router", router_joint_lr)
@@ -562,6 +598,76 @@ def _compute_globally_normalized_advantages(
     return [(advantages - mean_adv) / (std_adv + 1e-5) for advantages in raw]
 
 
+def _joint_actor_sequence_generator(
+    buffers: Sequence[GroupedSharedReplayBuffer],
+    advantages_by_group: Sequence[np.ndarray],
+    num_mini_batch: int,
+) -> Iterator[List[Dict[str, np.ndarray]]]:
+    """Yield aligned contiguous time chunks for truncated router-GRU BPTT."""
+    episode_length, n_rollout_threads = buffers[0].rewards.shape[0:2]
+    if n_rollout_threads != 1:
+        raise ValueError("Router GRU currently supports one rollout thread.")
+    batch_size = episode_length
+    if num_mini_batch <= 0 or num_mini_batch > batch_size:
+        raise ValueError(
+            f"num_mini_batch must be in [1, {batch_size}], got {num_mini_batch}."
+        )
+
+    chunks = [
+        chunk
+        for chunk in np.array_split(np.arange(batch_size), num_mini_batch)
+        if len(chunk) > 0
+    ]
+    # Shuffle whole chunks, never timesteps inside a chunk.
+    chunk_order = torch.randperm(len(chunks)).tolist()
+    for chunk_id in chunk_order:
+        indices = chunks[chunk_id]
+        group_batches: List[Dict[str, np.ndarray]] = []
+        for buffer, advantages in zip(buffers, advantages_by_group):
+            num_agents = buffer.rewards.shape[2]
+            obs = buffer.obs[:-1].reshape(
+                batch_size, num_agents, *buffer.obs.shape[3:]
+            )
+            rnn_states = buffer.rnn_states[:-1].reshape(
+                batch_size, num_agents, *buffer.rnn_states.shape[3:]
+            )
+            actions = buffer.actions.reshape(
+                batch_size, num_agents, buffer.actions.shape[-1]
+            )
+            masks = buffer.masks[:-1].reshape(batch_size, num_agents, 1)
+            active_masks = buffer.active_masks[:-1].reshape(
+                batch_size, num_agents, 1
+            )
+            old_log_probs = buffer.action_log_probs.reshape(
+                batch_size, num_agents, buffer.action_log_probs.shape[-1]
+            )
+            adv = advantages.reshape(batch_size, num_agents, 1)
+
+            batch_dict: Dict[str, np.ndarray] = {
+                "obs": obs[indices].reshape(-1, *obs.shape[2:]),
+                "rnn_states": rnn_states[indices].reshape(
+                    -1, *rnn_states.shape[2:]
+                ),
+                "action": actions[indices].reshape(-1, actions.shape[-1]),
+                "masks": masks[indices].reshape(-1, 1),
+                "active_masks": active_masks[indices].reshape(-1, 1),
+                "old_log_probs": old_log_probs[indices].reshape(
+                    -1, old_log_probs.shape[-1]
+                ),
+                "advantages": adv[indices].reshape(-1, 1),
+                "available_actions": None,
+            }
+            if buffer.available_actions is not None:
+                available_actions = buffer.available_actions[:-1].reshape(
+                    batch_size, num_agents, buffer.available_actions.shape[-1]
+                )
+                batch_dict["available_actions"] = available_actions[indices].reshape(
+                    -1, available_actions.shape[-1]
+                )
+            group_batches.append(batch_dict)
+        yield group_batches
+
+
 def _train_soft_router_actor(
     cfg: Config,
     controller: SoftRouterGlobalCommActorController,
@@ -599,7 +705,20 @@ def _train_soft_router_actor(
     ]
 
     for _ in range(cfg.ppo_epoch):
-        for group_batches in _joint_actor_generator(buffers, advantages_by_group, cfg.num_mini_batch):
+        generator = (
+            _joint_actor_sequence_generator(
+                buffers,
+                advantages_by_group,
+                cfg.num_mini_batch,
+            )
+            if controller.router_recurrent
+            else _joint_actor_generator(
+                buffers,
+                advantages_by_group,
+                cfg.num_mini_batch,
+            )
+        )
+        for group_batches in generator:
             tensor_batches: List[Dict[str, torch.Tensor]] = []
             for batch in group_batches:
                 tensor_batch: Dict[str, torch.Tensor] = {
@@ -730,6 +849,7 @@ def _apply_checkpoint_model_config(cfg: Config, ckpt_meta: Dict[str, Any]) -> No
         "router_balance_coef",
         "router_use_capacity_features",
         "router_eval_hard",
+        "router_recurrent",
         "expert_checkpoint_dir",
         "router_freeze_experts_episodes",
         "router_only_lr",
@@ -742,6 +862,7 @@ def _apply_checkpoint_model_config(cfg: Config, ckpt_meta: Dict[str, Any]) -> No
         "dynamic_actor_episodes",
         "dynamic_actor_router_freeze_episodes",
         "dynamic_actor_lr",
+        "dynamic_actor_update_scope",
         "checkpoint_keep_every",
     ]:
         if field_name in saved_cfg:
@@ -888,6 +1009,8 @@ def evaluate_on_test(
 def _prepare_training_config(cfg: Config) -> None:
     if cfg.training_schedule not in {"legacy", "three_stage", "pretrained_full_expert"}:
         raise ValueError(f"Unsupported training_schedule={cfg.training_schedule!r}.")
+    if cfg.dynamic_actor_update_scope not in {"all", "heads"}:
+        raise ValueError("dynamic_actor_update_scope must be one of: all, heads.")
     if cfg.training_schedule != "three_stage":
         if cfg.training_schedule == "legacy":
             return
@@ -1030,6 +1153,7 @@ def train(cfg: Config) -> None:
                 "n_groups": K,
                 "group_sizes": cluster_result["sizes"],
                 "router_type": "state_conditioned_soft_mixture",
+                "router_recurrent": cfg.router_recurrent,
                 "expert_checkpoint_dir": cfg.expert_checkpoint_dir,
                 "router_freeze_experts_episodes": cfg.router_freeze_experts_episodes,
                 "router_only_lr": cfg.router_only_lr,
@@ -1101,6 +1225,7 @@ def train(cfg: Config) -> None:
         f"router_alpha={cfg.router_prior_start}->{cfg.router_prior_end} "
         f"warmup={cfg.router_warmup_episodes} "
         f"capacity_features={cfg.router_use_capacity_features} "
+        f"router_gru={cfg.router_recurrent} "
         f"eval_hard={cfg.router_eval_hard} "
         f"obs_indices={router_obs_indices}"
     )
@@ -1115,7 +1240,8 @@ def train(cfg: Config) -> None:
             f"static_actor:{cfg.static_actor_episodes}, "
             f"router_only:{cfg.router_only_episodes}, "
             f"dynamic_actor:{cfg.dynamic_actor_episodes} "
-            f"(router_frozen_first={cfg.dynamic_actor_router_freeze_episodes})"
+            f"(router_frozen_first={cfg.dynamic_actor_router_freeze_episodes}, "
+            f"expert_scope={cfg.dynamic_actor_update_scope})"
         )
     if expert_ckpt_path is not None:
         print(
@@ -1459,6 +1585,7 @@ def train(cfg: Config) -> None:
             "entropy_scale": cfg.router_entropy_scale,
             "balance_coef": cfg.router_balance_coef,
             "use_capacity_features": cfg.router_use_capacity_features,
+            "recurrent": cfg.router_recurrent,
             "eval_hard": cfg.router_eval_hard,
             "expert_checkpoint_dir": cfg.expert_checkpoint_dir,
             "freeze_experts_episodes": cfg.router_freeze_experts_episodes,
@@ -1469,6 +1596,7 @@ def train(cfg: Config) -> None:
             "dynamic_actor_episodes": cfg.dynamic_actor_episodes,
             "dynamic_actor_router_freeze_episodes": cfg.dynamic_actor_router_freeze_episodes,
             "dynamic_actor_lr": cfg.dynamic_actor_lr,
+            "dynamic_actor_update_scope": cfg.dynamic_actor_update_scope,
         },
         "n_groups": K,
         "group_sizes": group_sizes,
@@ -1710,6 +1838,15 @@ def parse_args() -> Config:
     parser.add_argument("--no_router_capacity_features", action="store_true", default=False)
     parser.add_argument("--router_eval_soft", action="store_true", default=False)
     parser.add_argument(
+        "--router_gru",
+        action="store_true",
+        default=False,
+        help=(
+            "Use a temporal GRU router. Experts remain feed-forward; PPO uses "
+            "contiguous time chunks for truncated backpropagation through time."
+        ),
+    )
+    parser.add_argument(
         "--expert_checkpoint_dir",
         default=None,
         help=(
@@ -1765,6 +1902,15 @@ def parse_args() -> Config:
         type=float,
         default=None,
         help="Expert encoder/communication/head learning rate in stage 3.",
+    )
+    parser.add_argument(
+        "--dynamic_actor_update_scope",
+        default="all",
+        choices=["all", "heads"],
+        help=(
+            "Stage-3 expert parameters to update: all updates encoder, TarMAC, and "
+            "heads; heads freezes encoder/TarMAC and adapts action heads only."
+        ),
     )
     parser.add_argument(
         "--checkpoint_keep_every",
@@ -1825,6 +1971,7 @@ def parse_args() -> Config:
         router_balance_coef=args.router_balance_coef,
         router_use_capacity_features=not args.no_router_capacity_features,
         router_eval_hard=not args.router_eval_soft,
+        router_recurrent=args.router_gru,
         expert_checkpoint_dir=args.expert_checkpoint_dir,
         router_freeze_experts_episodes=args.router_freeze_experts_episodes,
         router_only_lr=args.router_only_lr,
@@ -1835,6 +1982,7 @@ def parse_args() -> Config:
         dynamic_actor_episodes=args.dynamic_actor_episodes,
         dynamic_actor_router_freeze_episodes=args.dynamic_actor_router_freeze_episodes,
         dynamic_actor_lr=args.dynamic_actor_lr,
+        dynamic_actor_update_scope=args.dynamic_actor_update_scope,
         checkpoint_keep_every=args.checkpoint_keep_every,
     )
 
