@@ -117,6 +117,7 @@ class Config:
     do_test: bool = True
     test_only: bool = False
     checkpoint_dir: Optional[str] = None
+    resume_checkpoint: Optional[str] = None
     test_save_dir: Optional[str] = None
 
     seed: int = 42
@@ -443,6 +444,55 @@ def _write_router_history(history: List[Dict[str, Any]], save_dir: Path) -> None
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(history)
+
+
+def _load_router_history_for_resume(
+    save_dir: Path,
+    resume_episode: int,
+    n_experts: int,
+) -> Tuple[List[Dict[str, Any]], List[float], List[Dict[str, Any]], Optional[np.ndarray]]:
+    """Restore plotting/log history up to the checkpoint being resumed."""
+    path = save_dir / "router_training_history.csv"
+    if not path.exists():
+        return [], [], [], None
+
+    rows: List[Dict[str, Any]] = []
+    rewards: List[float] = []
+    primary_metrics: List[Dict[str, Any]] = []
+    with path.open(newline="") as f:
+        for row in csv.DictReader(f):
+            try:
+                episode = int(float(row.get("episode") or 0))
+            except (TypeError, ValueError):
+                continue
+            if episode > resume_episode:
+                continue
+            rows.append(dict(row))
+            try:
+                rewards.append(float(row["episode_reward_sum"]))
+            except (KeyError, TypeError, ValueError):
+                rewards.append(float("nan"))
+            metrics: Dict[str, Any] = {}
+            for key, value in row.items():
+                if not key.startswith("primary/") or value in {None, ""}:
+                    continue
+                try:
+                    metrics[key] = float(value)
+                except (TypeError, ValueError):
+                    pass
+            primary_metrics.append(metrics)
+
+    previous_usage: Optional[np.ndarray] = None
+    if rows:
+        values: List[float] = []
+        try:
+            for k in range(n_experts):
+                values.append(float(rows[-1][f"expert_{k}_mean"]))
+            previous_usage = np.asarray(values, dtype=np.float64)
+        except (KeyError, TypeError, ValueError):
+            previous_usage = None
+    print(f"  [resume] restored {len(rows)} history rows from {path}")
+    return rows, rewards, primary_metrics, previous_usage
 
 
 def _keep_checkpoint_copy(
@@ -1093,6 +1143,7 @@ def train(cfg: Config) -> None:
     cluster_dir.mkdir(parents=True, exist_ok=True)
     save_run_config(cfg, save_dir)
     expert_ckpt_path = _resolve_checkpoint_path(cfg.expert_checkpoint_dir)
+    resume_ckpt_path = _resolve_checkpoint_path(cfg.resume_checkpoint)
     if cfg.full_expert_routing and expert_ckpt_path is None:
         raise ValueError(
             "pretrained_full_expert requires --expert_checkpoint_dir pointing to the "
@@ -1136,6 +1187,20 @@ def train(cfg: Config) -> None:
                 "Expert checkpoint group assignments do not match the current router grouping. "
                 "Use the same grouping method, features, k candidates, cluster seed, and retries "
                 f"as the expert run. checkpoint={expert_ckpt_path}"
+            )
+    if resume_ckpt_path is not None:
+        resume_meta = torch.load(resume_ckpt_path, map_location="cpu", weights_only=False)
+        resume_assignments = np.asarray(
+            resume_meta.get("group_assignments", []),
+            dtype=group_assignments.dtype,
+        )
+        if (
+            resume_assignments.shape != group_assignments.shape
+            or not np.array_equal(resume_assignments, group_assignments)
+        ):
+            raise ValueError(
+                "Resume checkpoint group assignments do not match the current run: "
+                f"{resume_ckpt_path}"
             )
     K = int(group_assignments.max()) + 1
 
@@ -1200,6 +1265,22 @@ def train(cfg: Config) -> None:
             ckpt_path=expert_ckpt_path,
             device=device,
         )
+    resume_episode = 0
+    if resume_ckpt_path is not None:
+        resume_episode = int(
+            load_checkpoint(
+                policies,
+                controller,
+                actor_optimizer,
+                resume_ckpt_path,
+                device,
+            )
+        )
+        if resume_episode >= cfg.n_episodes:
+            print(
+                f"  [resume] checkpoint already reached episode {resume_episode}; "
+                "skipping training loop."
+            )
 
     episode_length = train_env._base_env.episode_time_steps
     n_agents = train_env.n_agents
@@ -1281,13 +1362,19 @@ def train(cfg: Config) -> None:
             step=0,
         )
 
-    all_rewards: List[float] = []
-    all_primary_metrics: List[Dict[str, Any]] = []
-    router_history: List[Dict[str, Any]] = []
-    previous_expert_usage: Optional[np.ndarray] = None
+    (
+        router_history,
+        all_rewards,
+        all_primary_metrics,
+        previous_expert_usage,
+    ) = _load_router_history_for_resume(
+        save_dir,
+        resume_episode=resume_episode,
+        n_experts=K,
+    ) if resume_episode > 0 else ([], [], [], None)
     save_every = max(cfg.n_episodes // 10, 1)
 
-    for episode in range(1, cfg.n_episodes + 1):
+    for episode in range(resume_episode + 1, cfg.n_episodes + 1):
         controller.set_router_alpha(_router_alpha_for_episode(cfg, episode))
         if cfg.training_schedule != "legacy":
             router_phase = _configure_three_stage_phase(
@@ -1801,6 +1888,14 @@ def parse_args() -> Config:
     parser.add_argument("--no_test", action="store_true")
     parser.add_argument("--test_only", action="store_true")
     parser.add_argument("--checkpoint_dir", default=None)
+    parser.add_argument(
+        "--resume_checkpoint",
+        default=None,
+        help=(
+            "Resume training from a staged checkpoint.pt, restoring actor, router, "
+            "critic, and optimizer states."
+        ),
+    )
     parser.add_argument("--test_save_dir", default=None)
 
     parser.add_argument("--comm_hidden_dim", type=int, default=64)
@@ -1949,6 +2044,7 @@ def parse_args() -> Config:
         do_test=not args.no_test,
         test_only=args.test_only,
         checkpoint_dir=args.checkpoint_dir,
+        resume_checkpoint=args.resume_checkpoint,
         test_save_dir=args.test_save_dir,
         seed=args.seed,
         wandb_project=args.wandb_project,

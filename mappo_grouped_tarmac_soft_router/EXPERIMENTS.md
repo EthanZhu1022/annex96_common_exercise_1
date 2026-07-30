@@ -58,4 +58,7 @@ EXPERT_DIR=results/mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_li
 bash scripts/run_soft_router_full_expert_stable_and_gru.sh
 ```
 
-Completed result directories are skipped, and any failed run stops the queue.
+Completed result directories are skipped. If `checkpoint.pt` exists without
+`latest_metrics.json`, the script automatically restores the model, router,
+critic, optimizers, and episode number and continues from that checkpoint.
+Any failed run stops the queue.

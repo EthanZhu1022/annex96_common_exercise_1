@@ -37,6 +37,10 @@ run_variant() {
     echo "[skip] completed ${variant} seed=${seed}: ${save_dir}"
     return
   fi
+  if [[ -f "${save_dir}/checkpoint.pt" ]]; then
+    echo "[resume] ${variant} seed=${seed}: ${save_dir}/checkpoint.pt"
+    extra_args+=(--resume_checkpoint "${save_dir}/checkpoint.pt")
+  fi
 
   echo "[run] ${variant} seed=${seed}: ${save_dir}"
   "$PYTHON_EXE" -m mappo_grouped_tarmac_soft_router.train \
