@@ -122,6 +122,7 @@ SELECTED_EXPERIMENTS: List[str] = [
     "mappo_grouped_tarmac_soft_router_agglomerative_5f_capacity_router_prior05_vt_500_final",
     "mappo_grouped_tarmac_soft_router_agglomerative_5f_capacity_router_temp05_vt_500_final",
     "mappo_grouped_tarmac_soft_router_agglomerative_5f_no_capacity_router_vt_500_final",
+    "mappo_grouped_tarmac_soft_router_full_expert_stable_heads_3f_vt_seed42",
     "mappo_grouped_tarmac_soft_router_three_stage_full_expert_3f_vt_seed42",
     "mappo_grouped_tarmac_soft_router_three_stage_shared_3f_vt_1500_seed42",
     "mappo_grouped_tarmac_soft_router_twostage_3f_expert_freeze200_temp05_prior1_no_capacity_vt_500_final",
@@ -899,7 +900,9 @@ def _table_view(df: pd.DataFrame, columns: Sequence[str]) -> pd.DataFrame:
 
 def _grouping_ablation_labels(experiment: str) -> Optional[Dict[str, str]]:
     if "tarmac_soft_router" in experiment:
-        if "three_stage_full_expert_3f" in experiment:
+        if "full_expert_stable_heads_3f" in experiment:
+            feature_set = "dynamic_full_expert_stable_heads_3f"
+        elif "three_stage_full_expert_3f" in experiment:
             feature_set = "dynamic_three_stage_3f_full_expert"
         elif "three_stage_shared_3f" in experiment:
             feature_set = "dynamic_three_stage_3f_shared"
