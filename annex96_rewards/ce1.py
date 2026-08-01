@@ -13,9 +13,9 @@ _EPSILON = 1e-9
 def build_ce1_reward_kwargs(
     weight_nmbe: float = 1.0,
     weight_cv_rmse: float = 1.0,
-    weight_comfort: float = 0.8,
-    comfort_binary_weight: float = 1.3,
-    comfort_degree_weight: float = 0.3,
+    weight_comfort: float = 1.5,  # previous default: 0.8
+    comfort_binary_weight: float = 3.0,  # previous default: 1.3
+    comfort_degree_weight: float = 1.0,  # previous default: 0.3
     return_metadata: bool = True,
 ) -> Dict[str, Any]:
     """Return default kwargs for the CE1 three-metric reward."""
@@ -60,9 +60,9 @@ class CE1ThreeMetricReward(RewardFunction):
         env_metadata: Mapping[str, Any],
         weight_nmbe: float = 1.0,
         weight_cv_rmse: float = 1.0,
-        weight_comfort: float = 0.8,
-        comfort_binary_weight: float = 1.3,
-        comfort_degree_weight: float = 0.3,
+        weight_comfort: float = 1.5,  # previous default: 0.8
+        comfort_binary_weight: float = 3.0,  # previous default: 1.3
+        comfort_degree_weight: float = 1.0,  # previous default: 0.3
         return_metadata: bool = True,
     ):
         super().__init__(env_metadata)
