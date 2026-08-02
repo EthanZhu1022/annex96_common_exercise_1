@@ -48,8 +48,7 @@ class CE1ThreeMetricReward(RewardFunction):
     2. CV-RMSE surrogate:
        running root-mean-square portfolio tracking error normalized by mean target load.
     3. Thermal comfort surrogate:
-       per-building exceedance outside each building's setpoint comfort band,
-       falling back to the CE1 seasonal comfort band if setpoints are absent.
+       per-building exceedance outside the official CE1 seasonal comfort band.
 
     The tracking terms are portfolio-level and shared equally across buildings so
     every controller sees the same district objective. The comfort term stays
@@ -112,56 +111,17 @@ class CE1ThreeMetricReward(RewardFunction):
 
         return float(reference)
 
-    @staticmethod
-    def _optional_float(value: Any) -> Optional[float]:
-        if value is None:
-            return None
-        try:
-            output = float(value)
-        except (TypeError, ValueError):
-            return None
-        if not np.isfinite(output):
-            return None
-        return output
-
-    def _resolve_comfort_bounds(
-        self,
-        obs: Mapping[str, Union[int, float]],
-        fallback_lower_bound_c: float,
-        fallback_upper_bound_c: float,
-    ) -> Tuple[float, float]:
-        heating_sp = self._optional_float(obs.get("indoor_dry_bulb_temperature_heating_set_point"))
-        cooling_sp = self._optional_float(obs.get("indoor_dry_bulb_temperature_cooling_set_point"))
-        comfort_band = self._optional_float(obs.get("comfort_band"))
-
-        if comfort_band is None:
-            comfort_band = 0.0
-
-        lower_bound_c = fallback_lower_bound_c
-        upper_bound_c = fallback_upper_bound_c
-        if heating_sp is not None:
-            lower_bound_c = heating_sp - comfort_band
-        if cooling_sp is not None:
-            upper_bound_c = cooling_sp + comfort_band
-
-        return lower_bound_c, upper_bound_c
-
     def _compute_comfort_penalty(
         self,
         observations: List[Mapping[str, Union[int, float]]],
     ) -> Tuple[np.ndarray, float, float]:
         month = observations[0].get("month")
-        fallback_lower_bound_c, fallback_upper_bound_c = self._get_season_comfort_bounds(month)
+        lower_bound_c, upper_bound_c = self._get_season_comfort_bounds(month)
         penalties: List[float] = []
         exceed_flags: List[float] = []
 
         for obs in observations:
             indoor_temp = float(obs["indoor_dry_bulb_temperature"])
-            lower_bound_c, upper_bound_c = self._resolve_comfort_bounds(
-                obs,
-                fallback_lower_bound_c,
-                fallback_upper_bound_c,
-            )
             below = max(lower_bound_c - indoor_temp, 0.0)
             above = max(indoor_temp - upper_bound_c, 0.0)
             exceed_degrees = below + above

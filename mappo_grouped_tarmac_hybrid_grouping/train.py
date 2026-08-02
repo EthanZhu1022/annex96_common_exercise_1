@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 from annex96_reporting import collect_building_temperature_timeseries
+from annex96_rewards import build_ce1_reward_kwargs
 
 REPO_DIR = Path(__file__).resolve().parent.parent
 ONPOLICY = REPO_DIR / "on-policy-main"
@@ -96,6 +97,12 @@ class Config:
     entropy_coef: float = 0.01
     max_grad_norm: float = 10.0
 
+    weight_nmbe: float = 5.0
+    weight_cv_rmse: float = 5.0
+    weight_comfort: float = 1.0
+    comfort_binary_weight: float = 2.0
+    comfort_degree_weight: float = 0.5
+
     n_episodes: int = 100
     train_month: Optional[int] = None
     test_month: Optional[int] = None
@@ -120,6 +127,16 @@ class Config:
     comm_key_dim: int = 32
     comm_value_dim: int = 64
     comm_fusion_mode: str = "relu"
+
+
+def _build_reward_kwargs(cfg: Config) -> Dict[str, Any]:
+    return build_ce1_reward_kwargs(
+        weight_nmbe=cfg.weight_nmbe,
+        weight_cv_rmse=cfg.weight_cv_rmse,
+        weight_comfort=cfg.weight_comfort,
+        comfort_binary_weight=cfg.comfort_binary_weight,
+        comfort_degree_weight=cfg.comfort_degree_weight,
+    )
 
 
 def _build_grouped_components(
@@ -232,6 +249,11 @@ def _apply_checkpoint_model_config(cfg: Config, ckpt_meta: Dict[str, Any]) -> No
         "grouping_feature_set",
         "grouping_feature_month",
         "grouping_feature_columns",
+        "weight_nmbe",
+        "weight_cv_rmse",
+        "weight_comfort",
+        "comfort_binary_weight",
+        "comfort_degree_weight",
     ]:
         if field_name in saved_cfg:
             setattr(cfg, field_name, saved_cfg[field_name])
@@ -259,6 +281,7 @@ def evaluate_on_test(
         n_buildings=cfg.n_buildings,
         start_step=test_start,
         end_step=test_end,
+        reward_function_kwargs=_build_reward_kwargs(cfg),
     )
 
     n_agents = test_env.n_agents
@@ -446,6 +469,7 @@ def train(cfg: Config) -> None:
         n_buildings=cfg.n_buildings,
         start_step=train_start,
         end_step=train_end,
+        reward_function_kwargs=_build_reward_kwargs(cfg),
     )
     (
         mappo_args,
@@ -768,6 +792,7 @@ def run_test_only(cfg: Config) -> Dict[str, Any]:
         n_buildings=cfg.n_buildings,
         start_step=train_start,
         end_step=train_end,
+        reward_function_kwargs=_build_reward_kwargs(cfg),
     )
     (
         _mappo_args,
@@ -866,6 +891,12 @@ def parse_args() -> Config:
     parser.add_argument("--entropy_coef", type=float, default=0.01)
     parser.add_argument("--max_grad_norm", type=float, default=10.0)
 
+    parser.add_argument("--weight_nmbe", type=float, default=5.0)
+    parser.add_argument("--weight_cv_rmse", type=float, default=5.0)
+    parser.add_argument("--weight_comfort", type=float, default=1.0)
+    parser.add_argument("--comfort_binary_weight", type=float, default=2.0)
+    parser.add_argument("--comfort_degree_weight", type=float, default=0.5)
+
     parser.add_argument("--n_episodes", type=int, default=100)
     parser.add_argument("--train_month", type=int, default=None)
     parser.add_argument("--test_month", type=int, default=None)
@@ -922,6 +953,11 @@ def parse_args() -> Config:
         value_loss_coef=args.value_loss_coef,
         entropy_coef=args.entropy_coef,
         max_grad_norm=args.max_grad_norm,
+        weight_nmbe=args.weight_nmbe,
+        weight_cv_rmse=args.weight_cv_rmse,
+        weight_comfort=args.weight_comfort,
+        comfort_binary_weight=args.comfort_binary_weight,
+        comfort_degree_weight=args.comfort_degree_weight,
         n_episodes=args.n_episodes,
         train_month=args.train_month,
         test_month=args.test_month,

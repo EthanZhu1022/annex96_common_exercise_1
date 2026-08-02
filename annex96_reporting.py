@@ -238,6 +238,11 @@ def export_building_temperature_artifacts(
     temperature_df.sort_values(["building_id", "hour"]).to_csv(csv_path, index=False)
 
     label = algorithm_label or "Temperature Curves"
+    if str(climate).upper() == "TX":
+        comfort_low_c, comfort_high_c = 22.0, 26.0
+    else:
+        comfort_low_c, comfort_high_c = 20.0, 24.0
+    comfort_range_label = f"{comfort_low_c:g}-{comfort_high_c:g}C range"
     full_path = save_dir / f"{prefix}_building_temperatures_full.png"
     week1_path = save_dir / f"{prefix}_building_temperatures_week1.png"
 
@@ -269,9 +274,28 @@ def export_building_temperature_artifacts(
             indoor = building_frame["indoor_temperature"].to_numpy(dtype=float)
 
             ax.plot(hours, indoor, color="#4e79a7", linewidth=1.2, label="Indoor")
-            ax.axhline(20.0, color="#59a14f", linewidth=0.9, linestyle="--", label="20C")
-            ax.axhline(24.0, color="#59a14f", linewidth=0.9, linestyle="--", label="24C")
-            ax.fill_between(hours, 20.0, 24.0, color="#59a14f", alpha=0.12, label="20-24C range")
+            ax.axhline(
+                comfort_low_c,
+                color="#59a14f",
+                linewidth=0.9,
+                linestyle="--",
+                label=f"{comfort_low_c:g}C",
+            )
+            ax.axhline(
+                comfort_high_c,
+                color="#59a14f",
+                linewidth=0.9,
+                linestyle="--",
+                label=f"{comfort_high_c:g}C",
+            )
+            ax.fill_between(
+                hours,
+                comfort_low_c,
+                comfort_high_c,
+                color="#59a14f",
+                alpha=0.12,
+                label=comfort_range_label,
+            )
 
             if legend_handles is None:
                 legend_handles, legend_labels = ax.get_legend_handles_labels()
