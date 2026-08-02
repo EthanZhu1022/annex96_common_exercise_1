@@ -40,17 +40,17 @@ if ((${#CPU_IDS[@]} < REQUIRED_CORES)); then
 fi
 
 STAMP="$(date +%Y%m%d_%H%M%S)"
-LOG_DIR="$REPO_DIR/experiment_queue_logs/tx_3fA_degree_hours_$STAMP"
+LOG_DIR="$REPO_DIR/experiment_queue_logs/vt_3fA_degree_hours_$STAMP"
 mkdir -p "$LOG_DIR"
 
-echo "TX 3fA degree-hours reward experiment"
+echo "VT 3fA degree-hours reward experiment"
 echo "Seeds: 0 1 2 (parallel)"
 echo "CPU cores per seed: $THREADS_PER_JOB"
 echo "Episodes per seed: $EPISODES"
-echo "Features: bes_capacity_kwh cooling_mean nsl_mean"
-echo "Train/test/grouping months: August/September/August"
+echo "Features: bes_capacity_kwh heating_mean nsl_mean"
+echo "Train/test/grouping months: January/February/January"
 echo "Reward: NMBE=5 CV-RMSE=5 comfort=1 binary=1 degree=1.5"
-echo "Comfort bounds: official seasonal TX band, 22-26C"
+echo "Comfort bounds: official seasonal VT band, 20-24C"
 echo "Logs: $LOG_DIR"
 
 run_seed() {
@@ -62,7 +62,7 @@ run_seed() {
     cpu_spec+="${cpu_spec:+,}${CPU_IDS[$((CPU_OFFSET + slot * THREADS_PER_JOB + offset))]}"
   done
 
-  local run_name="mappo_grouped_tarmac_hybrid_agglomerative_capacity_cooling_3f_linear_tx_aug_sep_500_nmbe5_cvrmse5_comfort10_binary10_degree15_seed${seed}"
+  local run_name="mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_nmbe5_cvrmse5_comfort10_binary10_degree15_seed${seed}"
   local save_dir="$REPO_DIR/results/$run_name"
   local stdout_path="$LOG_DIR/$run_name.stdout.log"
   local stderr_path="$LOG_DIR/$run_name.stderr.log"
@@ -85,17 +85,17 @@ run_seed() {
 
   local -a command=(
     "$PYTHON_EXE" -m mappo_grouped_tarmac_hybrid_grouping.train
-    --climate TX
+    --climate VT
     --n_episodes "$EPISODES"
-    --train_month 8
-    --test_month 9
-    --grouping_feature_month 8
+    --train_month 1
+    --test_month 2
+    --grouping_feature_month 1
     --seed "$seed"
     --group_k_candidates 4 5
     --cluster_seed 0
     --cluster_retries 10
     --grouping_method agglomerative
-    --grouping_feature_columns bes_capacity_kwh cooling_mean nsl_mean
+    --grouping_feature_columns bes_capacity_kwh heating_mean nsl_mean
     --comm_fusion_mode linear
     --weight_nmbe 5.0
     --weight_cv_rmse 5.0
@@ -130,4 +130,4 @@ if ((failed)); then
   exit 1
 fi
 
-echo "All three TX seeds completed."
+echo "All three VT seeds completed."
