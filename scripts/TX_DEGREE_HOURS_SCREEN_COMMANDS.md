@@ -8,14 +8,14 @@ chmod +x scripts/start_tarmac_3fA_tx_degree_hours_screen.sh
 bash scripts/start_tarmac_3fA_tx_degree_hours_screen.sh
 ```
 
-The launcher creates a detached `screen` session named `tx_3fA_degree_hours`.
+The launcher creates a detached `screen` session named `tx_3fA_comfort15_degree15`.
 All seeds `0 1 2` start concurrently and each seed is pinned to two CPU cores.
 
 Useful commands:
 
 ```bash
 screen -ls
-screen -r tx_3fA_degree_hours
+screen -r tx_3fA_comfort15_degree15
 ```
 
 Inside `screen`, detach without stopping the experiment by pressing `Ctrl-a`, then `d`.
@@ -23,7 +23,7 @@ Inside `screen`, detach without stopping the experiment by pressing `Ctrl-a`, th
 To follow the individual seed logs from another shell:
 
 ```bash
-tail -f experiment_queue_logs/tx_3fA_degree_hours_*/*.stdout.log
+tail -f experiment_queue_logs/tx_3fA_comfort15_binary30_degree15_*/*.stdout.log
 ```
 
 Optional overrides must be supplied to the screen launcher, for example:

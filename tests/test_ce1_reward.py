@@ -35,3 +35,12 @@ def test_tx_temperature_above_26_is_penalized():
 
 def test_reward_kwargs_do_not_expose_dynamic_bounds_mode():
     assert "comfort_bounds_mode" not in build_ce1_reward_kwargs()
+
+
+def test_default_reward_weights_match_degree_hours_followup():
+    kwargs = build_ce1_reward_kwargs()
+    assert kwargs["weight_nmbe"] == 1.0
+    assert kwargs["weight_cv_rmse"] == 1.0
+    assert kwargs["weight_comfort"] == 1.5
+    assert kwargs["comfort_binary_weight"] == 3.0
+    assert kwargs["comfort_degree_weight"] == 1.5

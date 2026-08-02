@@ -29,11 +29,11 @@ if ((AVAILABLE_CORES < 12)); then
 fi
 
 echo "Starting TX on the first 6 allowed CPU cores..."
-CPU_OFFSET=0 SESSION_NAME=tx_3fA_degree_hours \
+CPU_OFFSET=0 SESSION_NAME=tx_3fA_comfort15_degree15 \
   bash "$SCRIPT_DIR/start_tarmac_3fA_tx_degree_hours_screen.sh"
 
 echo "Starting VT on the next 6 allowed CPU cores..."
-CPU_OFFSET=6 SESSION_NAME=vt_3fA_degree_hours \
+CPU_OFFSET=6 SESSION_NAME=vt_3fA_comfort15_degree15 \
   bash "$SCRIPT_DIR/start_tarmac_3fA_vt_degree_hours_screen.sh"
 
 echo "VT and TX are running in separate detached screen sessions."

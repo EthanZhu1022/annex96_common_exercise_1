@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-SESSION_NAME="${SESSION_NAME:-vt_3fA_degree_hours}"
+SESSION_NAME="${SESSION_NAME:-vt_3fA_comfort15_degree15}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 

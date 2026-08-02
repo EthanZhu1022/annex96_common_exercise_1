@@ -40,7 +40,7 @@ if ((${#CPU_IDS[@]} < REQUIRED_CORES)); then
 fi
 
 STAMP="$(date +%Y%m%d_%H%M%S)"
-LOG_DIR="$REPO_DIR/experiment_queue_logs/tx_3fA_degree_hours_$STAMP"
+LOG_DIR="$REPO_DIR/experiment_queue_logs/tx_3fA_comfort15_binary30_degree15_$STAMP"
 mkdir -p "$LOG_DIR"
 
 echo "TX 3fA degree-hours reward experiment"
@@ -49,7 +49,7 @@ echo "CPU cores per seed: $THREADS_PER_JOB"
 echo "Episodes per seed: $EPISODES"
 echo "Features: bes_capacity_kwh cooling_mean nsl_mean"
 echo "Train/test/grouping months: August/September/August"
-echo "Reward: NMBE=5 CV-RMSE=5 comfort=1 binary=1 degree=1.5"
+echo "Reward: NMBE=1 CV-RMSE=1 comfort=1.5 binary=3 degree=1.5"
 echo "Comfort bounds: official seasonal TX band, 22-26C"
 echo "Logs: $LOG_DIR"
 
@@ -62,7 +62,7 @@ run_seed() {
     cpu_spec+="${cpu_spec:+,}${CPU_IDS[$((CPU_OFFSET + slot * THREADS_PER_JOB + offset))]}"
   done
 
-  local run_name="mappo_grouped_tarmac_hybrid_agglomerative_capacity_cooling_3f_linear_tx_aug_sep_500_nmbe5_cvrmse5_comfort10_binary10_degree15_seed${seed}"
+  local run_name="mappo_grouped_tarmac_hybrid_agglomerative_capacity_cooling_3f_linear_tx_aug_sep_500_nmbe1_cvrmse1_comfort15_binary30_degree15_seed${seed}"
   local save_dir="$REPO_DIR/results/$run_name"
   local stdout_path="$LOG_DIR/$run_name.stdout.log"
   local stderr_path="$LOG_DIR/$run_name.stderr.log"
@@ -97,10 +97,10 @@ run_seed() {
     --grouping_method agglomerative
     --grouping_feature_columns bes_capacity_kwh cooling_mean nsl_mean
     --comm_fusion_mode linear
-    --weight_nmbe 5.0
-    --weight_cv_rmse 5.0
-    --weight_comfort 1.0
-    --comfort_binary_weight 1.0
+    --weight_nmbe 1.0
+    --weight_cv_rmse 1.0
+    --weight_comfort 1.5
+    --comfort_binary_weight 3.0
     --comfort_degree_weight 1.5
     --wandb_name "$run_name"
     --save_dir "$save_dir"

@@ -97,11 +97,11 @@ class Config:
     entropy_coef: float = 0.01
     max_grad_norm: float = 10.0
 
-    weight_nmbe: float = 5.0
-    weight_cv_rmse: float = 5.0
-    weight_comfort: float = 1.0
-    comfort_binary_weight: float = 2.0
-    comfort_degree_weight: float = 0.5
+    weight_nmbe: float = 1.0
+    weight_cv_rmse: float = 1.0
+    weight_comfort: float = 1.5
+    comfort_binary_weight: float = 3.0
+    comfort_degree_weight: float = 1.5
 
     n_episodes: int = 100
     train_month: Optional[int] = None
@@ -891,11 +891,11 @@ def parse_args() -> Config:
     parser.add_argument("--entropy_coef", type=float, default=0.01)
     parser.add_argument("--max_grad_norm", type=float, default=10.0)
 
-    parser.add_argument("--weight_nmbe", type=float, default=5.0)
-    parser.add_argument("--weight_cv_rmse", type=float, default=5.0)
-    parser.add_argument("--weight_comfort", type=float, default=1.0)
-    parser.add_argument("--comfort_binary_weight", type=float, default=2.0)
-    parser.add_argument("--comfort_degree_weight", type=float, default=0.5)
+    parser.add_argument("--weight_nmbe", type=float, default=1.0)
+    parser.add_argument("--weight_cv_rmse", type=float, default=1.0)
+    parser.add_argument("--weight_comfort", type=float, default=1.5)
+    parser.add_argument("--comfort_binary_weight", type=float, default=3.0)
+    parser.add_argument("--comfort_degree_weight", type=float, default=1.5)
 
     parser.add_argument("--n_episodes", type=int, default=100)
     parser.add_argument("--train_month", type=int, default=None)

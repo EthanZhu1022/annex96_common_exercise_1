@@ -9,13 +9,24 @@ from citylearn.reward_function import RewardFunction
 DEFAULT_CE1_REWARD_PATH = "annex96_rewards.ce1.CE1ThreeMetricReward"
 _EPSILON = 1e-9
 
+# CE1 reward-weight history, ordered as:
+# (weight_nmbe, weight_cv_rmse, weight_comfort,
+#  comfort_binary_weight, comfort_degree_weight)
+# - Initial:                    (1.0, 1.0, 0.35, 1.0, 0.15)
+# - Intermediate:               (1.0, 1.0, 0.45, 1.1, 0.2)
+# - Original 3fA baseline:      (1.0, 1.0, 0.8, 1.3, 0.3)
+# - Strict comfort trial:       (1.0, 1.0, 1.5, 3.0, 1.0)
+# - Tracking-heavy defaults:    (5.0, 5.0, 1.0, 2.0, 0.5)
+# - Rejected explicit follow-up:(5.0, 5.0, 1.0, 1.0, 1.5)
+# - Current degree-hours trial: (1.0, 1.0, 1.5, 3.0, 1.5)
+
 
 def build_ce1_reward_kwargs(
-    weight_nmbe: float = 5.0,  # previous default: 1.0
-    weight_cv_rmse: float = 5.0,  # previous default: 1.0
-    weight_comfort: float = 1.0,  # previous default: 0.8; strict trial: 1.5
-    comfort_binary_weight: float = 2.0,  # previous default: 1.3; strict trial: 3.0
-    comfort_degree_weight: float = 0.5,  # previous default: 0.3; strict trial: 1.0
+    weight_nmbe: float = 1.0,  # original/strict: 1.0; tracking-heavy: 5.0
+    weight_cv_rmse: float = 1.0,  # original/strict: 1.0; tracking-heavy: 5.0
+    weight_comfort: float = 1.5,  # original: 0.8; strict/current: 1.5
+    comfort_binary_weight: float = 3.0,  # original: 1.3; strict/current: 3.0
+    comfort_degree_weight: float = 1.5,  # original: 0.3; strict: 1.0; current: 1.5
     return_metadata: bool = True,
 ) -> Dict[str, Any]:
     """Return default kwargs for the CE1 three-metric reward."""
@@ -58,11 +69,11 @@ class CE1ThreeMetricReward(RewardFunction):
     def __init__(
         self,
         env_metadata: Mapping[str, Any],
-        weight_nmbe: float = 5.0,  # previous default: 1.0
-        weight_cv_rmse: float = 5.0,  # previous default: 1.0
-        weight_comfort: float = 1.0,  # previous default: 0.8; strict trial: 1.5
-        comfort_binary_weight: float = 2.0,  # previous default: 1.3; strict trial: 3.0
-        comfort_degree_weight: float = 0.5,  # previous default: 0.3; strict trial: 1.0
+        weight_nmbe: float = 1.0,
+        weight_cv_rmse: float = 1.0,
+        weight_comfort: float = 1.5,
+        comfort_binary_weight: float = 3.0,
+        comfort_degree_weight: float = 1.5,
         return_metadata: bool = True,
     ):
         super().__init__(env_metadata)
