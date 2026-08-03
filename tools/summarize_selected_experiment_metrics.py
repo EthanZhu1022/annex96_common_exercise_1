@@ -512,6 +512,44 @@ def _get_season_comfort_bounds(month: int) -> Tuple[str, float, float]:
     return "cooling", 22.0, 26.0
 
 
+def _compute_comfort_degree_hours_from_temperature_csv(
+    result_dir: Path,
+    comfort_low_c: float,
+    comfort_high_c: float,
+    expected_exceedance_hours: Any = None,
+) -> Optional[float]:
+    """Return portfolio temperature exceedance degree-hours (degree C * hour)."""
+    csv_candidates = [
+        result_dir / "test_building_temperature_timeseries.csv",
+        result_dir / "load_tracking_eval" / "test_building_temperature_timeseries.csv",
+    ]
+    csv_path = next((path for path in csv_candidates if path.exists()), None)
+    if csv_path is None:
+        return None
+
+    try:
+        temperature_df = pd.read_csv(csv_path, usecols=["indoor_temperature"])
+    except (OSError, ValueError):
+        return None
+
+    indoor = pd.to_numeric(temperature_df["indoor_temperature"], errors="coerce")
+    below = (comfort_low_c - indoor).clip(lower=0.0)
+    above = (indoor - comfort_high_c).clip(lower=0.0)
+    exceedance_degrees = below + above
+    exceedance_steps = int((exceedance_degrees > 0.0).sum())
+
+    step_hours = 1.0
+    try:
+        reported_hours = float(expected_exceedance_hours)
+        if math.isfinite(reported_hours) and reported_hours >= 0.0 and exceedance_steps > 0:
+            step_hours = reported_hours / exceedance_steps
+    except (TypeError, ValueError):
+        pass
+
+    total = float(exceedance_degrees.sum(skipna=True) * step_hours)
+    return total if math.isfinite(total) else None
+
+
 def _compute_rbc_comfort_from_dataset(climate: str, test_month: int, n_buildings: int = 25) -> Dict[str, Optional[float]]:
     dataset_dir = REPO_DIR / "data" / "datasets" / f"annex96_ce1_{climate.lower()}_neighborhood"
     schema = _load_json(dataset_dir / "schema.json")
@@ -1065,10 +1103,29 @@ def _build_grouping_feature_ablation(primary_df: pd.DataFrame) -> pd.DataFrame:
         "wandb_run_id",
     ]
     for _, source_row in primary_df.iterrows():
-        labels = _grouping_ablation_labels(str(source_row["experiment"]))
+        experiment = str(source_row["experiment"])
+        labels = _grouping_ablation_labels(experiment)
         if labels is None:
             continue
         row = {column: source_row.get(column) for column in metric_columns}
+        result_dir = REPO_DIR / "results" / experiment
+        test_metrics = _load_json(result_dir / "test_metrics.json")
+        comfort_low_c = _value(test_metrics, "test/primary/thermal_comfort/lower_bound_c")
+        comfort_high_c = _value(test_metrics, "test/primary/thermal_comfort/upper_bound_c")
+        if comfort_low_c is None or comfort_high_c is None:
+            test_month = source_row.get("test_month")
+            _, comfort_low_c, comfort_high_c = _get_season_comfort_bounds(
+                int(test_month) if pd.notna(test_month) else 2
+            )
+        row["primary_comfort_degree_hours_total"] = _round(
+            _compute_comfort_degree_hours_from_temperature_csv(
+                result_dir,
+                float(comfort_low_c),
+                float(comfort_high_c),
+                source_row.get("primary_comfort_exceedance_hours_total"),
+            ),
+            4,
+        )
         row.update(labels)
         rows.append(row)
 
@@ -1084,6 +1141,7 @@ def _build_grouping_feature_ablation(primary_df: pd.DataFrame) -> pd.DataFrame:
         "primary_load_cv_rmse_pct",
         "primary_load_nmbe_pct",
         "primary_abs_nmbe_pct",
+        "primary_comfort_degree_hours_total",
         "primary_comfort_exceedance_pct",
         "primary_comfort_exceedance_hours_total",
         "primary_comfort_exceedance_hours_mean",
@@ -1293,6 +1351,9 @@ def main() -> int:
         title="Grouping Feature Ablation + Soft-Router: Primary-Only Sorted",
         intro_lines=[
             "Sorted by `primary_rank` from `selected_experiment_metrics_primary_only_table.csv`. Lower rank is better.",
+            "",
+            "`primary_comfort_degree_hours_total` is calculated from the existing hourly temperature results "
+            "(temperature exceedance x duration, degree C * hour). `primary_comfort_exceedance_pct` is retained beside it for reference.",
             "",
             "Included rows: compact fixed grouping runs, previous larger/full fixed grouping, legacy soft-router, "
             "upgraded capacity-router, and two-stage soft-router runs.",
