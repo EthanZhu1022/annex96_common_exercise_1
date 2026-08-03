@@ -1,0 +1,113 @@
+{
+  "grouping_method": "balanced_spectral",
+  "grouping_feature_set": "control_profile",
+  "grouping_feature_month": 1,
+  "grouping_feature_columns": [
+    "bes_capacity_kwh",
+    "hvac_total_kw",
+    "heating_mean",
+    "nsl_mean",
+    "comfort_lower_excess_mean"
+  ],
+  "k": 5,
+  "seed": 9,
+  "balance": 1.0,
+  "cluster_sizes": [
+    5,
+    5,
+    5,
+    5,
+    5
+  ],
+  "feature_columns": [
+    "bes_capacity_kwh",
+    "hvac_total_kw",
+    "heating_mean",
+    "nsl_mean",
+    "comfort_lower_excess_mean"
+  ],
+  "cluster_centers_original_scale": {
+    "cluster_0": {
+      "bes_capacity_kwh": 35.040000000000006,
+      "hvac_total_kw": 18.902398175373673,
+      "heating_mean": 8.199332211311827,
+      "nsl_mean": 0.86686733347043,
+      "comfort_lower_excess_mean": 0.005100936827956887,
+      "n_buildings": 5
+    },
+    "cluster_1": {
+      "bes_capacity_kwh": 15.819999999999999,
+      "hvac_total_kw": 7.680206127278507,
+      "heating_mean": 3.1446793346919355,
+      "nsl_mean": 0.4856134703198924,
+      "comfort_lower_excess_mean": 0.0016052193548387206,
+      "n_buildings": 5
+    },
+    "cluster_2": {
+      "bes_capacity_kwh": 18.874000000000002,
+      "hvac_total_kw": 12.26547645740211,
+      "heating_mean": 5.18358442141129,
+      "nsl_mean": 1.0603805936559139,
+      "comfort_lower_excess_mean": 0.0014287341397849736,
+      "n_buildings": 5
+    },
+    "cluster_3": {
+      "bes_capacity_kwh": 25.76,
+      "hvac_total_kw": 21.639388919388875,
+      "heating_mean": 9.820625448352152,
+      "nsl_mean": 0.717189827061828,
+      "comfort_lower_excess_mean": 0.0008481615591397829,
+      "n_buildings": 5
+    },
+    "cluster_4": {
+      "bes_capacity_kwh": 15.180000000000001,
+      "hvac_total_kw": 9.430946239829064,
+      "heating_mean": 4.412220026790322,
+      "nsl_mean": 0.5379083969946237,
+      "comfort_lower_excess_mean": 0.003589025806451583,
+      "n_buildings": 5
+    }
+  },
+  "group_assignments": {
+    "building_0": 0,
+    "building_1": 3,
+    "building_2": 1,
+    "building_3": 0,
+    "building_4": 3,
+    "building_5": 1,
+    "building_6": 1,
+    "building_7": 0,
+    "building_8": 4,
+    "building_9": 1,
+    "building_10": 3,
+    "building_11": 2,
+    "building_12": 2,
+    "building_13": 4,
+    "building_14": 3,
+    "building_15": 3,
+    "building_16": 2,
+    "building_17": 2,
+    "building_18": 0,
+    "building_19": 0,
+    "building_20": 4,
+    "building_21": 2,
+    "building_22": 4,
+    "building_23": 1,
+    "building_24": 4
+  },
+  "selection_rationale": "Chose method=balanced_spectral K=5 seed=9 (balance=1.000; group 0: 5 buildings, group 1: 5 buildings, group 2: 5 buildings, group 3: 5 buildings, group 4: 5 buildings). Tried 2 K values x 10 fits. Balance = min_cluster_size / max_cluster_size. Equal-balance ties were resolved by the lowest normalized-cut objective.",
+  "method_details": {
+    "affinity": "rbf_on_standardized_features",
+    "rbf_sigma": 2.8418399879754963,
+    "laplacian": "symmetric_normalized",
+    "assignment": "capacity_constrained_linear_sum_assignment",
+    "target_cluster_sizes": [
+      5,
+      5,
+      5,
+      5,
+      5
+    ],
+    "normalized_cut": 3.911199999946577
+  }
+}

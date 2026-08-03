@@ -1,0 +1,99 @@
+{
+  "grouping_method": "balanced_spectral",
+  "grouping_feature_set": "control_profile",
+  "grouping_feature_month": 1,
+  "grouping_feature_columns": [
+    "bes_capacity_kwh",
+    "heating_mean",
+    "nsl_mean"
+  ],
+  "k": 5,
+  "seed": 0,
+  "balance": 1.0,
+  "cluster_sizes": [
+    5,
+    5,
+    5,
+    5,
+    5
+  ],
+  "feature_columns": [
+    "bes_capacity_kwh",
+    "heating_mean",
+    "nsl_mean"
+  ],
+  "cluster_centers_original_scale": {
+    "cluster_0": {
+      "bes_capacity_kwh": 30.140000000000004,
+      "heating_mean": 5.174012713198924,
+      "nsl_mean": 0.7489296795322581,
+      "n_buildings": 5
+    },
+    "cluster_1": {
+      "bes_capacity_kwh": 17.360000000000003,
+      "heating_mean": 8.006335613158601,
+      "nsl_mean": 0.7223555502365591,
+      "n_buildings": 5
+    },
+    "cluster_2": {
+      "bes_capacity_kwh": 15.219999999999999,
+      "heating_mean": 3.6384933278924736,
+      "nsl_mean": 0.4594591192526882,
+      "n_buildings": 5
+    },
+    "cluster_3": {
+      "bes_capacity_kwh": 32.480000000000004,
+      "heating_mean": 9.811437442199999,
+      "nsl_mean": 0.8010763250268816,
+      "n_buildings": 5
+    },
+    "cluster_4": {
+      "bes_capacity_kwh": 15.474,
+      "heating_mean": 4.130162346107527,
+      "nsl_mean": 0.936138947454301,
+      "n_buildings": 5
+    }
+  },
+  "group_assignments": {
+    "building_0": 0,
+    "building_1": 1,
+    "building_2": 2,
+    "building_3": 0,
+    "building_4": 3,
+    "building_5": 3,
+    "building_6": 2,
+    "building_7": 3,
+    "building_8": 4,
+    "building_9": 2,
+    "building_10": 3,
+    "building_11": 0,
+    "building_12": 4,
+    "building_13": 2,
+    "building_14": 1,
+    "building_15": 1,
+    "building_16": 1,
+    "building_17": 4,
+    "building_18": 3,
+    "building_19": 0,
+    "building_20": 1,
+    "building_21": 4,
+    "building_22": 4,
+    "building_23": 2,
+    "building_24": 0
+  },
+  "selection_rationale": "Chose method=balanced_spectral K=5 seed=0 (balance=1.000; group 0: 5 buildings, group 1: 5 buildings, group 2: 5 buildings, group 3: 5 buildings, group 4: 5 buildings). Tried 2 K values x 10 fits. Balance = min_cluster_size / max_cluster_size. Equal-balance ties were resolved by the lowest normalized-cut objective.",
+  "method_details": {
+    "affinity": "rbf_on_standardized_features",
+    "rbf_sigma": 2.178012713242334,
+    "laplacian": "symmetric_normalized",
+    "assignment": "capacity_constrained_linear_sum_assignment",
+    "target_cluster_sizes": [
+      5,
+      5,
+      5,
+      5,
+      5
+    ],
+    "normalized_cut": 3.9424708549206846
+  }
+}
