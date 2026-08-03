@@ -824,7 +824,7 @@ def parse_args() -> Config:
     parser.add_argument(
         "--grouping_method",
         default="kmeans",
-        choices=["kmeans", "gmm", "agglomerative"],
+        choices=["kmeans", "gmm", "agglomerative", "balanced_spectral"],
     )
     parser.add_argument(
         "--grouping_feature_set",

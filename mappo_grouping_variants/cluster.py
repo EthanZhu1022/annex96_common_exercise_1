@@ -4,7 +4,7 @@ Alternative building grouping methods for grouped MAPPO experiments.
 This module keeps the same public run_clustering API used by the existing
 grouped MAPPO train scripts, but adds two controls:
 
-  grouping_method: kmeans, gmm, agglomerative
+  grouping_method: kmeans, gmm, agglomerative, balanced_spectral
   grouping_feature_set: legacy_capacity_power, static_extended,
                         operational_profile, static_operational,
                         control_profile
@@ -22,16 +22,15 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+from scipy.optimize import linear_sum_assignment
 from sklearn.cluster import AgglomerativeClustering, KMeans
+from sklearn.metrics import pairwise_distances
 from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import StandardScaler
 
-from mappo_grouped.cluster import extract_building_features as extract_legacy_features
-
-
 REPO_DIR = Path(__file__).resolve().parent.parent
 
-GROUPING_METHODS = ("kmeans", "gmm", "agglomerative")
+GROUPING_METHODS = ("kmeans", "gmm", "agglomerative", "balanced_spectral")
 GROUPING_FEATURE_SETS = (
     "legacy_capacity_power",
     "static_extended",
@@ -51,6 +50,14 @@ CONTROL_PROFILE_FEATURES = (
     "indoor_temp_std",
     "comfort_lower_excess_mean",
 )
+
+
+def _extract_legacy_features(climate: str, n_buildings: int, repo_dir: Path) -> np.ndarray:
+    """Load the CityLearn-dependent legacy extractor only when it is needed."""
+
+    from mappo_grouped.cluster import extract_building_features
+
+    return extract_building_features(climate, n_buildings, repo_dir)
 
 
 def _schema_path(climate: str, repo_dir: Path) -> Path:
@@ -112,7 +119,7 @@ def _extract_static_extended_features(
     n_buildings: int,
     repo_dir: Path,
 ) -> pd.DataFrame:
-    legacy = extract_legacy_features(climate, n_buildings, repo_dir)
+    legacy = _extract_legacy_features(climate, n_buildings, repo_dir)
     _schema_file, schema = _load_schema(climate, repo_dir)
     rows: List[Dict[str, float]] = []
     for i, (_name, building_cfg) in enumerate(_building_items(schema, n_buildings)):
@@ -230,7 +237,7 @@ def extract_grouping_features(
         return _select_feature_columns(full_df, feature_columns)
 
     if feature_set == "legacy_capacity_power":
-        legacy = extract_legacy_features(climate, n_buildings, repo_dir)
+        legacy = _extract_legacy_features(climate, n_buildings, repo_dir)
         return pd.DataFrame(
             {
                 "building_idx": np.arange(n_buildings),
@@ -263,6 +270,105 @@ def _balance_score(labels: np.ndarray, k: int) -> float:
     return sizes.min() / sizes.max()
 
 
+def _balanced_capacities(n_samples: int, k: int) -> np.ndarray:
+    """Return exact near-equal capacities whose sum is ``n_samples``."""
+
+    if k < 1 or k > n_samples:
+        raise ValueError(f"Expected 1 <= k <= n_samples, got k={k}, n_samples={n_samples}.")
+    capacities = np.full(k, n_samples // k, dtype=np.int64)
+    capacities[: n_samples % k] += 1
+    return capacities
+
+
+def _rbf_affinity(x_scaled: np.ndarray) -> Tuple[np.ndarray, float]:
+    """Build a fully connected RBF graph with a data-derived bandwidth."""
+
+    squared_distances = pairwise_distances(x_scaled, metric="sqeuclidean")
+    upper = squared_distances[np.triu_indices_from(squared_distances, k=1)]
+    positive = upper[upper > np.finfo(np.float64).eps]
+    sigma_squared = float(np.median(positive)) if positive.size else 1.0
+    affinity = np.exp(-squared_distances / (2.0 * sigma_squared))
+    np.fill_diagonal(affinity, 0.0)
+    return affinity, float(np.sqrt(sigma_squared))
+
+
+def _normalized_spectral_embedding(affinity: np.ndarray, k: int) -> np.ndarray:
+    """Compute the row-normalized bottom-``k`` Laplacian eigenvectors."""
+
+    degrees = affinity.sum(axis=1)
+    if np.any(degrees <= np.finfo(np.float64).eps):
+        raise ValueError("Balanced spectral affinity graph contains an isolated building.")
+    inv_sqrt_degree = 1.0 / np.sqrt(degrees)
+    normalized_affinity = (
+        inv_sqrt_degree[:, None] * affinity * inv_sqrt_degree[None, :]
+    )
+    laplacian = np.eye(affinity.shape[0], dtype=np.float64) - normalized_affinity
+    _eigenvalues, eigenvectors = np.linalg.eigh(laplacian)
+    embedding = eigenvectors[:, :k]
+    row_norms = np.linalg.norm(embedding, axis=1, keepdims=True)
+    return embedding / np.maximum(row_norms, np.finfo(np.float64).eps)
+
+
+def _capacity_constrained_kmeans(
+    embedding: np.ndarray,
+    k: int,
+    seed: int,
+    max_iter: int = 100,
+) -> np.ndarray:
+    """Discretize a spectral embedding with exact near-equal group sizes.
+
+    Each centroid is expanded into a fixed number of assignment slots.  The
+    Hungarian algorithm then finds the minimum-cost point-to-slot assignment,
+    guaranteeing capacities that differ by at most one building.
+    """
+
+    capacities = _balanced_capacities(len(embedding), k)
+    initializer = KMeans(n_clusters=k, random_state=seed, n_init=10)
+    initializer.fit(embedding)
+    centers = initializer.cluster_centers_
+    slot_labels = np.repeat(np.arange(k, dtype=np.int64), capacities)
+    previous_labels: Optional[np.ndarray] = None
+
+    for _ in range(max_iter):
+        slot_centers = centers[slot_labels]
+        costs = pairwise_distances(embedding, slot_centers, metric="sqeuclidean")
+        row_indices, slot_indices = linear_sum_assignment(costs)
+        labels = np.empty(len(embedding), dtype=np.int64)
+        labels[row_indices] = slot_labels[slot_indices]
+
+        if previous_labels is not None and np.array_equal(labels, previous_labels):
+            break
+        previous_labels = labels.copy()
+        centers = np.vstack([embedding[labels == c].mean(axis=0) for c in range(k)])
+
+    return labels
+
+
+def _balanced_spectral_labels(
+    x_scaled: np.ndarray,
+    k: int,
+    seed: int,
+) -> np.ndarray:
+    affinity, _sigma = _rbf_affinity(x_scaled)
+    embedding = _normalized_spectral_embedding(affinity, k)
+    return _capacity_constrained_kmeans(embedding, k, seed)
+
+
+def _normalized_cut_cost(x_scaled: np.ndarray, labels: np.ndarray, k: int) -> float:
+    """Return the normalized-cut objective used to break balanced-fit ties."""
+
+    affinity, _sigma = _rbf_affinity(x_scaled)
+    total = 0.0
+    for cluster_id in range(k):
+        inside = labels == cluster_id
+        association = float(affinity[inside, :].sum())
+        if association <= np.finfo(np.float64).eps:
+            return float("inf")
+        cut = float(affinity[np.ix_(inside, ~inside)].sum())
+        total += cut / association
+    return total
+
+
 def _fit_labels(method: str, x_scaled: np.ndarray, k: int, seed: int) -> np.ndarray:
     if method == "kmeans":
         model = KMeans(n_clusters=k, random_state=seed, n_init=10)
@@ -279,6 +385,8 @@ def _fit_labels(method: str, x_scaled: np.ndarray, k: int, seed: int) -> np.ndar
     if method == "agglomerative":
         model = AgglomerativeClustering(n_clusters=k, linkage="ward")
         return model.fit_predict(x_scaled)
+    if method == "balanced_spectral":
+        return _balanced_spectral_labels(x_scaled, k, seed)
     raise ValueError(f"Unknown grouping method={method}. Choices: {GROUPING_METHODS}")
 
 
@@ -308,6 +416,7 @@ def select_best_grouping(
 
     best: Optional[Dict] = None
     best_score = -np.inf
+    best_method_quality = -np.inf
     all_candidates: List[Dict] = []
     method_retries = 1 if method == "agglomerative" else retries
 
@@ -318,6 +427,11 @@ def select_best_grouping(
             score = _balance_score(labels, k)
             sizes = [int((labels == c).sum()) for c in range(k)]
             centers = _cluster_centers(raw_features, labels, k)
+            method_quality = (
+                -_normalized_cut_cost(x_scaled, labels, k)
+                if method == "balanced_spectral"
+                else 0.0
+            )
             candidate = {
                 "assignments": labels.copy(),
                 "centers_orig": centers,
@@ -326,9 +440,22 @@ def select_best_grouping(
                 "balance": score,
                 "sizes": sizes,
             }
+            if method == "balanced_spectral":
+                _affinity, sigma = _rbf_affinity(x_scaled)
+                candidate["method_details"] = {
+                    "affinity": "rbf_on_standardized_features",
+                    "rbf_sigma": sigma,
+                    "laplacian": "symmetric_normalized",
+                    "assignment": "capacity_constrained_linear_sum_assignment",
+                    "target_cluster_sizes": _balanced_capacities(len(x_scaled), k).tolist(),
+                    "normalized_cut": -method_quality,
+                }
             all_candidates.append(candidate)
-            if score > best_score:
+            if score > best_score or (
+                np.isclose(score, best_score) and method_quality > best_method_quality
+            ):
                 best_score = score
+                best_method_quality = method_quality
                 best = candidate
 
     assert best is not None
@@ -340,6 +467,10 @@ def select_best_grouping(
         f"Tried {len(k_candidates)} K values x {method_retries} fits. "
         f"Balance = min_cluster_size / max_cluster_size."
     )
+    if method == "balanced_spectral":
+        best["reason"] += (
+            " Equal-balance ties were resolved by the lowest normalized-cut objective."
+        )
     return best
 
 
@@ -394,6 +525,8 @@ def save_grouping_artifacts(
         },
         "selection_rationale": result["reason"],
     }
+    if "method_details" in result:
+        summary["method_details"] = result["method_details"]
     summary_path = save_dir / "cluster_summary.json"
     summary_path.write_text(json.dumps(summary, indent=2))
 

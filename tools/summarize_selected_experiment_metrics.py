@@ -105,6 +105,12 @@ SELECTED_EXPERIMENTS: List[str] = [
     "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_5f_linear_vt_500_seed3",
     "mappo_grouped_tarmac_hybrid_gmm_static_operational_vt_500_final",
     "mappo_grouped_tarmac_hybrid_gmm_capacity_load_5f_linear_vt_500_final",
+    "mappo_grouped_tarmac_hybrid_balanced_spectral_capacity_load_5f_linear_vt_500_seed0",
+    "mappo_grouped_tarmac_hybrid_balanced_spectral_capacity_load_5f_linear_vt_500_seed1",
+    "mappo_grouped_tarmac_hybrid_balanced_spectral_capacity_load_5f_linear_vt_500_seed42",
+    "mappo_grouped_tarmac_hybrid_balanced_spectral_capacity_load_3f_linear_vt_500_seed0",
+    "mappo_grouped_tarmac_hybrid_balanced_spectral_capacity_load_3f_linear_vt_500_seed1",
+    "mappo_grouped_tarmac_hybrid_balanced_spectral_capacity_load_3f_linear_vt_500_seed42",
     "mappo_grouped_tarmac_hybrid_kmeans_operational_profile_vt_500_final",
     "mappo_grouped_tarmac_hybrid_kmeans_capacity_load_5f_linear_vt_500_final",
     "mappo_grouped_tarmac_hybrid_kmeans_static_extended_vt_500_final",
@@ -932,7 +938,11 @@ def _grouping_ablation_labels(experiment: str) -> Optional[Dict[str, str]]:
             feature_set = "soc_source_3f"
         else:
             grouping_method = next(
-                (method for method in ("agglomerative", "gmm", "kmeans") if f"_{method}_" in experiment),
+                (
+                    method
+                    for method in ("balanced_spectral", "agglomerative", "gmm", "kmeans")
+                    if f"_{method}_" in experiment
+                ),
                 None,
             )
             feature_set = next((feature for feature in ("energy4f", "soc6f") if feature in experiment), None)
@@ -953,7 +963,11 @@ def _grouping_ablation_labels(experiment: str) -> Optional[Dict[str, str]]:
         return None
 
     grouping_method = next(
-        (method for method in ("agglomerative", "gmm", "kmeans") if f"_{method}_" in experiment),
+        (
+            method
+            for method in ("balanced_spectral", "agglomerative", "gmm", "kmeans")
+            if f"_{method}_" in experiment
+        ),
         None,
     )
     three_feature_variant = re.search(r"_agglomerative_(3f_[A-I]_.+?)_vt_", experiment)
@@ -969,7 +983,7 @@ def _grouping_ablation_labels(experiment: str) -> Optional[Dict[str, str]]:
                 "operational_profile",
                 "static_extended",
             )
-            if feature in experiment
+            if feature and feature in experiment
         ),
         None,
     )
