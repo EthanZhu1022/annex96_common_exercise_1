@@ -73,6 +73,27 @@ SELECTED_EXPERIMENTS: List[str] = [
     "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_seed1",
     "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_seed2",
     "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_seed3",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_comfort15_binary30_degree10_seed0",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_comfort15_binary30_degree10_seed1",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_comfort15_binary30_degree10_seed2",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_nmbe1_cvrmse1_comfort15_binary30_degree15_seed0",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_nmbe1_cvrmse1_comfort15_binary30_degree15_seed1",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_nmbe1_cvrmse1_comfort15_binary30_degree15_seed2",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_nmbe5_cvrmse5_comfort10_binary10_degree15_seed0",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_nmbe5_cvrmse5_comfort10_binary10_degree15_seed1",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_nmbe5_cvrmse5_comfort10_binary10_degree15_seed2",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_cooling_3f_linear_tx_aug_sep_500_seed0",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_cooling_3f_linear_tx_aug_sep_500_seed1",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_cooling_3f_linear_tx_aug_sep_500_seed2",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_cooling_3f_linear_tx_aug_sep_500_comfort15_binary30_degree10_seed0",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_cooling_3f_linear_tx_aug_sep_500_comfort15_binary30_degree10_seed1",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_cooling_3f_linear_tx_aug_sep_500_comfort15_binary30_degree10_seed2",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_cooling_3f_linear_tx_aug_sep_500_nmbe1_cvrmse1_comfort15_binary30_degree15_seed0",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_cooling_3f_linear_tx_aug_sep_500_nmbe1_cvrmse1_comfort15_binary30_degree15_seed1",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_cooling_3f_linear_tx_aug_sep_500_nmbe1_cvrmse1_comfort15_binary30_degree15_seed2",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_cooling_3f_linear_tx_aug_sep_500_nmbe5_cvrmse5_comfort10_binary10_degree15_seed0",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_cooling_3f_linear_tx_aug_sep_500_nmbe5_cvrmse5_comfort10_binary10_degree15_seed1",
+    "mappo_grouped_tarmac_hybrid_agglomerative_capacity_cooling_3f_linear_tx_aug_sep_500_nmbe5_cvrmse5_comfort10_binary10_degree15_seed2",
     "mappo_grouped_tarmac_hybrid_agglomerative_3f_B_hvac_nslmean_vt_500_seed0",
     "mappo_grouped_tarmac_hybrid_agglomerative_3f_B_hvac_nslmean_vt_500_seed1",
     "mappo_grouped_tarmac_hybrid_agglomerative_3f_B_hvac_nslmean_vt_500_seed2",
@@ -128,6 +149,8 @@ SELECTED_EXPERIMENTS: List[str] = [
     "mappo_grouped_tarmac_soft_router_agglomerative_5f_capacity_router_prior05_vt_500_final",
     "mappo_grouped_tarmac_soft_router_agglomerative_5f_capacity_router_temp05_vt_500_final",
     "mappo_grouped_tarmac_soft_router_agglomerative_5f_no_capacity_router_vt_500_final",
+    "mappo_grouped_tarmac_soft_router_full_expert_stable_heads_3f_vt_seed0",
+    "mappo_grouped_tarmac_soft_router_full_expert_stable_heads_3f_vt_seed1",
     "mappo_grouped_tarmac_soft_router_full_expert_stable_heads_3f_vt_seed42",
     "mappo_grouped_tarmac_soft_router_three_stage_full_expert_3f_vt_seed42",
     "mappo_grouped_tarmac_soft_router_three_stage_shared_3f_vt_1500_seed42",
@@ -971,22 +994,39 @@ def _grouping_ablation_labels(experiment: str) -> Optional[Dict[str, str]]:
         None,
     )
     three_feature_variant = re.search(r"_agglomerative_(3f_[A-I]_.+?)_vt_", experiment)
-    feature_set = next(
-        (
-            feature
-            for feature in (
-                three_feature_variant.group(1) if three_feature_variant else "",
-                "capacity_load_3f",
-                "capacity_load_4f",
-                "capacity_load_5f",
-                "static_operational",
-                "operational_profile",
-                "static_extended",
-            )
-            if feature and feature in experiment
-        ),
-        None,
+    weighted_capacity_variant = re.search(
+        r"_(capacity_(?:load|cooling)_3f).*?_500_(.+?)_seed",
+        experiment,
     )
+    if weighted_capacity_variant:
+        capacity_feature = weighted_capacity_variant.group(1)
+        weight_suffix = weighted_capacity_variant.group(2)
+        if capacity_feature == "capacity_cooling_3f" and "tx_aug_sep" in experiment:
+            capacity_feature = "capacity_cooling_3f_tx_aug_sep"
+        explicit_feature_set = f"{capacity_feature}_{weight_suffix}"
+    elif "_capacity_cooling_3f_linear_tx_aug_sep_500_seed" in experiment:
+        explicit_feature_set = "capacity_cooling_3f_tx_aug_sep"
+    else:
+        explicit_feature_set = ""
+    if explicit_feature_set:
+        feature_set = explicit_feature_set
+    else:
+        feature_set = next(
+            (
+                feature
+                for feature in (
+                    three_feature_variant.group(1) if three_feature_variant else "",
+                    "capacity_load_3f",
+                    "capacity_load_4f",
+                    "capacity_load_5f",
+                    "static_operational",
+                    "operational_profile",
+                    "static_extended",
+                )
+                if feature and feature in experiment
+            ),
+            None,
+        )
     if grouping_method is None or feature_set is None:
         return None
     return {
@@ -996,6 +1036,10 @@ def _grouping_ablation_labels(experiment: str) -> Optional[Dict[str, str]]:
         "feature_group": (
             "3f feature ablation"
             if feature_set.startswith("3f_")
+            else "capacity cooling reward/season ablation"
+            if feature_set.startswith("capacity_cooling_3f")
+            else "capacity load reward ablation"
+            if re.match(r"capacity_load_3f_.+", feature_set)
             else "compact fixed grouping"
             if feature_set.startswith("capacity_load_")
             else "previous larger/full"
