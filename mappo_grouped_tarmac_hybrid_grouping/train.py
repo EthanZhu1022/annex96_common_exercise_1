@@ -99,9 +99,9 @@ class Config:
 
     weight_nmbe: float = 1.0
     weight_cv_rmse: float = 1.0
-    weight_comfort: float = 1.5
-    comfort_binary_weight: float = 3.0
-    comfort_degree_weight: float = 1.5
+    weight_comfort: float = 0.8
+    comfort_binary_weight: float = 1.3
+    comfort_degree_weight: float = 0.3
 
     n_episodes: int = 100
     train_month: Optional[int] = None
@@ -893,9 +893,9 @@ def parse_args() -> Config:
 
     parser.add_argument("--weight_nmbe", type=float, default=1.0)
     parser.add_argument("--weight_cv_rmse", type=float, default=1.0)
-    parser.add_argument("--weight_comfort", type=float, default=1.5)
-    parser.add_argument("--comfort_binary_weight", type=float, default=3.0)
-    parser.add_argument("--comfort_degree_weight", type=float, default=1.5)
+    parser.add_argument("--weight_comfort", type=float, default=0.8)
+    parser.add_argument("--comfort_binary_weight", type=float, default=1.3)
+    parser.add_argument("--comfort_degree_weight", type=float, default=0.3)
 
     parser.add_argument("--n_episodes", type=int, default=100)
     parser.add_argument("--train_month", type=int, default=None)

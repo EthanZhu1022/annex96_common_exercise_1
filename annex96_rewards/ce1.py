@@ -18,15 +18,16 @@ _EPSILON = 1e-9
 # - Strict comfort trial:       (1.0, 1.0, 1.5, 3.0, 1.0)
 # - Tracking-heavy defaults:    (5.0, 5.0, 1.0, 2.0, 0.5)
 # - Rejected explicit follow-up:(5.0, 5.0, 1.0, 1.0, 1.5)
-# - Current degree-hours trial: (1.0, 1.0, 1.5, 3.0, 1.5)
+# - Degree-hours follow-up:     (1.0, 1.0, 1.5, 3.0, 1.5)
+# - Current restored default:  (1.0, 1.0, 0.8, 1.3, 0.3)
 
 
 def build_ce1_reward_kwargs(
-    weight_nmbe: float = 1.0,  # original/strict: 1.0; tracking-heavy: 5.0
-    weight_cv_rmse: float = 1.0,  # original/strict: 1.0; tracking-heavy: 5.0
-    weight_comfort: float = 1.5,  # original: 0.8; strict/current: 1.5
-    comfort_binary_weight: float = 3.0,  # original: 1.3; strict/current: 3.0
-    comfort_degree_weight: float = 1.5,  # original: 0.3; strict: 1.0; current: 1.5
+    weight_nmbe: float = 1.0,  # original/strict/current: 1.0; tracking-heavy: 5.0
+    weight_cv_rmse: float = 1.0,  # original/strict/current: 1.0; tracking-heavy: 5.0
+    weight_comfort: float = 0.8,  # restored original: 0.8; strict/follow-up: 1.5
+    comfort_binary_weight: float = 1.3,  # restored original: 1.3; strict/follow-up: 3.0
+    comfort_degree_weight: float = 0.3,  # restored original: 0.3; strict: 1.0; follow-up: 1.5
     return_metadata: bool = True,
 ) -> Dict[str, Any]:
     """Return default kwargs for the CE1 three-metric reward."""
@@ -71,9 +72,9 @@ class CE1ThreeMetricReward(RewardFunction):
         env_metadata: Mapping[str, Any],
         weight_nmbe: float = 1.0,
         weight_cv_rmse: float = 1.0,
-        weight_comfort: float = 1.5,
-        comfort_binary_weight: float = 3.0,
-        comfort_degree_weight: float = 1.5,
+        weight_comfort: float = 0.8,
+        comfort_binary_weight: float = 1.3,
+        comfort_degree_weight: float = 0.3,
         return_metadata: bool = True,
     ):
         super().__init__(env_metadata)
