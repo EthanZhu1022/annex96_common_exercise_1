@@ -78,6 +78,65 @@ sufficiently stable method for the overall experiment.
 获得的训练经验会少于大组中的 actor，并且更容易受到大组信息的影响。因此对于整个实验而言，K-means并不是一个合适的稳定方法。
 \end{zhtranslation}
 
+\subsection{Why These Alternative Methods Were Selected}
+
+Strictly speaking, this task requires clustering rather than supervised
+classification. There is no given label that says which actor group is correct
+for each building; only the building features are available. The selected
+methods must therefore discover groups without labels, assign every building to
+one group.
+
+GMM, agglomerative clustering, and balanced spectral clustering were selected
+because they satisfy these requirements while examining three different ways of
+forming groups. GMM tests whether allowing overlapping groups with different
+spreads improves on K-means. Agglomerative clustering tests a deterministic
+step-by-step merging process and avoids random starting centres. Balanced
+spectral clustering uses pairwise building similarities and directly prevents
+very unequal group sizes. GMM and hierarchical clustering have also been used
+together to identify electricity-use patterns across multiple buildings, which
+makes them relevant to this application \cite{li2018buildingprofiles}. The three
+methods therefore provide complementary comparisons without greatly expanding
+an experiment that must later train several reinforcement-learning models.
+
+Many other classification methods, such as xRFM, XGBoost, and Random Forest,
+were not selected because they answer a different type of question. They are
+supervised prediction methods: training
+examples must include a known output, such as a class label or regression
+target, before the model can learn what to predict
+\cite{beaglehole2025xrfm,chen2016xgboost,breiman2001randomforest}. This project
+has no correct actor-group labels. Creating labels with another clustering
+method and then training one of these predictors would mainly teach it to copy
+the earlier clustering result, rather than discover a better grouping. Some
+unsupervised alternatives, such as density-based clustering, can choose a
+variable number of groups or leave some buildings unassigned as noise. That is
+also inconvenient here because every building must be assigned to an actor and
+the experiments compare fixed group counts. These methods may be useful for a
+different prediction task or a larger dataset, but they do not match the main
+question of the present grouping experiment as directly.
+
+\begin{zhtranslation}
+严格来说，本任务需要的是无监督聚类，而不是有标签的分类。数据中没有给出“每栋建筑
+应该属于哪个 actor 组”的正确答案，只有各栋建筑的特征。因此，所选方法必须能够在没有
+标签的情况下发现分组，把每栋建筑分到一个组。
+
+选择 GMM、凝聚聚类和 balanced spectral，是因为它们满足上述要求，同时代表三种不同的
+分组思路。GMM 用来检验允许各组相互重叠、宽度不同后，是否比 K-means 更有效；凝聚
+聚类按照从小组到大组的顺序逐步合并，而且不需要随机起始中心；balanced spectral 根据
+建筑之间两两的相似程度进行分组，并直接避免各组建筑数量相差过大。已有建筑能源研究
+也曾结合 GMM 和层次聚类识别多栋建筑的用电模式，因此这两种方法与本任务具有直接联系
+\cite{li2018buildingprofiles}。这三种方法能够从不同角度与 K-means 对比，同时又不会让
+后续需要重复训练的强化学习实验规模变得过大。
+
+很多其他分类方法，比如xRFM、XGBoost 和 Random Forest 没有被选入，是因为它们解决的是另一类问题。它们属于
+监督预测方法，训练数据必须先给出已知结果，例如类别标签或回归目标，模型才能学习需要
+预测什么 \cite{beaglehole2025xrfm,chen2016xgboost,breiman2001randomforest}。本项目并没有
+正确的 actor 分组标签。如果先使用其他聚类方法生成标签，再训练这些模型，它们主要学到
+的是复制前一个方法的分组，而不是自己发现更好的分组。其他一些无监督方法，例如基于
+数据密度的聚类，可能自动产生数量不固定的组，或者把部分建筑当作无法分组的异常数据。
+这也不适合当前实验，因为每栋建筑都必须分配给一个 actor，而且实验需要比较固定的组数。
+这些方法可以用于其他预测任务或更大的数据集，但与本次分组实验的主要问题并不直接匹配。
+\end{zhtranslation}
+
 \subsection{Gaussian Mixture Model}
 
 A Gaussian mixture model (GMM) treats the data as if they were produced by
