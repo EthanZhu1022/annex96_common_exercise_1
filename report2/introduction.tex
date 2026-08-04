@@ -1,15 +1,53 @@
 \chapter{Introduction}\label{ch:intro}
 
-The first progress report established a reproducible CityLearn pipeline for the
-IEA EBC Annex 96 Common Exercise 1 (CE1). It compared rule-based control,
-independent reinforcement learning, standard MAPPO, grouped MAPPO, and several
-communication modules for a portfolio of 25 homes. The main result was that
-grouped cooperative control was substantially stronger than the fixed
-rule-based baseline, while the choice of communication structure materially
-changed load tracking and thermal comfort. The previous report also identified
-two unresolved problems: the original TarMAC adaptation did not exploit the
-local representation efficiently, and the K-means grouping was treated as a
-fixed preprocessing decision rather than a research variable.
+Modern homes are no longer only passive electricity consumers. They may include
+solar panels, batteries, heating and cooling equipment, and other controllable
+devices. Coordinating these resources across a community can move electricity
+use away from peak periods and make the combined load follow a desired grid
+profile. The difficulty is that each building has different demand and
+flexibility, while control performance is evaluated for the whole portfolio.
+
+\begin{zhtranslation}
+现代住宅已经不再只是被动的电力消费者。住宅可能包含光伏、电池、供暖和制冷设备以及
+其他可控装置。对社区中的这些资源进行协调，可以把用电从高峰时段转移出去，并使组合
+负荷接近电网要求的目标曲线。困难在于，每栋建筑的需求和灵活性不同，但控制效果需要在
+整个建筑组合层面进行评价。
+\end{zhtranslation}
+
+Building energy research has therefore increasingly moved from fixed
+rule-based control toward reinforcement learning and multi-agent coordination
+\cite{charbonnier2025,wilk2024}. This project uses CityLearn, an open simulation
+environment that provides a standardized and reproducible way to compare
+building-control algorithms \cite{citylearn2020,citylearnv2}. The experiment
+follows the IEA EBC Annex 96 Common Exercise 1 benchmark: 25 single-family homes
+are controlled as one portfolio to track a daily reference load profile using
+battery and HVAC flexibility. Evaluation covers CV-RMSE, NMBE, indoor comfort,
+energy use, peak demand, ramping, load factor, and fairness. Vermont uses January
+for training and February for testing, while Texas uses August and September.
+
+\begin{zhtranslation}
+因此，当前建筑能源研究正在从固定规则控制逐渐转向强化学习和多智能体协同。本项目使用
+CityLearn，这是一个能够以标准化、可复现方式比较建筑控制算法的开放仿真环境。实验采用
+IEA EBC Annex 96 Common Exercise 1 基准：把 25 栋独立住宅作为一个建筑组合，利用电池
+和 HVAC 灵活性跟踪每日参考负荷曲线。评价指标包括 CV-RMSE、NMBE、室内舒适度、能耗、
+峰值需求、爬坡、负荷率和公平性。Vermont 使用一月训练、二月测试，Texas 使用八月训练、
+九月测试。
+\end{zhtranslation}
+
+The first progress report, completed prior to this report, established a
+reproducible CityLearn experimental pipeline based on the IEA EBC Annex 96
+Common Exercise 1 (CE1) benchmark. It compared rule-based control, independent
+reinforcement learning, standard MAPPO, grouped MAPPO, and several communication
+modules for a portfolio of 25 homes. The main result was that grouped
+cooperative control was substantially stronger than the fixed rule-based
+baseline, while the choice of communication structure materially changed load
+tracking and thermal comfort. Among the tested communication directions,
+TarMAC showed the greatest potential. The previous report also identified two
+unresolved problems: the original TarMAC communication method did not fully
+exploit the local representation, and K-means grouping was treated as a fixed
+preprocessing step rather than an independent research variable. The resulting
+K-means partition was weak and directly affected the subsequent MAPPO training
+process.
 
 \begin{zhtranslation}
 在此之前的第一份进度报告已经建立了一个可复现的 CityLearn 实验流程，基于于 IEA EBC Annex 96
@@ -18,6 +56,20 @@ MAPPO 以及多种通信模块，实验对象为 25 栋住宅组成的建筑组�
 协同控制明显优于固定规则基线，而且通信结构的选择会显著改变负荷跟踪和热舒适度，其中tarmac是最有潜力的通讯方法。
 上一份报告也留下了两个问题：原始 TarMAC 通讯方法没有充分利用本地表示，而 K-means
 分组被当作固定预处理步骤，并没有被作为一个独立研究变量进行分析。他的分组效果弱，并直接影响了后期MAPPO的训练。
+\end{zhtranslation}
+
+The core research question of this second report is:
+
+In the CityLearn portfolio load-tracking task, how can TarMAC communication,
+building grouping methods, grouping-feature selection, and state-conditioned
+soft routing be designed together to improve grouped MARL, and to what extent
+can soft routing reduce dependence on a fixed grouping?
+
+\begin{zhtranslation}
+因此本报告的核心研究问题是：
+
+在 CityLearn 建筑组合负荷跟踪任务中，应当如何共同设计通信、建筑分组方法、
+分组特征选择，以提高MARL的性能？ 有没有一种方法能在一定程度上降低模型对固定分组的依赖？
 \end{zhtranslation}
 
 This second report addresses those problems in four connected studies. First,
@@ -41,24 +93,6 @@ model（GMM）、Ward 凝聚层次聚类和 balanced spectral 方法。第三，
 的数量与组合，并选择一个紧凑的三特征方案 3fA：电池储能容量、平均供暖需求和平均
 不可转移负荷。第四，构建状态条件 soft router，把各组策略看作 experts，并检验动态
 路由能否减少模型对单一固定分组的依赖。
-\end{zhtranslation}
-
-The research question is therefore refined to: \emph{how should communication,
-building grouping, and dynamic expert selection be combined so that a grouped
-MARL controller remains accurate, stable across random seeds, and transferable
-between heating- and cooling-dominated climates?} CityLearn remains an
-appropriate platform because it exposes building-level observations and
-flexibility resources while evaluating community-level energy objectives
-\cite{citylearn2020,citylearnv2}. The residential coordination setting also
-matches recent work showing the importance of scalable decentralized policies
-for energy flexibility \cite{charbonnier2025}.
-
-\begin{zhtranslation}
-因此，本阶段的研究问题进一步细化为：应当如何组合通信、建筑分组和动态 expert 选择，
-使分组 MARL 控制器既具有较高精度，又能在不同随机种子下保持稳定，并能在供暖主导与
-制冷主导气候之间迁移？CityLearn 同时提供建筑级观测、灵活性资源和社区级能源指标，
-因此仍然适合作为实验平台。住宅协同场景也与近期关于可扩展分散式能源灵活性策略的
-研究方向一致。
 \end{zhtranslation}
 
 Chapter~\ref{ch:background} reviews the literature needed for the new grouping,
