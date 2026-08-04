@@ -256,13 +256,14 @@ $\mu_j$ and $\sigma_j$ are the mean and standard deviation of that feature over
 the 25 buildings. Standardization stops a feature with large numerical units
 from dominating the grouping. In the balance score, $n_k$ is the number of
 buildings in group $k$; a value closer to one means that the group sizes are more
-similar. The selection score is the value used by the code to compare how evenly
-the buildings are distributed among candidate groupings. Normally, it is the
-balance score above: the number of buildings in the smallest group divided by
-the number in the largest group. If a candidate contains an empty group, its
-selection score is set to $-1$. If its smallest group contains only one building,
-$0.5$ is subtracted from the ratio in the equation above. The candidate with the
-highest selection score is retained.
+similar. The experiments treat candidate groupings containing an empty group or
+a group with only one building separately. If a candidate contains an empty
+group, its selection score is set directly to $-1$; if its smallest group contains
+only one building, $0.5$ is subtracted from the ratio above. The selection score
+is a value used to compare whether buildings are distributed evenly across the
+different candidate groupings. Normally, it is the balance score above, namely
+the smallest group size divided by the largest group size. Finally, the candidate
+with the highest selection score is retained.
 
 \begin{zhtranslation}
 正如第~\ref{ch:background}章所述，本任务没有正确的 actor 分组标签，因此需要使用无监督
@@ -313,7 +314,7 @@ S_{\mathrm{balance}} &= \frac{\min_k n_k}{\max_k n_k},
 其中，$f_{ij}$ 表示建筑 $i$ 的第 $j$ 个原始特征值，$\mu_j$ 和 $\sigma_j$ 分别表示该特征
 在25栋建筑中的平均值和标准差。标准化可以避免数值单位较大的特征对分组产生过大影响。
 $n_k$ 表示第 $k$ 组的建筑数量；平衡分数越接近1，说明各组大小越接近。
-代码还会对含有空组或只有一栋建筑的候选结果进行特殊处理。如果一个
+实验会对含有空组或只有一栋建筑的候选结果进行特殊处理。如果一个
 候选结果含有空组，它的筛选分数直接设为 $-1$；如果最小组只有一栋建筑，就在上述比值的
 基础上减去 $0.5$。筛选分数是用来比较不同候选分组中建筑分配是否均匀的数值；通常就是上面的平衡分数，即最小组建筑数
 除以最大组建筑数。最后会保留筛选分数最高的候选结果。
@@ -321,16 +322,32 @@ $n_k$ 表示第 $k$ 组的建筑数量；平衡分数越接近1，说明各组�
 
 \section{Grouping Feature Design}
 
-Based on the preceding grouping-method experiment, the feature experiments fix
-agglomerative clustering as the grouping method. This keeps the clustering
-algorithm unchanged while the selected feature columns are varied.
+Based on the results of the preceding grouping-method experiment, agglomerative
+clustering performed well and was fixed as the grouping method for the subsequent
+feature experiments. This keeps the clustering algorithm unchanged while the
+selected feature columns are varied.
 
-The feature investigation was not started directly from three-feature candidate
-A. It began with broader feature descriptions. The code defines a nine-feature
-control-profile pool, and the result archive also contains exploratory
-seven-feature static, 30-feature operational, and 37-feature combined
-static--operational groupings. The nine
-control-profile features have the following meanings:
+The initial experiment considered 37 possible features: seven static building
+features and 30 operational features. The static features describe battery and
+HVAC size, photovoltaic system size and roof area, and whether different thermal
+storage systems are installed. The operational features describe non-shiftable
+load, cooling, heating, domestic hot water, solar generation, occupancy, indoor
+temperature, and comfort-bound exceedance using statistics such as the mean,
+standard deviation, maximum, and sum.
+
+Before the compact ablations, these 37 features were screened to nine. Three
+principles were used. First, the retained features should be directly related to
+the available control flexibility, electrical demand, thermal demand, or indoor
+comfort. Second, highly repetitive descriptions of the same signal were reduced:
+mean and maximum values were kept to represent typical and peak demand, while
+several standard-deviation and sum features were removed. Third, the selection
+matched the Vermont winter experiment, so heating demand and lower-comfort
+exceedance were more informative than cooling demand and upper-comfort
+exceedance. PV, solar, storage-presence flags, and other secondary descriptors
+were not included in the compact pool because they were less direct for this
+specific control question or repeated information already represented by the
+retained demand and capacity variables. This screening produced the following
+nine control-profile features:
 \begin{itemize}
   \item \texttt{bes\_capacity\_kwh}: battery energy capacity, representing how much
   electrical energy the building can shift over time;
@@ -406,12 +423,21 @@ thermal burden, and background load---rather than blindly copying a Vermont
 heating feature into a cooling-dominated season.
 
 \begin{zhtranslation}
-根据前面的分组方法实验的结果，凝聚聚类表现优秀，后续特征实验固定使用凝聚聚类。这样，在改变所选特征列时，分组
-算法本身保持不变。
+根据前面的分组方法实验结果，凝聚聚类表现优秀，因此后续特征实验固定使用凝聚聚类。这样，
+在改变所选特征列时，分组算法本身保持不变。
 
-特征研究先研究范围更大的特征表示。代码定义了一个
-包含九个特征的 control-profile 候选池，结果目录中也包含更早的7特征静态分组、30特征
-运行分组以及37特征静态与运行组合分组。九个 control-profile 特征的含义如下：
+最初的实验考虑了37个可选特征，包括7个静态
+建筑特征和30个运行特征。静态特征描述电池与 HVAC 的大小、光伏系统大小与屋顶面积，
+以及建筑是否安装不同类型的热储能设备。运行特征使用平均值、标准差、最大值和总和等统计量，
+描述不可转移负荷、制冷、供暖、生活热水、太阳能发电、住户数、室内温度和舒适度超限。
+
+在进行紧凑特征消融之前，实验根据三条原则从37个特征中筛选出9个。第一，保留的特征应当
+与可用控制能力、用电需求、热需求或室内舒适度直接相关。第二，减少同一信号中高度重复的
+统计量：保留平均值和最大值来分别表示通常需求与峰值需求，同时移除多个标准差和总和特征。
+第三，特征选择应符合 Vermont 冬季实验，因此供暖需求和舒适下界超限比制冷需求和舒适上界
+超限更有代表性。光伏、太阳能、是否安装储能的标记以及其他次要描述没有进入紧凑候选池，
+因为它们与本实验控制问题的关系较间接，或者与保留的负荷和容量信息存在重复。经过这些
+筛选后，得到以下九个 control-profile 特征：
 \begin{itemize}
   \item \texttt{bes\_capacity\_kwh}：电池储能容量，表示建筑能够在不同时段之间转移多少电能；
   \item \texttt{hvac\_total\_kw}：HVAC 总额定功率，表示建筑改变供暖或制冷用电的设备能力；
@@ -424,14 +450,17 @@ heating feature into a cooling-dominated season.
   \item \texttt{comfort\_lower\_excess\_mean}：室温低于舒适下界的平均程度，表示供暖不足的情况。
 \end{itemize}
 
-完整的9F control-profile 描述由上述九个变量组成。随后，已经完成的受控紧凑特征实验逐步
-减少输入特征：
+完整的9F control-profile 描述由上述九个变量组成。
+实验先使用全部特征进行凝聚聚类的TarMac Hybrid MAPPO分组实验。
+随后，逐步减少输入特征：
 \begin{itemize}
   \item 5F：电池容量、HVAC 总额定功率、平均供暖需求、平均不可转移负荷和平均舒适下界超限；
   \item 4F：使用上述前四个特征，移除舒适度特征；
   \item 3F：使用电池容量、平均供暖需求和平均不可转移负荷，并进一步移除 HVAC 总额定功率。
 \end{itemize}
 这个逐步减少特征的实验用于检验：加入更多建筑信息究竟能够帮助分组，还是会带来重复信息。
+
+特征量的消融试验结束后，通过实验数据可以发现3F的结果普遍较好（详细数据分析见下一张~\ref{ch:evaluation}）。
 
 从九个候选特征中任取三个，共有 $\binom{9}{3}=84$ 种组合。对全部组合进行多随机种子训练
 需要很高的计算成本，因此根据物理意义和控制变量的思路选取了九种代表性组合：
@@ -534,20 +563,20 @@ encoder 和 TarMAC 保持冻结，适应阶段 router 也冻结。
 预训练与稳定版本应当表现更好。
 \end{zhtranslation}
 
-\section{Completed Implementation}
+\section{Completed Experimental Framework}
 
-The current codebase now supports selectable clustering, arbitrary feature
+The completed experimental framework supports selectable clustering, arbitrary feature
 columns, cluster summaries, hybrid fusion ablations, fixed and dynamic routing,
 capacity-aware router inputs, router entropy and balance terms, feed-forward and
 GRU routers, checkpoint-based staged training, per-stage freezing, and multi-
-seed launch scripts. Each result directory exports the run configuration,
+seed experiments. Each experiment records its configuration,
 cluster assignment, checkpoint, primary and secondary metrics, daily traces,
 comfort tables, training curves, and router history where applicable.
 
 \begin{zhtranslation}
-当前代码已支持可选聚类方法、任意特征列、cluster summary、hybrid fusion 消融、固定与
+目前完成的实验框架支持可选聚类方法、任意特征列、cluster summary、hybrid fusion 消融、固定与
 动态路由、capacity-aware router 输入、router entropy/balance 项、前馈与 GRU router、
-基于 checkpoint 的阶段训练、分阶段冻结以及多随机种子脚本。每个结果目录都会导出运行
+基于 checkpoint 的阶段训练、分阶段冻结以及多随机种子实验。每次实验都会记录运行
 配置、分组、checkpoint、主次指标、逐日轨迹、舒适度表、训练曲线，以及适用时的 router
 history。
 \end{zhtranslation}
