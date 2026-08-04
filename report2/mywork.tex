@@ -236,9 +236,9 @@ feature matrix produces the same result.
 
 \noindent\textbf{Balanced spectral clustering.}
 This method first gives a stronger connection to buildings with more similar
-features, and then uses the connection pattern to form groups. A fixed number of
-places is created in every group. The
-Hungarian algorithm is simply a matching method: it considers the possible
+features, and then uses the connection pattern to form groups. The Hungarian
+assignment used by balanced spectral reserves a fixed number of places for each
+group. It is simply a matching method: it considers the possible
 building-to-place assignments and finds the one with the smallest total
 assignment difference. This assigns every building while keeping group sizes
 equal or different by at most one. If two candidates are equally balanced, the
@@ -256,8 +256,13 @@ $\mu_j$ and $\sigma_j$ are the mean and standard deviation of that feature over
 the 25 buildings. Standardization stops a feature with large numerical units
 from dominating the grouping. In the balance score, $n_k$ is the number of
 buildings in group $k$; a value closer to one means that the group sizes are more
-similar. The code gives an additional penalty to an empty or one-building group
-so that an unusable grouping is not selected.
+similar. The selection score is the value used by the code to compare how evenly
+the buildings are distributed among candidate groupings. Normally, it is the
+balance score above: the number of buildings in the smallest group divided by
+the number in the largest group. If a candidate contains an empty group, its
+selection score is set to $-1$. If its smallest group contains only one building,
+$0.5$ is subtracted from the ratio in the equation above. The candidate with the
+highest selection score is retained.
 
 \begin{zhtranslation}
 正如第~\ref{ch:background}章所述，本任务没有正确的 actor 分组标签，因此需要使用无监督
@@ -307,30 +312,92 @@ S_{\mathrm{balance}} &= \frac{\min_k n_k}{\max_k n_k},
 \end{align}
 其中，$f_{ij}$ 表示建筑 $i$ 的第 $j$ 个原始特征值，$\mu_j$ 和 $\sigma_j$ 分别表示该特征
 在25栋建筑中的平均值和标准差。标准化可以避免数值单位较大的特征对分组产生过大影响。
-$n_k$ 表示第 $k$ 组的建筑数量；平衡分数越接近1，说明各组大小越接近。代码还会对空组
-或只有一栋建筑的组额外扣分，避免选择无法正常训练的分组结果。
+$n_k$ 表示第 $k$ 组的建筑数量；平衡分数越接近1，说明各组大小越接近。
+代码还会对含有空组或只有一栋建筑的候选结果进行特殊处理。如果一个
+候选结果含有空组，它的筛选分数直接设为 $-1$；如果最小组只有一栋建筑，就在上述比值的
+基础上减去 $0.5$。筛选分数是用来比较不同候选分组中建筑分配是否均匀的数值；通常就是上面的平衡分数，即最小组建筑数
+除以最大组建筑数。最后会保留筛选分数最高的候选结果。
 \end{zhtranslation}
 
 \section{Grouping Feature Design}
 
-The full control-profile feature pool includes battery capacity, total HVAC
-rating, mean and maximum heating demand, mean and maximum non-shiftable load,
-mean occupancy, indoor-temperature variation, and comfort-bound exceedance.
-Every selected column is standardized before clustering. The feature study fixes
-agglomerative clustering as the grouping method and consists of two stages.
+Based on the preceding grouping-method experiment, the feature experiments fix
+agglomerative clustering as the grouping method. This keeps the clustering
+algorithm unchanged while the selected feature columns are varied.
 
-The first stage is the feature-count ablation, which compares a three-feature
-candidate A with two larger sets:
+The feature investigation was not started directly from three-feature candidate
+A. It began with broader feature descriptions. The code defines a nine-feature
+control-profile pool, and the result archive also contains exploratory
+seven-feature static, 30-feature operational, and 37-feature combined
+static--operational groupings. The nine
+control-profile features have the following meanings:
 \begin{itemize}
-  \item 3F candidate A: battery capacity, mean heating demand, and mean non-shiftable load;
-  \item 4F: candidate A plus total HVAC rating;
-  \item 5F: 4F plus mean lower-comfort-bound exceedance.
+  \item \texttt{bes\_capacity\_kwh}: battery energy capacity, representing how much
+  electrical energy the building can shift over time;
+  \item \texttt{hvac\_total\_kw}: total rated HVAC power, representing the installed
+  ability to change heating or cooling electricity use;
+  \item \texttt{heating\_mean}: average heating demand, representing the building's
+  typical thermal load;
+  \item \texttt{heating\_max}: maximum heating demand, representing its peak thermal
+  load;
+  \item \texttt{nsl\_mean}: average non-shiftable load, representing typical
+  background electricity demand;
+  \item \texttt{nsl\_max}: maximum non-shiftable load, representing peak background
+  demand;
+  \item \texttt{occupants\_mean}: average occupancy, representing typical building
+  use intensity;
+  \item \texttt{indoor\_temp\_std}: standard deviation of indoor temperature,
+  representing how much indoor temperature varies;
+  \item \texttt{comfort\_lower\_excess\_mean}: average amount by which indoor
+  temperature falls below the lower comfort limit, representing under-heating
+  behaviour.
 \end{itemize}
-The second stage is the feature-combination ablation. It holds the count at three
-while replacing mean with maximum demand, replacing thermal demand with HVAC
-rating, adding a comfort or temperature statistic, or removing battery capacity.
-This design separates the effect of feature count from the effect of which
-physical information is included.
+
+The full 9F control-profile description consists of all nine variables above.
+The completed controlled compact experiments then studied progressively smaller
+inputs:
+\begin{itemize}
+  \item 5F: battery capacity, HVAC rated power, mean heating demand, mean
+  non-shiftable load, and mean lower-comfort-bound exceedance;
+  \item 4F: the first four features above, with the comfort feature removed;
+  \item 3F: battery capacity, mean heating demand, and mean non-shiftable load,
+  with HVAC rated power also removed.
+\end{itemize}
+This reduction tests whether adding more building descriptions provides useful
+grouping information or introduces redundant information.
+
+Choosing any three variables from the nine-feature pool gives
+$\binom{9}{3}=84$ possible combinations. Training every combination with several
+random seeds would be expensive, so nine representative combinations were
+selected using physical reasoning and controlled substitutions:
+\begin{itemize}
+  \item A: capacity + heating mean + NSL mean, covering storage flexibility,
+  typical thermal demand, and typical background load;
+  \item B: capacity + HVAC rating + NSL mean, testing installed HVAC capability
+  instead of measured heating demand;
+  \item C: capacity + heating maximum + NSL mean, testing peak rather than average
+  heating demand;
+  \item D: capacity + heating mean + NSL maximum, testing peak rather than average
+  non-shiftable load;
+  \item E: capacity + HVAC rating + NSL maximum, combining installed HVAC
+  capability with peak background demand;
+  \item F: capacity + heating maximum + NSL maximum, combining the two peak-demand
+  descriptions;
+  \item G: capacity + heating mean + lower-comfort exceedance, testing whether a
+  direct comfort-related feature is more useful than non-shiftable load;
+  \item H: capacity + heating mean + indoor-temperature variation, testing whether
+  indoor thermal stability helps to define the groups;
+  \item I: heating mean + NSL mean + lower-comfort exceedance, removing capacity to
+  test whether battery size is essential to the grouping.
+\end{itemize}
+These combinations cover the main questions of installed capability versus
+observed demand, mean versus peak demand, electrical load versus comfort and
+temperature information, and grouping with or without battery capacity. Average
+occupancy was not included in the nine compact combinations because its effect
+is partly reflected in heating and non-shiftable load, while those two variables
+are more directly related to the control task. The selected combinations are
+therefore a focused screening of the most plausible choices rather than an
+exhaustive search of all 84 possibilities.
 
 For Texas, the same feature roles are retained but
 \texttt{heating\_mean} is replaced with \texttt{cooling\_mean}. Thus the
@@ -339,17 +406,51 @@ thermal burden, and background load---rather than blindly copying a Vermont
 heating feature into a cooling-dominated season.
 
 \begin{zhtranslation}
-完整的 control-profile 特征池包括电池容量、HVAC 总额定功率、平均和最大供暖需求、
-平均和最大不可转移负荷、平均住户数、室温波动以及舒适下界超限。聚类前对所选列分别
-标准化。特征实验固定使用凝聚聚类作为分组方法，并分为两个阶段进行。
+根据前面的分组方法实验的结果，凝聚聚类表现优秀，后续特征实验固定使用凝聚聚类。这样，在改变所选特征列时，分组
+算法本身保持不变。
 
-第一阶段是特征数量消融，将三特征组合 A 与两个更大的特征集合比较：三特征组合 A 包含
-电池容量、平均供暖需求和平均不可
-转移负荷；4F 在组合 A 上增加 HVAC 总额定功率；5F 再增加平均舒适下界超限。
+特征研究先研究范围更大的特征表示。代码定义了一个
+包含九个特征的 control-profile 候选池，结果目录中也包含更早的7特征静态分组、30特征
+运行分组以及37特征静态与运行组合分组。九个 control-profile 特征的含义如下：
+\begin{itemize}
+  \item \texttt{bes\_capacity\_kwh}：电池储能容量，表示建筑能够在不同时段之间转移多少电能；
+  \item \texttt{hvac\_total\_kw}：HVAC 总额定功率，表示建筑改变供暖或制冷用电的设备能力；
+  \item \texttt{heating\_mean}：平均供暖需求，表示建筑通常的热负荷；
+  \item \texttt{heating\_max}：最大供暖需求，表示建筑的峰值热负荷；
+  \item \texttt{nsl\_mean}：平均不可转移负荷，表示通常的背景用电需求；
+  \item \texttt{nsl\_max}：最大不可转移负荷，表示峰值背景用电需求；
+  \item \texttt{occupants\_mean}：平均住户数，表示建筑通常的使用强度；
+  \item \texttt{indoor\_temp\_std}：室内温度的标准差，表示室内温度变化的幅度；
+  \item \texttt{comfort\_lower\_excess\_mean}：室温低于舒适下界的平均程度，表示供暖不足的情况。
+\end{itemize}
 
-第二阶段是特征组合消融。实验把特征数量固定为三个，通过 mean/max 替换、用 HVAC 替代
-热需求、增加舒适度或温度统计以及移除电池容量，比较不同物理信息的影响。这个设计把
-“特征数量”的影响和“具体选择哪些物理信息”的影响分开研究。
+完整的9F control-profile 描述由上述九个变量组成。随后，已经完成的受控紧凑特征实验逐步
+减少输入特征：
+\begin{itemize}
+  \item 5F：电池容量、HVAC 总额定功率、平均供暖需求、平均不可转移负荷和平均舒适下界超限；
+  \item 4F：使用上述前四个特征，移除舒适度特征；
+  \item 3F：使用电池容量、平均供暖需求和平均不可转移负荷，并进一步移除 HVAC 总额定功率。
+\end{itemize}
+这个逐步减少特征的实验用于检验：加入更多建筑信息究竟能够帮助分组，还是会带来重复信息。
+
+从九个候选特征中任取三个，共有 $\binom{9}{3}=84$ 种组合。对全部组合进行多随机种子训练
+需要很高的计算成本，因此根据物理意义和控制变量的思路选取了九种代表性组合：
+\begin{itemize}
+  \item A：capacity + heating mean + NSL mean，分别表示储能灵活性、通常热负荷和通常背景负荷；
+  \item B：capacity + HVAC rating + NSL mean，用设备额定能力替代实际供暖需求；
+  \item C：capacity + heating maximum + NSL mean，用峰值供暖需求替代平均供暖需求；
+  \item D：capacity + heating mean + NSL maximum，用峰值不可转移负荷替代平均值；
+  \item E：capacity + HVAC rating + NSL maximum，组合 HVAC 设备能力与峰值背景负荷；
+  \item F：capacity + heating maximum + NSL maximum，同时使用两种峰值负荷信息；
+  \item G：capacity + heating mean + lower-comfort exceedance，检验舒适度特征能否替代不可转移负荷；
+  \item H：capacity + heating mean + indoor-temperature variation，检验室内温度稳定性是否有助于分组；
+  \item I：heating mean + NSL mean + lower-comfort exceedance，移除 capacity，用于检验电池容量是否是
+  分组中的必要信息。
+\end{itemize}
+这些组合主要比较设备能力与实际需求、平均负荷与峰值负荷、电力负荷与舒适度或温度信息，
+以及包含或不包含电池容量的差别。九种紧凑组合没有加入平均住户数，因为住户影响已经部分
+反映在供暖需求和不可转移负荷中，而这两个特征与控制任务的关系更加直接。因此，这九种组合
+是从84种可能性中筛选出的最可能有效的代表，而不是对全部组合进行穷举。
 
 在 Texas 中保留同样的角色结构，但把 \texttt{heating\_mean} 替换为
 \texttt{cooling\_mean}。因此跨气候实验检验的是“容量、可控热负荷、背景负荷”这一
