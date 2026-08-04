@@ -3,30 +3,119 @@
 This chapter follows the same grouped MAPPO and centralized-training,
 decentralized-execution foundation used in the previous report. The new work is
 concentrated in the actor communication block, the construction of building
-groups, and the selection of actor experts. The reward and evaluation pipeline
-remain unchanged unless an experiment name explicitly identifies a reward
-ablation.
+groups, and the selection of actor experts. The reward function is also included
+in this stage: its basic form is retained, but several combinations of its
+weights are compared to study the balance between load tracking and indoor
+comfort.
 
 \begin{zhtranslation}
 本章沿用上一份报告中的 grouped MAPPO 以及“集中训练、分散执行”基础。新的工作主要集中
-在 actor 通信模块、建筑分组构造和 actor expert 选择上。除非实验名称明确标记 reward
-ablation，否则奖励函数和评估流程保持不变。
+在 actor 通信模块、建筑分组构造和 actor expert 选择上。本阶段也探索研究了最佳的奖励函数参数权重：
+奖励函数的基本形式保持不变，但对多组权重参数进行了对比实验，用来研究负荷跟踪与
+室内舒适度之间的平衡。
+\end{zhtranslation}
+
+\section{Reward Function and Parameter Comparison}
+
+At time step $t$, let $y_t$ be the total electricity load of all $N$
+buildings, let $r_t$ be the target load, and let $e_t=y_t-r_t$ be the tracking
+error. The two running load-tracking terms used by the reward are
+\begin{align}
+B_t &= \left|\frac{\sum_{\tau=1}^{t}e_\tau}
+{\sum_{\tau=1}^{t}r_\tau}\right|,\\
+E_t &= \frac{\sqrt{\frac{1}{t}\sum_{\tau=1}^{t}e_\tau^2}}
+{\frac{1}{t}\sum_{\tau=1}^{t}r_\tau},
+\end{align}
+where $B_t$ is the running absolute NMBE term and $E_t$ is the running
+CV-RMSE term. NMBE shows whether the total load is generally above or below the
+target over time: a positive value means that it is generally too high, while a
+negative value means that it is generally too low. The reward uses its absolute
+value, so a result closer to zero means less overall bias. CV-RMSE shows
+the typical size of the hour-by-hour tracking errors relative to the average
+target load, and larger errors have a stronger effect on it. A lower CV-RMSE
+therefore means that the load follows the target more closely. For building $i$,
+the number of degrees outside the seasonal comfort range $[L_t,U_t]$ and the
+corresponding violation indicator are
+\begin{align}
+d_{i,t} &= \max(L_t-T_{i,t},0)+\max(T_{i,t}-U_t,0),\\
+I_{i,t} &= \mathbb{I}[d_{i,t}>0].
+\end{align}
+The complete per-building reward is therefore
+\begin{equation}
+\label{eq:report2-reward}
+R_{i,t}=-\left[
+\frac{w_{\mathrm{nmbe}}B_t+w_{\mathrm{cv\_rmse}}E_t}{N}
++w_{\mathrm{comfort}}
+\left(w_{\mathrm{binary}}I_{i,t}+w_{\mathrm{degree}}d_{i,t}\right)
+\right].
+\end{equation}
+The first two penalties are calculated from the total load and divided equally
+among the $N$ buildings. The final term is calculated separately for each
+building. It gives one penalty when the indoor temperature leaves the comfort
+range and an additional penalty according to how many degrees it exceeds the
+range. In the reported experiments, Vermont uses January for training and
+February for testing, with a comfort range of $20$--$24^{\circ}$C. Texas uses
+August for training and September for testing, with a comfort range of
+$22$--$26^{\circ}$C.
+
+The five commonly used parameters are the NMBE weight
+$w_{\mathrm{nmbe}}$, CV-RMSE weight $w_{\mathrm{cv\_rmse}}$, overall comfort weight
+$w_{\mathrm{comfort}}$, fixed comfort-violation weight
+$w_{\mathrm{binary}}$, and temperature-exceedance weight
+$w_{\mathrm{degree}}$. In this order, the usual baseline setting is
+$(1.0,1.0,0.8,1.3,0.3)$. Reward-parameter comparison experiments were also
+conducted. The tested settings included a comfort-focused combination
+$(1.0,1.0,1.5,3.0,1.5)$ and a load-tracking-focused combination
+$(5.0,5.0,1.0,1.0,1.5)$. These comparisons test whether increasing the load
+weights or the comfort weights produces a better balance in the final results;
+therefore, the reward parameters were also tuned rather than treated as fixed.
+
+\begin{zhtranslation}
+在时间步 $t$，令 $y_t$ 表示 $N$ 栋建筑的总用电负荷，$r_t$ 表示目标负荷，
+$e_t=y_t-r_t$ 表示跟踪误差。奖励函数中的 $B_t$ 是截至当前时间的绝对 NMBE，
+$E_t$ 是截至当前时间的 CV-RMSE。NMBE 用来判断总负荷在一段时间内整体偏高还是偏低：
+正值表示整体偏高，负值表示整体偏低。奖励函数使用它的绝对值，因此越接近零表示整体
+偏差越小。CV-RMSE 用来表示每个时间点的负荷通常偏离目标多少，并且
+较大的误差会对它产生更明显的影响；因此，CV-RMSE 越低，说明负荷曲线跟随目标曲线越好。
+对建筑 $i$，$d_{i,t}$ 表示室内温度超出当季舒适范围 $[L_t,U_t]$ 的度数，$I_{i,t}$
+表示室内温度是否超出该范围。因此，完整奖励函数如公式~\eqref{eq:report2-reward} 所示。
+
+其中，前两项根据所有建筑的总负荷计算，并平均分给 $N$ 栋建筑；最后一项则对每栋建筑
+单独计算。室内温度一旦超出舒适范围，就会产生一次固定惩罚；超出的温度越多，还会产生
+更大的额外惩罚。在本报告的实验中，VT 使用1月训练、2月测试，舒适温度范围为
+$20$--$24^{\circ}$C；TX 使用8月训练、9月测试，舒适温度范围为 $22$--$26^{\circ}$C。
+
+奖励函数常用的五个参数分别为 NMBE 权重 $w_{\mathrm{nmbe}}$、CV-RMSE 权重
+$w_{\mathrm{cv\_rmse}}$、总体舒适度权重 $w_{\mathrm{comfort}}$、固定舒适度超限权重
+$w_{\mathrm{binary}}$ 和温度超限度数权重 $w_{\mathrm{degree}}$。按照这个顺序，常用的
+基线参数为 $(1.0,1.0,0.8,1.3,0.3)$。本阶段也对奖励参数做了对比实验，包括更重视
+舒适度的 $(1.0,1.0,1.5,3.0,1.5)$，以及更重视负荷跟踪的
+$(5.0,5.0,1.0,1.0,1.5)$。这些实验用于比较提高负荷权重或舒适度权重后，最终结果中的
+负荷跟踪与室内舒适度能否取得更好的平衡。因此，奖励参数也经过了调参，而不是始终固定
+使用同一组数值。
 \end{zhtranslation}
 
 \section{TarMAC Hybrid Communication}
 
 The original implementation follows targeted multi-agent communication
 (TarMAC) \cite{tarmac2019}. For hidden state $h_i\in\mathbb{R}^{256}$, it forms
-queries, keys, and values,
+three representations. The query describes what information building $i$ is
+looking for. The key describes what information each building can provide and
+is used for matching. The value contains the actual information to be passed.
+They are calculated as
 \begin{align}
 q_i &= W_q h_i, & k_i &= W_k h_i, & v_i &= W_v h_i,\\
 a_{ij} &= \operatorname{softmax}_j\left(\frac{q_i^\top k_j}{\sqrt{d_k}}\right),
 & c_i &= \sum_j a_{ij}v_j,
 \end{align}
-and replaces the state with an update computed directly from $[h_i;c_i]$.
-Although attention chooses whose message is important, the full 256-dimensional
-local state enters the fusion layer unchanged. In a small 25-agent energy task,
-this can let redundant local dimensions dominate the 64-dimensional message.
+The model compares the query of one building with the keys of all buildings.
+A better match receives a larger weight, and the values are combined according
+to these weights to form the received communication information $c_i$. The
+division by $\sqrt{d_k}$ only prevents the matching scores from becoming too
+large. The original implementation then computes an update directly from the
+complete local state and $c_i$. Because the full 256-dimensional local state
+enters the fusion layer without compression, repeated local information can
+overwhelm the 64-dimensional communication information in this 25-building task.
 
 TarMAC Hybrid changes the fusion path to
 \begin{align}
@@ -36,24 +125,64 @@ TarMAC Hybrid changes the fusion path to
 +b_1\right)+b_2\right),\\
 h'_i &= h_i + \Delta_i.
 \end{align}
-The implementation therefore has three changes, not only one: a $256\to64$
-local bottleneck, a ReLU that suppresses negative projected components, and a
-residual update that preserves the original state while communication adds a
-bounded correction. Query dimension is 32, value dimension is 64, and one
-global communication round is used in the reported default experiment. The
-code also implements linear and gated fusion modes for controlled ablation.
+Compared with the original TarMAC communication method, TarMAC Hybrid makes
+three main changes. First, a learned $256\to64$ projection
+turns the local state into a more compact representation and reduces repeated
+information. Second, ReLU provides nonlinear filtering so that useful patterns
+in the current input are more clearly represented. Third, a residual connection
+adds the communication result to the original state instead of replacing the
+original state completely. Together, these changes first simplify each
+building's local information and then combine it with information from other
+buildings without losing the original input. The default ReLU experiment uses
+32-dimensional queries and keys and 64-dimensional values. It uses one global
+communication round, meaning that all 25 buildings exchange information once
+before the action is produced, and each building can consider information from
+every other building rather than only buildings in its fixed group.
+
+To determine which part of TarMAC Hybrid produces the improvement, the
+experiments also compare two alternatives with the default ReLU fusion: Linear
+and Gated. They separate the effect of simple dimensional reduction from the
+effect of controlling how much communication information is added.
+
+Linear fusion compresses the local state from 256 dimensions to 64 dimensions
+without applying ReLU, and then combines this result directly with the received
+communication information. It is used to test whether dimensional reduction
+alone is sufficient.
+
+Gated fusion learns a set of weights between zero and one that act like
+adjustable switches. Based on the local state and the received information,
+these switches decide how much of each part of the communication information
+should be added to the local state. It is used to test whether controlling the
+amount of incoming information is more effective than direct fusion.
 
 \begin{zhtranslation}
 原始实现遵循 TarMAC 的定向多智能体通信。对 256 维隐藏状态，它生成 query、key 和
-value，通过缩放点积注意力得到通信上下文，然后直接根据完整本地状态与上下文的拼接
-生成新状态。虽然注意力能够选择“谁的消息更重要”，但 256 维本地状态未经压缩就进入
-融合层，在只有 25 个智能体的能源任务中，冗余本地维度可能压过 64 维通信消息。
+value 三种表示。query 表示当前建筑希望获得什么信息；key 表示每栋建筑能够提供什么
+信息，用来与 query 进行匹配；value 则是真正需要传递的信息内容。模型会把一栋建筑的
+query 与所有建筑的 key 进行比较，匹配程度越高，对应 value 获得的权重就越大。最后，
+模型按照这些权重汇总所有 value，得到该建筑接收的通信信息 $c_i$。公式中的
+$\sqrt{d_k}$ 只是为了防止匹配分数过大。原始实现随后直接把完整本地状态与 $c_i$ 结合
+来生成更新结果。由于 256 维本地状态没有经过压缩就进入融合层，在这个 25 栋建筑的
+任务中，重复的本地信息可能会压过 64 维通信信息。
 
-TarMAC Hybrid 的准确改动包括三点：先用 $256\to64$ 投影压缩本地状态；再通过 ReLU
-抑制投影后的负分量；最后通过 residual update 保留原始状态，只让通信增加一个有界
-修正。因此，“降维 + ReLU”这一记忆是正确的，但残差连接也是效果提升的重要组成部分。
-默认实验使用 32 维 query/key、64 维 value 和一次全局通信；代码还实现了 linear 和
-gated fusion 作为受控消融。
+TarMAC Hybrid 在原始TarMAC通讯算法基础上主要进行了三项改进。首先，使用可学习的 $256\to64$ 投影，把本地状态
+转换成更紧凑的表示，减少重复和冗余信息。其次，使用 ReLU 进行非线性筛选，让当前输入
+中的有效特征表现得更加清楚。最后，使用残差连接把通信结果加入原始状态，而不是直接
+替换原始状态。这样，模型会先简化每栋建筑的本地信息，再将其与其他建筑的信息结合，
+同时保留原始输入。默认的 ReLU 实验使用 32 维 query/key 和 64 维 value，并且只进行
+一次全局通信，即在生成动作之前，全部 25 栋建筑共同交换一次信息；每栋建筑都可以参考其他所有建筑的
+信息，而不只参考自己固定组内的建筑。
+
+为了进一步判断 TarMAC Hybrid 的提升主要来自哪一部分，实验还在默认的 ReLU 融合之外
+设置了 Linear 和 Gated 两种对照方式。它们分别用于区分单纯降维的作用，以及控制通信
+信息加入量的作用。
+
+Linear 融合只把本地状态从 256 维压缩到 64 维，不使用 ReLU，然后直接将压缩结果与
+接收到的通信信息结合。这个设置用于检验只做降维是否已经足够。
+
+Gated 融合会学习一组 0 到 1 之间的权重，可以把它们理解成能够调节大小的开关。模型
+根据本地状态和接收到的信息，决定通信信息的各个部分应当加入多少。这个设置用于检验
+控制外部信息的加入量，是否比直接融合更加有效。
 \end{zhtranslation}
 
 \section{Selectable Grouping Methods}
