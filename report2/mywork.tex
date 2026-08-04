@@ -371,8 +371,9 @@ nine control-profile features:
 \end{itemize}
 
 The full 9F control-profile description consists of all nine variables above.
-The completed controlled compact experiments then studied progressively smaller
-inputs:
+The experiment first used all nine features in an agglomerative-clustering
+grouped TarMAC Hybrid MAPPO experiment. The input features were then reduced
+progressively:
 \begin{itemize}
   \item 5F: battery capacity, HVAC rated power, mean heating demand, mean
   non-shiftable load, and mean lower-comfort-bound exceedance;
@@ -382,6 +383,10 @@ inputs:
 \end{itemize}
 This reduction tests whether adding more building descriptions provides useful
 grouping information or introduces redundant information.
+
+After the feature-count ablation, the experimental results showed that the 3F
+settings generally performed better. A detailed analysis is provided in
+Chapter~\ref{ch:evaluation}.
 
 Choosing any three variables from the nine-feature pool gives
 $\binom{9}{3}=84$ possible combinations. Training every combination with several
