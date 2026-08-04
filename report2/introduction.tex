@@ -21,9 +21,11 @@ environment that provides a standardized and reproducible way to compare
 building-control algorithms \cite{citylearn2020,citylearnv2}. The experiment
 follows the IEA EBC Annex 96 Common Exercise 1 benchmark: 25 single-family homes
 are controlled as one portfolio to track a daily reference load profile using
-battery and HVAC flexibility. Evaluation covers CV-RMSE, NMBE, indoor comfort,
-energy use, peak demand, ramping, load factor, and fairness. Vermont uses January
-for training and February for testing, while Texas uses August and September.
+battery and HVAC flexibility. Evaluation covers CV-RMSE, NMBE, indoor comfort
+(measured as temperature deviation multiplied by duration), energy use, peak
+demand, ramping, load factor, and fairness. Vermont uses
+January for training and February for testing, while Texas uses August and
+September.
 
 \begin{zhtranslation}
 因此，当前建筑能源研究正在从固定规则控制逐渐转向强化学习和多智能体协同。本项目使用
@@ -42,12 +44,14 @@ modules for a portfolio of 25 homes. The main result was that grouped
 cooperative control was substantially stronger than the fixed rule-based
 baseline, while the choice of communication structure materially changed load
 tracking and thermal comfort. Among the tested communication directions,
-TarMAC showed the greatest potential. The previous report also identified two
-unresolved problems: the original TarMAC communication method did not fully
-exploit the local representation, and K-means grouping was treated as a fixed
-preprocessing step rather than an independent research variable. The resulting
-K-means partition was weak and directly affected the subsequent MAPPO training
-process.
+TarMAC showed the greatest potential. The previous report also identified
+several unresolved problems: the original TarMAC communication method did not
+fully use each agent's own information, and K-means grouping was treated as a
+fixed preprocessing step rather than an independent research variable. Preliminary
+experiments showed that K-means produced weak groups, which directly affected
+the subsequent MAPPO training. The current MAPPO model depends strongly on the
+quality of the fixed grouping, and this quality depends on both the grouping
+method and the selected grouping features.
 
 \begin{zhtranslation}
 在此之前的第一份进度报告已经建立了一个可复现的 CityLearn 实验流程，基于于 IEA EBC Annex 96
@@ -62,10 +66,10 @@ MAPPO 以及多种通信模块，实验对象为 25 栋住宅组成的建筑组�
 
 The core research question of this second report is:
 
-In the CityLearn portfolio load-tracking task, how can TarMAC communication,
-building grouping methods, grouping-feature selection, and state-conditioned
-soft routing be designed together to improve grouped MARL, and to what extent
-can soft routing reduce dependence on a fixed grouping?
+In the CityLearn portfolio load-tracking task, how should communication,
+building grouping methods, and grouping features be designed to improve MARL?
+Alternatively, is there a method that can reduce the model's dependence on a
+fixed grouping?
 
 \begin{zhtranslation}
 因此本报告的核心研究问题是：
@@ -75,31 +79,38 @@ can soft routing reduce dependence on a fixed grouping?
 \end{zhtranslation}
 
 This second report addresses those problems in four connected studies. First,
-it introduces \emph{TarMAC Hybrid}, which compresses each local hidden state,
-applies a ReLU nonlinearity, combines the compact local representation with the
-targeted attention context, and adds the resulting update through a residual
-connection. Second, it compares K-means, Gaussian mixture models (GMM), Ward
-agglomerative clustering, and a balanced spectral method. Third, it studies
-both the number and composition of grouping features and selects a compact
-three-feature design, denoted 3fA: battery energy-storage capacity,
-mean heating demand, and mean non-shiftable load. Finally, it develops a
-state-conditioned soft router that treats the group policies as experts and
-tests whether dynamic routing can reduce dependence on a single fixed
-partition.
+it introduces \emph{TarMAC Hybrid}. It reduces each agent's own information to
+a smaller and clearer form and uses ReLU to keep the more useful parts. This
+shortened information is then combined with information received from other
+agents, while the original information is retained. Second, the report compares
+K-means, Gaussian mixture models (GMM), Ward agglomerative clustering, and a
+balanced spectral method. Third, it studies both the number and composition of
+grouping features and selects a compact three-feature design, denoted 3fA:
+battery energy-storage capacity, mean heating demand, and mean non-shiftable
+load. Finally, it develops a soft router. In simple terms, this is a small
+neural-network selector for each building. At every time step, it examines the
+building's current condition and gives each available actor a selection
+probability. These probabilities help decide which actor should guide the
+building's action. This tests whether a building can use different actors at
+different times instead of always depending on the actor assigned by its fixed
+group.
 
 \begin{zhtranslation}
-本报告围绕四项相互关联的研究来解决这些问题。第一，提出 TarMAC Hybrid：先压缩每个
-智能体的本地隐藏状态并施加 ReLU 非线性，再将紧凑的本地表示与定向注意力上下文
-结合，最后通过残差连接把更新加回原表示。第二，比较 K-means、Gaussian mixture
-model（GMM）、Ward 凝聚层次聚类和 balanced spectral 方法。第三，同时研究分组特征
-的数量与组合，并选择一个紧凑的三特征方案 3fA：电池储能容量、平均供暖需求和平均
-不可转移负荷。第四，构建状态条件 soft router，把各组策略看作 experts，并检验动态
-路由能否减少模型对单一固定分组的依赖。
+本报告围绕四项相互关联的研究来解决这些问题。第一，提出 TarMAC Hybrid：先把每个
+智能体自己的信息进行压缩，并使用 ReLU 保留更有用的部分；然后把压缩后的自身信息和
+从其他智能体收到的信息结合，同时保留原来的信息。第二，比较 K-means、Gaussian
+mixture model（GMM）、Ward 凝聚层次聚类和 balanced spectral 方法。第三，同时研究
+分组特征的数量与组合，并选择一个紧凑的三特征方案 3fA：电池储能容量、平均供暖需求
+和平均不可转移负荷。第四，构建 soft router。简单来说，它是一个帮助每栋建筑选择
+actor 的小型神经网络。在每个时间步，它会根据建筑当前的状态，为每个可选 actor 给出
+一个选择概率，再根据这些概率帮助建筑决定应由哪个 actor 指导当前动作。这样可以检验
+建筑能否在不同时刻使用不同 actor，而不是一直依赖固定分组原先分配的 actor。
 \end{zhtranslation}
 
 Chapter~\ref{ch:background} reviews the literature needed for the new grouping,
 feature-selection, and routing studies. Chapter~\ref{ch:method} presents the
-implemented methods and the sequence of soft-router designs.
+implemented grouping-method comparison, feature selection, and the evolution
+of the soft router.
 Chapter~\ref{ch:eval} reports the experiments using the consolidated result
 tables in \texttt{grouping\_feature\_ablation\_primary\_only\_sorted} and
 \texttt{summarize\_selected\_experiment\_metrics}. Chapter~\ref{ch:concl}
@@ -107,7 +118,7 @@ summarizes the conclusions and remaining work.
 
 \begin{zhtranslation}
 第~\ref{ch:background}章回顾新分组、特征选择和路由研究所需的文献；第~\ref{ch:method}
-章介绍已实现的方法以及 soft router 的演进过程；第~\ref{ch:eval}章依据
+章介绍已实现的分组方法对比，特征选择，以及 soft router 的演进过程；第~\ref{ch:eval}章依据
 \texttt{grouping\_feature\_ablation\_primary\_only\_sorted} 和
 \texttt{summarize\_selected\_experiment\_metrics} 汇总表报告实验结果；第~\ref{ch:concl}
 章总结结论与后续工作。
