@@ -12,12 +12,12 @@ local representation efficiently, and the K-means grouping was treated as a
 fixed preprocessing decision rather than a research variable.
 
 \begin{zhtranslation}
-第一份进度报告已经建立了一个可复现的 CityLearn 实验流程，用于 IEA EBC Annex 96
-Common Exercise 1（CE1）。该报告比较了规则控制、独立强化学习、标准 MAPPO、分组
+在此之前的第一份进度报告已经建立了一个可复现的 CityLearn 实验流程，基于于 IEA EBC Annex 96
+Common Exercise 1（CE1）基准设置。该报告比较了规则控制、独立强化学习、标准 MAPPO、分组
 MAPPO 以及多种通信模块，实验对象为 25 栋住宅组成的建筑组合。主要结果表明，分组
-协同控制明显优于固定规则基线，而且通信结构的选择会显著改变负荷跟踪和热舒适度。
-上一份报告也留下了两个问题：原始 TarMAC 改写没有充分利用本地表示，而 K-means
-分组被当作固定预处理步骤，并没有被作为一个独立研究变量进行分析。
+协同控制明显优于固定规则基线，而且通信结构的选择会显著改变负荷跟踪和热舒适度，其中tarmac是最有潜力的通讯方法。
+上一份报告也留下了两个问题：原始 TarMAC 通讯方法没有充分利用本地表示，而 K-means
+分组被当作固定预处理步骤，并没有被作为一个独立研究变量进行分析。他的分组效果弱，并直接影响了后期MAPPO的训练。
 \end{zhtranslation}
 
 This second report addresses those problems in four connected studies. First,
