@@ -1,0 +1,39 @@
+\documentclass[12pt]{report}
+\usepackage{epsfig}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage[table]{xcolor}
+\usepackage[section]{placeins}
+\usepackage[UTF8,heading=false]{ctex}
+% sets 25mm margins on A4, matching the previous report
+\setlength\textwidth{6.75in}
+\setlength\textheight{9.0in}
+\setlength\topmargin{-0.25in}
+\setlength\oddsidemargin{-0.25in}
+\setlength\evensidemargin{-0.25in}
+\renewcommand{\baselinestretch}{1.5}
+\usepackage[hidelinks]{hyperref}
+\newenvironment{zhtranslation}
+  {\par\small\noindent\textbf{中文翻译：}}
+  {\par\normalsize\vspace{0.5em}}
+\begin{document}
+
+\thispagestyle{empty}
+\include{cover}
+\tableofcontents
+%\listoffigures
+%\listoftables
+\include{introduction}
+\include{background}
+\include{mywork}
+\include{evaluation}
+\include{conclusion}
+\addcontentsline{toc}{chapter}{Bibliography}
+\bibliographystyle{plain}
+\bibliography{pubs}
+%\appendix
+%\addcontentsline{toc}{chapter}{Appendix 1}
+%\include{appendix}
+\end{document}

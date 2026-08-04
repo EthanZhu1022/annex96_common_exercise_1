@@ -1,0 +1,78 @@
+\chapter{Introduction}\label{ch:intro}
+
+The first progress report established a reproducible CityLearn pipeline for the
+IEA EBC Annex 96 Common Exercise 1 (CE1). It compared rule-based control,
+independent reinforcement learning, standard MAPPO, grouped MAPPO, and several
+communication modules for a portfolio of 25 homes. The main result was that
+grouped cooperative control was substantially stronger than the fixed
+rule-based baseline, while the choice of communication structure materially
+changed load tracking and thermal comfort. The previous report also identified
+two unresolved problems: the original TarMAC adaptation did not exploit the
+local representation efficiently, and the K-means grouping was treated as a
+fixed preprocessing decision rather than a research variable.
+
+\begin{zhtranslation}
+第一份进度报告已经建立了一个可复现的 CityLearn 实验流程，用于 IEA EBC Annex 96
+Common Exercise 1（CE1）。该报告比较了规则控制、独立强化学习、标准 MAPPO、分组
+MAPPO 以及多种通信模块，实验对象为 25 栋住宅组成的建筑组合。主要结果表明，分组
+协同控制明显优于固定规则基线，而且通信结构的选择会显著改变负荷跟踪和热舒适度。
+上一份报告也留下了两个问题：原始 TarMAC 改写没有充分利用本地表示，而 K-means
+分组被当作固定预处理步骤，并没有被作为一个独立研究变量进行分析。
+\end{zhtranslation}
+
+This second report addresses those problems in four connected studies. First,
+it introduces \emph{TarMAC Hybrid}, which compresses each local hidden state,
+applies a ReLU nonlinearity, combines the compact local representation with the
+targeted attention context, and adds the resulting update through a residual
+connection. Second, it compares K-means, Gaussian mixture models (GMM), Ward
+agglomerative clustering, and a balanced spectral method. Third, it studies
+both the number and composition of grouping features and selects a compact
+three-feature design, denoted 3fA: battery energy-storage capacity,
+mean heating demand, and mean non-shiftable load. Finally, it develops a
+state-conditioned soft router that treats the group policies as experts and
+tests whether dynamic routing can reduce dependence on a single fixed
+partition.
+
+\begin{zhtranslation}
+本报告围绕四项相互关联的研究来解决这些问题。第一，提出 TarMAC Hybrid：先压缩每个
+智能体的本地隐藏状态并施加 ReLU 非线性，再将紧凑的本地表示与定向注意力上下文
+结合，最后通过残差连接把更新加回原表示。第二，比较 K-means、Gaussian mixture
+model（GMM）、Ward 凝聚层次聚类和 balanced spectral 方法。第三，同时研究分组特征
+的数量与组合，并选择一个紧凑的三特征方案 3fA：电池储能容量、平均供暖需求和平均
+不可转移负荷。第四，构建状态条件 soft router，把各组策略看作 experts，并检验动态
+路由能否减少模型对单一固定分组的依赖。
+\end{zhtranslation}
+
+The research question is therefore refined to: \emph{how should communication,
+building grouping, and dynamic expert selection be combined so that a grouped
+MARL controller remains accurate, stable across random seeds, and transferable
+between heating- and cooling-dominated climates?} CityLearn remains an
+appropriate platform because it exposes building-level observations and
+flexibility resources while evaluating community-level energy objectives
+\cite{citylearn2020,citylearnv2}. The residential coordination setting also
+matches recent work showing the importance of scalable decentralized policies
+for energy flexibility \cite{charbonnier2025}.
+
+\begin{zhtranslation}
+因此，本阶段的研究问题进一步细化为：应当如何组合通信、建筑分组和动态 expert 选择，
+使分组 MARL 控制器既具有较高精度，又能在不同随机种子下保持稳定，并能在供暖主导与
+制冷主导气候之间迁移？CityLearn 同时提供建筑级观测、灵活性资源和社区级能源指标，
+因此仍然适合作为实验平台。住宅协同场景也与近期关于可扩展分散式能源灵活性策略的
+研究方向一致。
+\end{zhtranslation}
+
+Chapter~\ref{ch:background} reviews the literature needed for the new grouping,
+feature-selection, and routing studies. Chapter~\ref{ch:method} presents the
+implemented methods and the sequence of soft-router designs.
+Chapter~\ref{ch:eval} reports the experiments using the consolidated result
+tables in \texttt{grouping\_feature\_ablation\_primary\_only\_sorted} and
+\texttt{summarize\_selected\_experiment\_metrics}. Chapter~\ref{ch:concl}
+summarizes the conclusions and remaining work.
+
+\begin{zhtranslation}
+第~\ref{ch:background}章回顾新分组、特征选择和路由研究所需的文献；第~\ref{ch:method}
+章介绍已实现的方法以及 soft router 的演进过程；第~\ref{ch:eval}章依据
+\texttt{grouping\_feature\_ablation\_primary\_only\_sorted} 和
+\texttt{summarize\_selected\_experiment\_metrics} 汇总表报告实验结果；第~\ref{ch:concl}
+章总结结论与后续工作。
+\end{zhtranslation}

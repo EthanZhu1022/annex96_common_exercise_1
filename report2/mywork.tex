@@ -1,0 +1,221 @@
+\chapter{Method and Progress}\label{ch:method}
+
+This chapter follows the same grouped MAPPO and centralized-training,
+decentralized-execution foundation used in the previous report. The new work is
+concentrated in the actor communication block, the construction of building
+groups, and the selection of actor experts. The reward and evaluation pipeline
+remain unchanged unless an experiment name explicitly identifies a reward
+ablation.
+
+\begin{zhtranslation}
+本章沿用上一份报告中的 grouped MAPPO 以及“集中训练、分散执行”基础。新的工作主要集中
+在 actor 通信模块、建筑分组构造和 actor expert 选择上。除非实验名称明确标记 reward
+ablation，否则奖励函数和评估流程保持不变。
+\end{zhtranslation}
+
+\section{TarMAC Hybrid Communication}
+
+The original implementation follows targeted multi-agent communication
+(TarMAC) \cite{tarmac2019}. For hidden state $h_i\in\mathbb{R}^{256}$, it forms
+queries, keys, and values,
+\begin{align}
+q_i &= W_q h_i, & k_i &= W_k h_i, & v_i &= W_v h_i,\\
+a_{ij} &= \operatorname{softmax}_j\left(\frac{q_i^\top k_j}{\sqrt{d_k}}\right),
+& c_i &= \sum_j a_{ij}v_j,
+\end{align}
+and replaces the state with an update computed directly from $[h_i;c_i]$.
+Although attention chooses whose message is important, the full 256-dimensional
+local state enters the fusion layer unchanged. In a small 25-agent energy task,
+this can let redundant local dimensions dominate the 64-dimensional message.
+
+TarMAC Hybrid changes the fusion path to
+\begin{align}
+\ell_i &= \operatorname{ReLU}(W_{\ell}h_i), \qquad
+\ell_i\in\mathbb{R}^{64},\\
+\Delta_i &= \tanh\!\left(W_2\tanh\left(W_1[\ell_i;c_i]
++b_1\right)+b_2\right),\\
+h'_i &= h_i + \Delta_i.
+\end{align}
+The implementation therefore has three changes, not only one: a $256\to64$
+local bottleneck, a ReLU that suppresses negative projected components, and a
+residual update that preserves the original state while communication adds a
+bounded correction. Query dimension is 32, value dimension is 64, and one
+global communication round is used in the reported default experiment. The
+code also implements linear and gated fusion modes for controlled ablation.
+
+\begin{zhtranslation}
+原始实现遵循 TarMAC 的定向多智能体通信。对 256 维隐藏状态，它生成 query、key 和
+value，通过缩放点积注意力得到通信上下文，然后直接根据完整本地状态与上下文的拼接
+生成新状态。虽然注意力能够选择“谁的消息更重要”，但 256 维本地状态未经压缩就进入
+融合层，在只有 25 个智能体的能源任务中，冗余本地维度可能压过 64 维通信消息。
+
+TarMAC Hybrid 的准确改动包括三点：先用 $256\to64$ 投影压缩本地状态；再通过 ReLU
+抑制投影后的负分量；最后通过 residual update 保留原始状态，只让通信增加一个有界
+修正。因此，“降维 + ReLU”这一记忆是正确的，但残差连接也是效果提升的重要组成部分。
+默认实验使用 32 维 query/key、64 维 value 和一次全局通信；代码还实现了 linear 和
+gated fusion 作为受控消融。
+\end{zhtranslation}
+
+\section{Selectable Grouping Methods}
+
+All methods receive the same standardized feature matrix $X$. For each candidate
+number of groups $K\in\{4,5\}$, the implementation tries the requested method,
+computes the balance score $\min_k n_k/\max_k n_k$, and selects the most balanced
+candidate. K-means uses ten initializations. GMM uses full covariance matrices,
+three initializations, and covariance regularization $10^{-6}$. Agglomerative
+clustering uses Ward linkage and is deterministic.
+
+The balanced spectral method first constructs an RBF affinity matrix on the
+standardized features. Its kernel width is determined from the median positive
+squared distance. It then computes the symmetric normalized graph Laplacian,
+row-normalizes the eigenvectors associated with the smallest eigenvalues, and
+uses K-means only to initialize embedding-space centroids. Each centroid is
+expanded into an exact number of assignment slots, and the Hungarian algorithm
+assigns all buildings to these slots. Group sizes therefore differ by at most
+one. Equal-balance solutions are separated by the lower normalized-cut cost.
+
+\begin{zhtranslation}
+所有方法都接收同一标准化特征矩阵。对每个候选组数 $K\in\{4,5\}$，实现会运行指定方法，
+计算平衡分数 $\min_k n_k/\max_k n_k$，并选择最平衡的候选结果。K-means 使用十次初始
+化；GMM 使用完整协方差、三次初始化和 $10^{-6}$ 协方差正则；凝聚聚类使用 Ward
+linkage，因此是确定性的。
+
+Balanced spectral 先在标准化特征上构建 RBF 相似度矩阵，核宽度由正的平方距离中位数
+决定；随后计算对称归一化图 Laplacian，并对最小特征值对应的特征向量逐行归一化。
+K-means 只用于初始化谱嵌入空间中的中心，每个中心被展开为规定数量的分配槽，最后用
+匈牙利算法把所有建筑分配到这些槽。因此，各组大小最多相差一栋；在平衡度相同时，
+选择 normalized-cut cost 更低的结果。
+\end{zhtranslation}
+
+\section{Grouping Feature Design}
+
+The full control-profile feature pool includes battery capacity, total HVAC
+rating, mean and maximum heating demand, mean and maximum non-shiftable load,
+mean occupancy, indoor-temperature variation, and comfort-bound exceedance.
+Every selected column is standardized before clustering. Two ablation families
+were implemented.
+
+The feature-count ablation compares:
+\begin{itemize}
+  \item 3fA: battery capacity, mean heating demand, and mean non-shiftable load;
+  \item 4f: 3fA plus total HVAC rating;
+  \item 5f: 4f plus mean lower-comfort-bound exceedance.
+\end{itemize}
+The feature-combination ablation holds the count at three while replacing mean
+with maximum demand, replacing thermal demand with HVAC rating, adding a comfort
+or temperature statistic, or removing battery capacity. This design separates
+the effect of dimensionality from the effect of physical content.
+
+For Texas, the same feature roles are retained but
+\texttt{heating\_mean} is replaced with \texttt{cooling\_mean}. Thus the
+cross-climate experiment tests a transferable principle---capacity, controllable
+thermal burden, and background load---rather than blindly copying a Vermont
+heating feature into a cooling-dominated season.
+
+\begin{zhtranslation}
+完整的 control-profile 特征池包括电池容量、HVAC 总额定功率、平均和最大供暖需求、
+平均和最大不可转移负荷、平均住户数、室温波动以及舒适下界超限。聚类前对所选列分别
+标准化。实验包含两类消融：特征数量消融比较 3fA、4f 和 5f，其中 4f 在 3fA 上增加
+HVAC，5f 再增加舒适下界超限；特征组合消融则固定为三个特征，通过 mean/max 替换、
+用 HVAC 替代热需求、增加舒适度或温度统计以及移除电池容量，区分“维度数量”和“物理
+内容”的影响。
+
+在 Texas 中保留同样的角色结构，但把 \texttt{heating\_mean} 替换为
+\texttt{cooling\_mean}。因此跨气候实验检验的是“容量、可控热负荷、背景负荷”这一
+可迁移原则，而不是把 Vermont 的供暖特征机械复制到制冷主导季节。
+\end{zhtranslation}
+
+\section{State-Conditioned Soft Router}
+
+Let $K$ fixed group policies be experts. For building $i$ at time $t$, the
+router receives the globally communicated hidden state and, in the capacity-
+aware version, seven physical variables: normalized battery capacity,
+normalized HVAC rating, state of charge, available charge headroom, available
+discharge headroom, current non-shiftable load, and current heating demand. A
+two-layer router produces logits $z_{it}$ and dynamic weights
+\begin{equation}
+d_{it}=\operatorname{softmax}(z_{it}/\tau).
+\end{equation}
+The final gate interpolates between the one-hot fixed assignment $p_i$ and the
+dynamic gate,
+\begin{equation}
+g_{it}=(1-\alpha)p_i+\alpha d_{it},
+\end{equation}
+where $\alpha$ is increased during training. A balance penalty discourages
+collapse to one expert by comparing average gate usage with the usage implied
+by the original partition. Evaluation can use hard selection from the largest
+gate while training remains differentiable.
+
+\begin{zhtranslation}
+设 $K$ 个固定分组策略为 experts。对时刻 $t$ 的建筑 $i$，router 接收全局通信后的隐藏
+状态；在 capacity-aware 版本中还接收七个物理变量：归一化电池容量、归一化 HVAC
+额定值、SOC、可充电余量、可放电余量、当前不可转移负荷和当前供暖需求。两层 router
+输出 logits，再经温度 $\tau$ 控制的 softmax 得到动态权重。最终 gate 在固定 one-hot
+分组 $p_i$ 和动态 gate $d_{it}$ 之间插值，$\alpha$ 随训练增加。balance penalty 通过
+比较平均 expert 使用率与原固定分组的使用率来避免路由塌缩。训练保持可微，测试时可以
+选择 gate 最大的 expert。
+\end{zhtranslation}
+
+\section{Router Training Sequence}
+
+The soft-router experiments evolved through four designs:
+\begin{enumerate}
+  \item \textbf{End-to-end legacy training.} Router and actors were trained
+  together from randomly initialized policies. Temperature, warm-up duration,
+  and final prior weight were varied. These runs established that a router could
+  learn non-uniform gates, but policy learning was unstable.
+  \item \textbf{Pretrained two-stage training.} A strong fixed 3fA actor
+  checkpoint was loaded first. Experts were frozen for 200 episodes before
+  limited joint fine-tuning, with temperature 0.5 or 0.7, final dynamic weight
+  1.0 or 0.7, and with/without the seven capacity-aware router inputs.
+  \item \textbf{Three-stage training.} Experiments separated static actor
+  training, router-only learning, and dynamic actor adaptation. Both a shared-
+  encoder version and a full-expert version were tested. The shared version
+  attempted to put every head in one latent space; the full-expert version
+  retained matched encoder--communication--head branches.
+  \item \textbf{Stable two-stage enhancement.} The best fixed 3fA checkpoint
+  was treated as an anchor. The most conservative run trained only the router
+  for 500 episodes (\texttt{routeronly500}). The stronger stable-head family
+  then allowed only action heads to adapt at $10^{-5}$ while encoders and TarMAC
+  remained frozen and the router was frozen during the adaptation phase.
+\end{enumerate}
+
+This sequence tests the central question directly. If soft routing could replace
+clustering, the end-to-end and shared three-stage runs should learn good experts
+without a strong prior. If it is instead an enhancement, the pretrained and
+stable variants should be better because they preserve a useful initial
+partition.
+
+\begin{zhtranslation}
+Soft router 实验经历了四个设计阶段。第一，最初的 end-to-end 版本从随机 actor 开始，
+同时训练 router 和 experts，并改变 temperature、warm-up 和 prior 权重；它证明 router
+可以产生非均匀 gate，但策略不稳定。第二，两阶段版本先载入强 3fA 固定分组 checkpoint，
+冻结 experts 200 episodes 后再有限联合微调，同时比较 temperature 0.5/0.7、最终动态
+权重 1.0/0.7，以及是否使用七个 capacity-aware 输入。第三，三阶段版本明确分开静态
+actor、router-only 和动态 actor 适应，并比较 shared-encoder 与 full-expert。第四，
+稳定两阶段增强把最佳 3fA checkpoint 作为锚点；最保守的 \texttt{routeronly500} 只训练
+router 500 episodes，而 stable-head 版本只允许 action heads 以 $10^{-5}$ 小学习率适应，
+encoder 和 TarMAC 保持冻结，适应阶段 router 也冻结。
+
+这一演进直接检验核心问题：如果 soft routing 能完全替代聚类，那么 end-to-end 和 shared
+三阶段应该无需强先验就能学出好 experts；如果它只是增强方法，那么保留优质初始分组的
+预训练与稳定版本应当表现更好。
+\end{zhtranslation}
+
+\section{Completed Implementation}
+
+The current codebase now supports selectable clustering, arbitrary feature
+columns, cluster summaries, hybrid fusion ablations, fixed and dynamic routing,
+capacity-aware router inputs, router entropy and balance terms, feed-forward and
+GRU routers, checkpoint-based staged training, per-stage freezing, and multi-
+seed launch scripts. Each result directory exports the run configuration,
+cluster assignment, checkpoint, primary and secondary metrics, daily traces,
+comfort tables, training curves, and router history where applicable.
+
+\begin{zhtranslation}
+当前代码已支持可选聚类方法、任意特征列、cluster summary、hybrid fusion 消融、固定与
+动态路由、capacity-aware router 输入、router entropy/balance 项、前馈与 GRU router、
+基于 checkpoint 的阶段训练、分阶段冻结以及多随机种子脚本。每个结果目录都会导出运行
+配置、分组、checkpoint、主次指标、逐日轨迹、舒适度表、训练曲线，以及适用时的 router
+history。
+\end{zhtranslation}

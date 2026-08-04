@@ -1,0 +1,153 @@
+\chapter{Literature Review}\label{ch:background}
+
+\section{Building Energy Coordination and CityLearn}
+
+CityLearn was designed to standardize reinforcement-learning research for
+demand response and urban energy management, and its later version extends the
+environment toward grid-interactive, occupant-centred communities
+\cite{citylearn2020,citylearnv2}. This matters for the present work because the
+controller is not optimizing one isolated device. Battery capacity defines how
+much electrical energy can be shifted; heating or cooling demand describes the
+climate-sensitive controllable load; and non-shiftable load supplies the
+unavoidable background demand that the portfolio must track around. Recent
+residential MARL studies likewise emphasize scalable coordination of distributed
+flexibility rather than a single centralized action vector
+\cite{charbonnier2025,wilk2024}.
+
+\begin{zhtranslation}
+CityLearn 的目标是标准化需求响应和城市能源管理中的强化学习研究，其后续版本进一步
+扩展到电网友好、以住户为中心的社区控制。对本研究而言，控制器并不是在优化一个孤立
+设备：电池容量决定可转移的电能规模，供暖或制冷需求描述随气候变化的可控负荷，
+不可转移负荷则构成建筑组合必须围绕其进行跟踪的刚性背景需求。近期住宅 MARL 研究
+同样强调对分布式灵活性进行可扩展协同，而不是使用一个庞大的集中式动作向量。
+\end{zhtranslation}
+
+Building and grid variables are also coupled. A battery action changes net
+electric load, the HVAC action changes both electricity use and indoor
+temperature, and simultaneous actions from many homes affect the portfolio
+peak and ramping. Physics-informed MARL research in distribution networks shows
+that domain structure can improve the relevance of learned coordination
+\cite{physicsMADRL2024}; safe building-energy studies further show that comfort
+or network constraints cannot be inferred from energy error alone
+\cite{safeDRL2025,sun2024}. These findings support using features that describe
+both controllable capacity and demand, rather than grouping homes only by a
+single load statistic.
+
+\begin{zhtranslation}
+建筑与电网变量之间存在耦合关系。电池动作会改变净电负荷，HVAC 动作同时改变用电量
+和室内温度，多栋住宅的同步动作又会改变组合峰值和爬坡。配电网中的物理信息 MARL
+研究表明，引入领域结构能够提高学习协同的有效性；安全建筑能源控制研究也表明，
+舒适度或网络约束不能仅由能源误差推断。这些结论支持同时采用“可控容量”和“需求”
+特征，而不是只根据一个负荷统计量对住宅分组。
+\end{zhtranslation}
+
+\section{Grouping Algorithms}
+
+K-means remains a useful baseline because it is simple, fast, and directly
+minimizes within-cluster squared distance \cite{kmeans1967}. Its limitations in
+this task are equally important: the result assumes roughly spherical groups,
+depends on initialization, and does not explicitly control group size. Ward
+agglomerative clustering instead merges the pair of clusters that gives the
+smallest increase in a variance-like objective \cite{ward1963}. For only 25
+buildings, its deterministic hierarchy is attractive because it removes one
+source of random initialization noise.
+
+\begin{zhtranslation}
+K-means 是一个简单、快速并直接最小化簇内平方距离的基线方法。但在本任务中，它也
+具有明显限制：默认簇近似球形、结果依赖初始化，而且不显式控制每组大小。Ward 凝聚
+层次聚类则在每一步合并使类内方差型目标增加最少的两个簇。对于只有 25 栋建筑的
+场景，其确定性的层次结构具有吸引力，因为它消除了一个随机初始化来源。
+\end{zhtranslation}
+
+GMM gives a probabilistic alternative in which each group is represented by a
+Gaussian component with its own covariance structure
+\cite{fraleyraftery2002}. It can represent elongated or overlapping groups that
+K-means cannot, although estimating a full covariance matrix from 25 samples is
+potentially fragile. Spectral clustering maps the similarity graph into a low-
+dimensional eigenspace before clustering \cite{ng2001spectral}. The implemented
+balanced spectral variant additionally assigns buildings to exact near-equal
+cluster slots with the Hungarian algorithm, following the general balanced
+clustering principle that assignment quality and cluster size must be optimized
+together \cite{malinen2014balanced}. This is operationally relevant because a
+severely imbalanced partition gives some actor heads much less data than others.
+
+\begin{zhtranslation}
+GMM 提供概率式替代方案，每个组由具有独立协方差结构的高斯成分表示。它能够表达
+K-means 难以处理的拉长或重叠簇，但在只有 25 个样本时估计完整协方差矩阵可能较不
+稳定。谱聚类先把相似度图映射到低维特征空间，再执行聚类。本项目实现的 balanced
+spectral 进一步使用匈牙利算法把建筑分配到大小近乎相等的组槽中，体现了同时优化
+分配质量和组大小的平衡聚类思想。这一点具有实际意义，因为严重失衡的分组会让某些
+actor head 获得远少于其他 head 的训练数据。
+\end{zhtranslation}
+
+\section{Grouping Features and Redundancy}
+
+Feature selection is not equivalent to adding every available descriptor.
+Mutual-information feature selection formalizes the useful principle of high
+relevance with low redundancy: two strongly correlated features may repeat the
+same information while increasing estimation noise and changing distance
+geometry \cite{peng2005mrmr}. This is especially important for clustering,
+because standardization gives every included column equal opportunity to alter
+neighbourhoods. For example, mean and maximum heating demand are related, and
+HVAC rating is also related to thermal demand. Including all of them can
+overweight one physical mechanism.
+
+\begin{zhtranslation}
+特征选择并不等于加入所有可用描述量。基于互信息的特征选择提出了“高相关、低冗余”
+原则：两个强相关特征可能重复表达同一信息，同时增加估计噪声并改变距离几何。对聚类
+而言这一点尤其重要，因为标准化后，每一列特征都有同等机会改变样本邻域。例如，平均
+供暖需求与最大供暖需求相关，HVAC 额定容量也与热需求相关；把它们全部加入可能会对
+同一种物理机制重复加权。
+\end{zhtranslation}
+
+The selected 3fA set separates three roles: \texttt{bes\_capacity\_kwh}
+represents actuation potential, \texttt{heating\_mean} represents the seasonal
+controllable thermal burden in Vermont, and \texttt{nsl\_mean} represents the
+uncontrolled electrical base load. This is a hypothesis grounded in the task,
+not an assumption that these three variables are universally optimal. The
+feature-count and feature-combination ablations in Chapter~\ref{ch:eval} are
+therefore necessary to test whether the compact physical description is more
+useful than a larger but more redundant feature vector.
+
+\begin{zhtranslation}
+选定的 3fA 特征分别承担三种作用：\texttt{bes\_capacity\_kwh} 表示可控能力，
+\texttt{heating\_mean} 表示 Vermont 冬季可控热负荷，\texttt{nsl\_mean} 表示不可控
+电气基础负荷。这是基于任务提出的假设，而不是声称这三个变量在所有场景中都绝对最优。
+因此，第~\ref{ch:eval}章中的特征数量和特征组合消融是必要的，用来检验紧凑的物理描述
+是否比更大但更冗余的特征向量更有效。
+\end{zhtranslation}
+
+\section{Soft Routing and Mixtures of Experts}
+
+Mixture-of-experts models replace one universal computation path with several
+specialized experts and a learned router. Recent Soft MoE work shows that fully
+differentiable soft assignments can avoid some discontinuities of hard routing
+\cite{puigcerver2024softmoe}, while work in deep reinforcement learning reports
+that MoE modules can improve useful parameter scaling
+\cite{obandoceron2024moerl}. The present soft router applies this idea at the
+policy level: fixed group actors become experts, and each building receives a
+state-dependent mixture of expert actions.
+
+\begin{zhtranslation}
+Mixture-of-experts 模型用多个专门化 expert 和一个可学习 router 取代单一通用计算路径。
+近期 Soft MoE 研究表明，完全可微的软分配可以避免硬路由带来的部分不连续问题；深度
+强化学习研究也表明，MoE 模块能够改善模型容量扩展。本项目在策略层应用这一思想：
+把固定分组 actor 作为 experts，并让每栋建筑获得随状态变化的 expert 动作混合。
+\end{zhtranslation}
+
+However, routing introduces a chicken-and-egg problem. If experts are not
+already distinct and useful, the router has no stable alternatives to select;
+if the router changes too quickly, it also changes the data distribution seen
+by each expert. This motivates the staged experiments in this report: first
+train useful fixed-group experts, then train the router while preserving those
+experts, and only then test limited joint adaptation. The design deliberately
+treats soft routing as an enhancement to a good partition rather than assuming
+that it can discover good groups from scratch.
+
+\begin{zhtranslation}
+但路由会带来“先有鸡还是先有蛋”的问题。如果 experts 尚未形成差异化且有效的策略，
+router 就没有稳定的候选项可选；如果 router 变化过快，又会不断改变每个 expert 看到的
+数据分布。因此，本报告采用分阶段实验：先训练有效的固定分组 experts，再在保留这些
+experts 的情况下训练 router，最后才测试有限的联合适应。该设计把 soft routing 定位为
+良好固定分组之上的增强，而不是假设它能够从零自动发现优质分组。
+\end{zhtranslation}

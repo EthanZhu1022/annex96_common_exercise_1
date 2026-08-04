@@ -1,0 +1,84 @@
+\chapter{Conclusion and Work Plan}\label{ch:concl}
+
+This report extends the previous grouped-MAPPO study from communication-module
+comparison to the joint design of representation, grouping, and routing. The
+main architectural contribution is TarMAC Hybrid. Its ReLU fusion compresses a
+256-dimensional local state to 64 dimensions, combines that representation with
+a 64-dimensional attention context, and adds a bounded residual update. In the
+matched initial benchmark, it lowers CV-RMSE from 49.65\% to 47.01\% and comfort
+exceedance from 22.10\% to 17.99\% relative to the original TarMAC adaptation.
+
+\begin{zhtranslation}
+本报告把上一阶段 grouped MAPPO 的通信模块比较，扩展为表示、分组和路由的联合设计。
+主要结构贡献是 TarMAC Hybrid：ReLU fusion 把 256 维本地状态压缩到 64 维，与 64 维
+注意力上下文结合，再施加有界残差更新。在匹配的初始基准中，它相对原始 TarMAC 把
+CV-RMSE 从 49.65\% 降到 47.01\%，把舒适超限从 22.10\% 降到 17.99\%。
+\end{zhtranslation}
+
+The grouping study shows that neither the algorithm nor the features can be
+chosen independently of policy learning. Agglomerative clustering is the most
+useful deterministic baseline for the subsequent feature study, while balanced
+spectral produces the best individual compact-group run but remains seed-
+sensitive. The feature-count ablation shows that 4F and 5F can be worse than a
+compact 3F description. Among the three-feature candidates, 3fA is selected as
+the overall compromise because it provides extremely low and stable portfolio
+bias, preserves distinct physical roles, and transfers naturally from Vermont
+heating to Texas cooling. It is not universally best: 3fI is stronger on some
+mean shape and comfort metrics, which should remain visible in the final thesis.
+
+\begin{zhtranslation}
+分组研究表明，聚类算法和特征都不能脱离策略学习单独选择。凝聚聚类是后续特征实验最
+有用的确定性基线；balanced spectral 产生最佳单次 compact-group 结果，但仍对 seed
+敏感。特征数量消融表明 4F 和 5F 可能差于紧凑 3F。在三特征候选中，3fA 因组合 bias
+极低且稳定、物理角色清晰、并能从 Vermont 供暖自然迁移到 Texas 制冷，被选为综合
+折中。但它并非普遍第一：3fI 在部分平均负荷形状和舒适指标上更强，最终论文应保留
+这一事实。
+\end{zhtranslation}
+
+The soft-router study gives a similarly qualified positive result. The stable
+full-expert/head-adaptation configuration obtains CV-RMSE
+$45.12\pm0.35$\% over three router seeds that share one seed-42 expert
+checkpoint. It is therefore stable conditional on a strong anchor, rather than
+a complete end-to-end stability result. The router does not learn useful
+organization from scratch: legacy end-to-end and shared three-stage training
+are weaker, while strong results appear only when a good fixed-group checkpoint
+is preserved. Soft routing is a valuable adaptive enhancement, but not yet a
+replacement for grouping.
+
+\begin{zhtranslation}
+Soft router 研究也得到带条件的正面结论。稳定 full-expert/head-adaptation 配置在三个
+router seeds 上取得 $45.12\pm0.35$\% 的 CV-RMSE，但三次都共享同一个 seed-42 expert
+checkpoint，因此这是强锚点条件下的稳定性，不是完整端到端稳定性。Router 不能从零学出
+有效组织：legacy end-to-end 和 shared 三阶段较弱，只有保留优质固定分组 checkpoint
+时才出现强结果。因此，soft routing 是有价值的自适应增强，但尚不能替代分组。
+\end{zhtranslation}
+
+\section{Next Steps}
+
+The remaining work should focus on validation rather than adding many new
+architectures:
+\begin{itemize}
+  \item run a paired seed set for fixed 3fA, router-only, and stable-head routing
+  so that improvements can be tested seed by seed;
+  \item investigate the anomalous stable-head reward in seed 1 and verify that
+  reward aggregation, comfort penalty, and exported primary metrics use the
+  same evaluation interval;
+  \item repeat the stable router in Texas with cooling-aware dynamic inputs and
+  compare against the fixed TX 3fA controller;
+  \item report cluster assignments and gate-usage heat maps to show which
+  buildings actually switch experts and under which load/SOC conditions;
+  \item test whether a weak initial partition can be repaired by the router, or
+  whether performance is monotonic in fixed-expert quality;
+  \item retain 3fI as a competing feature set and evaluate whether its lower
+  comfort error persists in paired multi-seed and TX experiments.
+\end{itemize}
+
+\begin{zhtranslation}
+后续工作应优先加强验证，而不是继续增加大量新结构：对固定 3fA、router-only 和
+stable-head 使用完全配对的 seeds；调查 stable-head seed 1 的异常 reward，并确认 reward
+聚合、舒适度惩罚和主指标使用同一测试区间；在 Texas 中用 cooling-aware 动态输入复现
+稳定 router，并与固定 TX 3fA 比较；报告 cluster assignment 和 gate usage heat map，
+说明哪些建筑在何种负荷/SOC 条件下切换 experts；测试 router 能否修复较弱初始分组，
+或性能是否始终受固定 expert 质量限制；保留 3fI 作为竞争特征集，检验其舒适度优势在
+配对多种子和 TX 中是否继续存在。
+\end{zhtranslation}

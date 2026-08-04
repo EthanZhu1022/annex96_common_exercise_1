@@ -1,0 +1,419 @@
+\chapter{Evaluation and Result Analysis}\label{ch:eval}
+
+This chapter reports only values already exported by the experiment pipeline.
+The main sources are
+\texttt{experiment\_metric\_summary/grouping\_feature\_ablation\_primary\_only\_sorted.csv}
+and \texttt{selected\_experiment\_metrics\_full.csv}, which were produced by
+\texttt{summarize\_selected\_experiment\_metrics}. No plotted or tabulated
+value is manually synthesized from an unrecorded run.
+
+\begin{zhtranslation}
+本章只报告实验流程已经导出的数值。主要来源为
+\texttt{grouping\_feature\_ablation\_primary\_only\_sorted.csv} 和
+\texttt{selected\_experiment\_metrics\_full.csv}，两者由
+\texttt{summarize\_selected\_experiment\_metrics} 生成。图表中没有使用任何来自未记录
+实验的人工构造数值。
+\end{zhtranslation}
+
+\section{Evaluation Scope and Metrics}
+
+Vermont uses January for training/group-feature extraction and February for
+testing. Texas uses August for training/group features and September for
+testing. Unless otherwise stated, runs use 500 training episodes. Load tracking
+is reported using CV-RMSE and the absolute value of NMBE. Comfort is reported as
+both the percentage of building-hours outside the seasonal comfort band and
+degree-hours, which preserves the magnitude as well as the duration of a
+temperature violation. Lower values are better for all four metrics.
+
+The experiments do not all have the same statistical role. Architecture and
+method ablations use matched seed-42 runs to isolate one change. Feature-
+combination studies use seeds 0--2, and the selected 3fA configuration has five
+available agglomerative runs (0, 1, 2, 3, and 42). Cross-climate results use
+three seeds in each climate. Conclusions below explicitly distinguish a best
+single run from a stable multi-seed result.
+
+\begin{zhtranslation}
+Vermont 使用一月进行训练和分组特征提取、二月测试；Texas 使用八月训练和提取特征、
+九月测试。除非另有说明，每个实验训练 500 episodes。负荷跟踪使用 CV-RMSE 和 NMBE
+绝对值；舒适度同时使用超限 building-hours 比例和 degree-hours，后者同时保留温度越界
+的幅度与持续时间。四个指标均越低越好。
+
+不同实验承担不同统计作用。结构和方法消融使用匹配的 seed 42 以隔离单个改动；特征
+组合使用 seeds 0--2；选定的 3fA 凝聚聚类有五个可用 runs（0、1、2、3、42）；跨气候
+结果在每个气候使用三个 seeds。下文会明确区分“最佳单次结果”和“稳定多种子结果”。
+\end{zhtranslation}
+
+\section{TarMAC Hybrid Improvement}
+
+Table~\ref{tab:hybrid-architecture} compares the original TarMAC controller and
+the three Hybrid fusion variants under the previous seed-42 benchmark. The
+ReLU Hybrid reduces CV-RMSE from 49.65\% to 47.01\%, reduces comfort exceedance
+from 22.10\% to 17.99\%, and improves reward from $-5996$ to $-4715$. Relative
+to the original TarMAC values, these are a 5.3\% reduction in CV-RMSE, an
+18.6\% reduction in comfort exceedance, and a 21.4\% reduction in reward
+magnitude. Absolute NMBE changes only slightly, from 3.32\% to 3.51\%.
+
+\begin{table}[!htbp]
+\small
+\begin{center}
+\begin{tabular}{|l|r|r|r|r|r|}
+\hline
+Communication & Primary rank & CV-RMSE & $|$NMBE$|$ & Comfort & Reward \\
+ & & (\%) & (\%) & exceed. (\%) & sum \\
+\hline
+Original TarMAC & 63 & 49.65 & 3.32 & 22.10 & $-5996$ \\
+Hybrid, ReLU & \textbf{29} & \textbf{47.01} & 3.51 & \textbf{17.99} & \textbf{$-4715$} \\
+Hybrid, linear & 74 & 50.39 & 3.13 & 22.20 & $-6000$ \\
+Hybrid, gated & 69 & 48.74 & \textbf{3.06} & 25.35 & $-6923$ \\
+\hline
+\end{tabular}
+\end{center}
+\caption{Original TarMAC and TarMAC Hybrid fusion ablation, Vermont seed 42.}
+\label{tab:hybrid-architecture}
+\end{table}
+
+\begin{figure}[!htbp]
+\begin{center}
+\includegraphics[width=0.92\textwidth]{figures/hybrid_ablation.png}
+\end{center}
+\caption{TarMAC Hybrid ablation using the consolidated experiment metrics.}
+\label{fig:hybrid-ablation}
+\end{figure}
+
+The linear and gated controls show that an additional layer alone is not enough.
+The strongest initial Hybrid result specifically combines the compact local
+projection, ReLU, and residual update. Later grouping experiments use the
+linear Hybrid mode as a controlled communication backbone, as indicated by
+\texttt{linear} in their run names; the term ``Hybrid'' in those experiments
+therefore refers to the local/context residual architecture family, not to an
+assumption that every run uses ReLU.
+
+\begin{zhtranslation}
+表~\ref{tab:hybrid-architecture}在此前 seed 42 基准下比较原始 TarMAC 和三种 Hybrid
+融合。ReLU Hybrid 将 CV-RMSE 从 49.65\% 降到 47.01\%，舒适度超限从 22.10\% 降到
+17.99\%，reward 从 $-5996$ 改善到 $-4715$。相对原始 TarMAC，这分别相当于 CV-RMSE
+降低 5.3\%、舒适度超限降低 18.6\%、reward 绝对值降低 21.4\%；绝对 NMBE 仅从 3.32\%
+小幅变为 3.51\%。Linear 和 gated 对照说明，并不是简单增加一层就会提升；初始最强
+结果确实来自紧凑投影、ReLU 和 residual update 的组合。后续分组实验的 run name 中
+标有 \texttt{linear}，它们使用 linear Hybrid 作为受控通信骨架，因此 Hybrid 在这些
+实验中指整个 local/context residual 结构族，并不代表每次都启用 ReLU。
+\end{zhtranslation}
+
+\section{Comparison of Grouping Methods}
+
+Table~\ref{tab:grouping-methods} is a controlled single-seed comparison using
+the same 5F feature set and linear Hybrid backbone. Agglomerative clustering has
+the lowest CV-RMSE (49.28\%), K-means has the lowest comfort violation and best
+reward, and GMM has the lowest absolute NMBE. No method dominates every metric.
+Agglomerative was selected for the main feature study because it gives the best
+tracking-shape error in this matched comparison and removes clustering
+initialization randomness.
+
+\begin{table}[!htbp]
+\small
+\begin{center}
+\begin{tabular}{|l|r|r|r|r|r|}
+\hline
+Method & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort & Reward \\
+ & (\%) & (\%) & ($^\circ$C h) & exceed. (\%) & sum \\
+\hline
+K-means & 51.56 & 2.53 & \textbf{3197} & \textbf{17.33} & \textbf{$-4715$} \\
+GMM & 53.08 & \textbf{0.94} & 4127 & 23.75 & $-6115$ \\
+Agglomerative & \textbf{49.28} & 2.32 & 4070 & 22.38 & $-5895$ \\
+Balanced spectral & 52.01 & 1.99 & 4019 & 21.22 & $-5748$ \\
+\hline
+\end{tabular}
+\end{center}
+\caption{Grouping-method comparison with 5F, linear Hybrid, Vermont seed 42.}
+\label{tab:grouping-methods}
+\end{table}
+
+Balanced spectral is important despite not winning this matched 5F table. With
+3fA and seed 0 it produces the best individual compact-grouping run in the
+summary (CV-RMSE 43.40\%, $|$NMBE$|$ 1.06\%, comfort exceedance 14.30\%, and
+2065 degree-hours). The other 3fA balanced-spectral seeds have CV-RMSE 52.36\%
+and 53.21\%, however. Its exact balance prevents small groups, but exact balance
+does not guarantee a stable policy partition; spectral embedding and actor
+optimization still vary with the seed.
+
+\begin{zhtranslation}
+表~\ref{tab:grouping-methods}使用相同 5F、linear Hybrid 和 seed 42 做受控比较。凝聚
+聚类的 CV-RMSE 最低（49.28\%），K-means 的舒适度超限和 reward 最好，GMM 的绝对
+NMBE 最低，没有一种方法在所有指标上占优。主特征实验选择凝聚聚类，是因为它在匹配
+比较中具有最佳负荷形状误差，而且没有聚类初始化随机性。
+
+Balanced spectral 虽未赢得 5F 表，但仍有研究价值：在 3fA、seed 0 下，它得到整个
+compact grouping 汇总中的最佳单次结果（CV-RMSE 43.40\%、绝对 NMBE 1.06\%、舒适
+超限 14.30\%、2065 degree-hours）。但另外两个 3fA seeds 的 CV-RMSE 为 52.36\% 和
+53.21\%。因此，精确平衡可以避免小组样本不足，却不能保证策略分组稳定；谱嵌入和
+actor 优化仍会随 seed 变化。
+\end{zhtranslation}
+
+\section{Feature-Count Ablation}
+
+Table~\ref{tab:feature-count} compares 3fA, 4F, and 5F under the same
+agglomerative, linear-Hybrid, seed-42 setting. Adding HVAC rating to 3fA raises
+CV-RMSE by 9.24 percentage points and degree-hours by 2294. Adding the comfort
+feature in 5F partly recovers performance but remains worse than 3fA on every
+reported primary metric. The result supports the low-redundancy hypothesis:
+more standardized columns can change the geometry of grouping even when each
+column appears individually relevant.
+
+\begin{table}[!htbp]
+\small
+\begin{center}
+\begin{tabular}{|l|l|r|r|r|r|}
+\hline
+Set & Added information & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort \\
+ & & (\%) & (\%) & ($^\circ$C h) & exceed. (\%) \\
+\hline
+3fA & capacity, heat mean, NSL mean & \textbf{44.62} & \textbf{0.57} & \textbf{3162} & \textbf{20.07} \\
+4F & 3fA + HVAC rating & 53.86 & 1.34 & 5456 & 28.52 \\
+5F & 4F + comfort lower excess & 49.28 & 2.32 & 4070 & 22.38 \\
+\hline
+\end{tabular}
+\end{center}
+\caption{Feature-count ablation with agglomerative grouping, Vermont seed 42.}
+\label{tab:feature-count}
+\end{table}
+
+\begin{figure}[!htbp]
+\begin{center}
+\includegraphics[width=0.95\textwidth]{figures/feature_ablation.png}
+\end{center}
+\caption{Feature-count and three-feature combination ablations from recorded runs.}
+\label{fig:feature-ablation}
+\end{figure}
+
+\begin{zhtranslation}
+表~\ref{tab:feature-count}在相同凝聚聚类、linear Hybrid 和 seed 42 下比较 3fA、4F、
+5F。向 3fA 加入 HVAC 后，CV-RMSE 增加 9.24 个百分点、degree-hours 增加 2294；5F
+加入舒适度特征后虽有部分恢复，但所有主指标仍差于 3fA。这支持低冗余假设：即使每个
+特征单独看来都相关，增加更多标准化列仍会改变聚类几何并损害结果。
+\end{zhtranslation}
+
+\section{Three-Feature Combination Ablation}
+
+Table~\ref{tab:feature-combination} reports mean and sample standard deviation
+over seeds 0--2. The experiment is multi-objective, so ``best'' depends on the
+metric. 3fI, which removes capacity and adds comfort, has the lowest mean
+CV-RMSE and degree-hours. 3fE has the lowest comfort variability. In contrast,
+3fA has by far the lowest and most stable absolute bias, $0.49\pm0.18$\%, and
+its features remain directly interpretable across climates. It is therefore
+selected as the best overall compromise, rather than claimed as the winner of
+every column.
+
+\begin{table}[!htbp]
+\scriptsize
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|l|r|r|r|r|}
+\hline
+Set & Three features (capacity is included unless stated) & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort \\
+ & & (\%) & (\%) & ($^\circ$C h) & exceed. (\%) \\
+\hline
+A & capacity, heating mean, NSL mean & $51.93\pm2.46$ & $\mathbf{0.49\pm0.18}$ & $3653\pm848$ & $20.27\pm2.44$ \\
+B & capacity, HVAC, NSL mean & $52.59\pm4.50$ & $1.00\pm0.98$ & $5254\pm1748$ & $21.63\pm2.48$ \\
+C & capacity, heating max, NSL mean & $49.39\pm3.99$ & $1.52\pm1.26$ & $4963\pm1464$ & $18.61\pm3.74$ \\
+D & capacity, heating mean, NSL max & $53.57\pm3.29$ & $2.01\pm3.02$ & $5614\pm3433$ & $21.18\pm3.03$ \\
+E & capacity, HVAC, NSL max & $53.24\pm2.45$ & $1.38\pm0.86$ & $2939\pm685$ & $18.88\pm1.53$ \\
+F & capacity, heating max, NSL max & $49.64\pm2.58$ & $2.48\pm1.07$ & $4248\pm994$ & $20.43\pm2.59$ \\
+G & capacity, heating mean, comfort & $49.47\pm1.70$ & $1.52\pm0.56$ & $3729\pm1319$ & $19.49\pm3.01$ \\
+H & capacity, heating mean, temp. std & $52.09\pm4.08$ & $2.96\pm2.69$ & $6787\pm4403$ & $22.24\pm4.59$ \\
+I & heating mean, NSL mean, comfort (no capacity) & $\mathbf{48.93\pm2.31}$ & $2.09\pm1.01$ & $\mathbf{2639\pm993}$ & $18.06\pm4.86$ \\
+\hline
+\end{tabular}}
+\end{center}
+\caption{Three-feature combination ablation, agglomerative grouping, seeds 0--2.}
+\label{tab:feature-combination}
+\end{table}
+
+The larger five-run 3fA stability set (seeds 0, 1, 2, 3, and 42) gives
+CV-RMSE $49.86\pm3.65$\%, $|$NMBE$|$ $0.81\pm0.68$\%, degree-hours
+$3251\pm892$, comfort exceedance $19.21\pm2.85$\%, and reward
+$-5125\pm731$. Its CV-RMSE range is 44.62--54.09\%, while all five absolute
+NMBE values remain at or below 2.01\%. This supports stability in portfolio
+bias, although seed sensitivity in load shape has not disappeared.
+
+\begin{zhtranslation}
+表~\ref{tab:feature-combination}报告 seeds 0--2 的均值和样本标准差。由于这是多目标
+实验，“最佳”取决于指标：移除 capacity、加入 comfort 的 3fI 具有最低平均 CV-RMSE
+和 degree-hours，3fE 的舒适度方差最小；而 3fA 的绝对偏差明显最低且最稳定，为
+$0.49\pm0.18$\%，并且三个特征能跨气候直接解释。因此，本报告把 3fA 选为“最佳综合
+折中”，而不是声称它在每一列都第一。
+
+在更大的五次 3fA 稳定性实验（seeds 0、1、2、3、42）中，CV-RMSE 为
+$49.86\pm3.65$\%，绝对 NMBE 为 $0.81\pm0.68$\%，degree-hours 为 $3251\pm892$，
+舒适超限为 $19.21\pm2.85$\%，reward 为 $-5125\pm731$。CV-RMSE 范围仍有
+44.62--54.09\%，但五次绝对 NMBE 都不超过 2.01\%。这说明组合偏差非常稳定，不过负荷
+形状对随机种子的敏感性仍未完全消失。
+\end{zhtranslation}
+
+\section{Vermont--Texas Generalization}
+
+The cross-climate experiment transfers the 3fA \emph{roles}, not the trained
+Vermont parameters. Vermont uses capacity--heating mean--NSL mean; Texas uses
+capacity--cooling mean--NSL mean, with its own August training and September
+test. Table~\ref{tab:climate-generalization} gives the matched three-seed runs
+with the comfort15/binary30/degree10 reward setting.
+
+\begin{table}[!htbp]
+\small
+\begin{center}
+\begin{tabular}{|l|l|r|r|r|r|}
+\hline
+Climate & Features & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort \\
+ & & (\%) & (\%) & ($^\circ$C h) & exceed. (\%) \\
+\hline
+VT & capacity, heating mean, NSL mean & $49.64\pm1.59$ & $3.04\pm1.49$ & $3567\pm1368$ & $18.74\pm1.90$ \\
+TX & capacity, cooling mean, NSL mean & $78.83\pm4.90$ & $45.57\pm1.98$ & $1192\pm234$ & $11.22\pm1.66$ \\
+\hline
+\end{tabular}
+\end{center}
+\caption{3fA role-based generalization; mean $\pm$ sample standard deviation over three seeds.}
+\label{tab:climate-generalization}
+\end{table}
+
+The numerical scale differs because the two climates and target profiles are
+different, so VT and TX should not be ranked directly against each other. The
+important result is stability within each climate and improvement over the
+non-learning references. In TX, the three CV-RMSE values are 73.78--83.57\%,
+compared with 163.74\% for the no-control baseline and 207.63\% for RBC. Mean
+absolute NMBE is 45.57\%, compared with 79.12\% and 89.57\%, respectively. TX
+bias therefore remains a clear limitation, but the learned controller is still
+substantially better than both references and has low seed variation in comfort
+and bias. This supports generalization of the compact feature principle, not
+zero-shot generalization of one policy.
+
+\begin{zhtranslation}
+跨气候实验迁移的是 3fA 的“特征角色”，而不是 Vermont 已训练参数。Vermont 使用
+capacity--heating mean--NSL mean；Texas 使用 capacity--cooling mean--NSL mean，
+并在自己的八月训练、九月测试。两个气候和目标曲线不同，数值尺度不能直接互相排名。
+关键结果是每个气候内部的稳定性，以及相对非学习参考的改善。
+
+Texas 三个 CV-RMSE 为 73.78--83.57\%，而 no-control baseline 为 163.74\%、RBC 为
+207.63\%；平均绝对 NMBE 为 45.57\%，两个参考分别为 79.12\% 和 89.57\%。TX 的 bias
+仍然是明显限制，但学习控制器依然大幅优于两个参考，而且舒适度与偏差的 seed 波动较小。
+因此，结果支持紧凑特征原则的泛化，而不是声称一个 policy 可以零样本跨气候泛化。
+\end{zhtranslation}
+
+\section{Soft-Router Ablation and Training Progression}
+
+Table~\ref{tab:router-progression} summarizes the main stages using seed 42,
+except the final row, which reports three seeds. The legacy end-to-end run has
+reasonable CV-RMSE but high bias and comfort degree-hours. Loading pretrained
+3fA experts immediately improves bias. The shared-encoder three-stage run is
+the worst routing result, indicating that reorganizing expert representations
+while learning the router destroys useful specialization. Full-expert routing
+is better because each encoder, communication path, and head remains matched.
+
+\begin{table}[!htbp]
+\scriptsize
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|l|r|r|r|r|}
+\hline
+Stage / variant & Main change & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort \\
+ & & (\%) & (\%) & ($^\circ$C h) & exceed. (\%) \\
+\hline
+Legacy end-to-end & $\tau=0.5$, warm-up 50 & 47.60 & 4.31 & 7011 & 24.64 \\
+Two-stage freeze200 & pretrained experts, $\tau=0.5$, $\alpha\to1$ & 48.26 & 1.35 & 4308 & 21.76 \\
+Two-stage prior0.7 & pretrained experts, $\tau=0.7$, $\alpha\to0.7$ & 46.54 & 1.02 & 4617 & 22.05 \\
+Two-stage no capacity & remove seven physical router inputs & 46.94 & \textbf{0.57} & 3873 & 19.54 \\
+Three-stage shared & shared encoder, 1500 episodes & 52.44 & 7.48 & 6491 & 31.35 \\
+Three-stage full expert & preserve complete expert branches & 45.45 & 2.28 & 4471 & 20.42 \\
+Stable router-only & freeze experts for all 500 episodes & 45.99 & 1.22 & 2915 & 19.17 \\
+Stable heads, 3 seeds & router 500 + head-only adaptation & $\mathbf{45.12\pm0.35}$ & $1.35\pm0.33$ & $\mathbf{2645\pm308}$ & $\mathbf{17.30\pm1.33}$ \\
+\hline
+\end{tabular}}
+\end{center}
+\caption{Soft-router development and ablation. Single rows use seed 42 unless stated.}
+\label{tab:router-progression}
+\end{table}
+
+\begin{figure}[!htbp]
+\begin{center}
+\includegraphics[width=0.95\textwidth]{figures/soft_router_progression.png}
+\end{center}
+\caption{Primary metrics across the main soft-router development stages.}
+\label{fig:router-progression}
+\end{figure}
+
+The final stable-head result is the clearest evidence that routing has value.
+Across router-training seeds 0, 1, and 42, CV-RMSE is $45.12\pm0.35$\%,
+degree-hours are $2645\pm308$, and comfort exceedance is
+$17.30\pm1.33$\%. All three runs load the same strong seed-42 fixed-expert
+checkpoint, so this measures stability of routing and limited head adaptation
+\emph{conditional on one expert anchor}; it is not an end-to-end multi-seed
+test of expert learning. The fixed 3fA family over all five available seeds has
+CV-RMSE $49.86\pm3.65$\% and degree-hours $3251\pm892$. These sets are not
+paired, but the smaller conditional router variance and improved means justify
+calling the stable router a useful enhancement. Reward is not equally stable:
+one stable-head seed has a reward sum of $-17225$ despite acceptable reported
+primary metrics, so the result should be presented as strong but not fully
+resolved.
+
+The five available \texttt{routeronly500} runs give CV-RMSE
+$49.83\pm3.34$\%, $|$NMBE$|$ $1.19\pm0.60$\%, degree-hours
+$3184\pm872$, and comfort exceedance $18.73\pm2.43$\%. Router-only training is
+therefore safer than uncontrolled joint training, but its mean gain over fixed
+3fA is modest. The larger gain appears when stable pretrained branches are kept
+and only a narrowly scoped head adaptation is allowed.
+
+\begin{zhtranslation}
+表~\ref{tab:router-progression}汇总主要阶段。除最后一行是三 seeds 均值外，其余使用
+seed 42。Legacy end-to-end 的 CV-RMSE 尚可，但 bias 和 degree-hours 较高；载入预训练
+3fA experts 后，bias 立即改善。Shared-encoder 三阶段是最差的路由结果，说明在训练
+router 时重新组织 expert 表示会破坏已经有用的专门化；full-expert 更好，因为 encoder、
+communication 和 head 始终保持匹配。
+
+最终 stable-head 是 soft routing 有价值的最清晰证据。router-training seeds 0、1、42
+的 CV-RMSE 为 $45.12\pm0.35$\%，degree-hours 为 $2645\pm308$，舒适超限为
+$17.30\pm1.33$\%。但三次实验都载入同一个强 seed-42 固定 expert checkpoint，因此
+这里衡量的是“在同一个 expert 锚点条件下”的 router 和有限 head adaptation 稳定性，
+不是完整 expert 学习的端到端多种子检验。固定 3fA 五次可用实验分别为
+$49.86\pm3.65$\% 和 $3251\pm892$。两组没有严格配对，但 router 条件方差更小且均值
+更好，足以支持“有用增强”的判断。不过 reward 并不同样稳定：stable-head 的一个 seed
+虽然主指标可接受，reward sum 却为 $-17225$，因此该结果很强但尚未完全解决。
+
+五次 \texttt{routeronly500} 的 CV-RMSE 为 $49.83\pm3.34$\%，绝对 NMBE 为
+$1.19\pm0.60$\%，degree-hours 为 $3184\pm872$，舒适超限为 $18.73\pm2.43$\%。因此
+router-only 比不受控联合训练更安全，但相对固定 3fA 的平均提升有限；更明显的提升来自
+保留稳定预训练分支，并只允许范围很小的 head adaptation。
+\end{zhtranslation}
+
+\section{Overall Interpretation and Limitations}
+
+The experiments support four conclusions. First, TarMAC Hybrid is a meaningful
+architectural improvement, and its advantage is best explained by compact local
+fusion plus a residual communication correction. Second, grouping is part of
+the learning system rather than neutral preprocessing: K-means, GMM,
+agglomerative, and balanced spectral partitions create different accuracy--
+comfort trade-offs. Third, compact physically distinct features are preferable
+to indiscriminately adding correlated building descriptors. 3fA is selected for
+its very low bias, interpretation, and climate transfer, while 3fI remains an
+important competing result on CV-RMSE and comfort. Fourth, soft routing can
+improve performance and seed stability, but only after useful fixed experts
+exist.
+
+The last point answers the router research question cautiously. The current
+soft router does not remove dependence on grouping. End-to-end and shared-
+representation attempts do not learn a strong partition from scratch, whereas
+pretrained full-expert and stable-head variants do. The router is therefore a
+``pro'' extension of fixed grouping: it lets the policy switch or interpolate
+between established specializations according to state, but the quality of the
+initial grouping still sets the quality of the expert basis.
+
+\begin{zhtranslation}
+实验支持四点结论。第一，TarMAC Hybrid 是有意义的结构改进，其优势最好解释为紧凑本地
+融合加残差通信修正。第二，分组不是中性的预处理，而是学习系统的一部分；K-means、
+GMM、凝聚和 balanced spectral 会形成不同的精度--舒适度折中。第三，相比无差别加入
+相关建筑描述，紧凑且物理作用不同的特征更合适；3fA 因低 bias、可解释性和气候迁移被
+选中，但 3fI 在 CV-RMSE 与舒适度方面仍是重要竞争结果。第四，soft routing 能提高性能
+和 seed 稳定性，但前提是已经存在有效的固定 experts。
+
+因此，soft router 目前并没有消除对分组的依赖。End-to-end 和 shared-representation
+尝试无法从零学出强分组，而 pretrained full-expert 与 stable-head 可以。Soft router
+更适合被定位为固定分组的“pro”扩展：它允许策略随状态在已经建立的专门化之间切换或
+插值，但初始分组质量仍然决定 expert 基础的质量。
+\end{zhtranslation}
