@@ -85,7 +85,8 @@ shortened information is then combined with information received from other
 agents, while the original information is retained. Second, the report compares
 K-means, Gaussian mixture models (GMM), Ward agglomerative clustering, and a
 balanced spectral method. Third, it studies both the number and composition of
-grouping features and selects a compact three-feature design, denoted 3fA:
+grouping features and ultimately identifies a compact three-feature design,
+denoted 3fA:
 battery energy-storage capacity, mean heating demand, and mean non-shiftable
 load. Finally, it develops a soft router. In simple terms, this is a small
 neural-network selector for each building. At every time step, it examines the
@@ -100,7 +101,7 @@ group.
 智能体自己的信息进行压缩，并使用 ReLU 保留更有用的部分；然后把压缩后的自身信息和
 从其他智能体收到的信息结合，同时保留原来的信息。第二，比较 K-means、Gaussian
 mixture model（GMM）、Ward 凝聚层次聚类和 balanced spectral 方法。第三，同时研究
-分组特征的数量与组合，并选择一个紧凑的三特征方案 3fA：电池储能容量、平均供暖需求
+分组特征的数量与组合，并最终选择出了一个紧凑的三特征方案 3fA：电池储能容量、平均供暖需求
 和平均不可转移负荷。第四，构建 soft router。简单来说，它是一个帮助每栋建筑选择
 actor 的小型神经网络。在每个时间步，它会根据建筑当前的状态，为每个可选 actor 给出
 一个选择概率，再根据这些概率帮助建筑决定应由哪个 actor 指导当前动作。这样可以检验
