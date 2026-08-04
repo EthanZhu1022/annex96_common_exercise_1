@@ -4,150 +4,223 @@
 
 CityLearn was designed to standardize reinforcement-learning research for
 demand response and urban energy management, and its later version extends the
-environment toward grid-interactive, occupant-centred communities
-\cite{citylearn2020,citylearnv2}. This matters for the present work because the
-controller is not optimizing one isolated device. Battery capacity defines how
-much electrical energy can be shifted; heating or cooling demand describes the
-climate-sensitive controllable load; and non-shiftable load supplies the
-unavoidable background demand that the portfolio must track around. Recent
-residential MARL studies likewise emphasize scalable coordination of distributed
-flexibility rather than a single centralized action vector
-\cite{charbonnier2025,wilk2024}.
+environment to cover communities that consider both grid needs and occupant
+comfort \cite{citylearn2020,citylearnv2}. This is useful here because the
+controller must manage several kinds of building information at the same time.
+Battery capacity tells us how much energy a building can store and move to a
+different time. Heating or cooling demand tells us how much HVAC energy may need
+to be controlled. Non-shiftable load is the ordinary electricity use that
+cannot be moved by the controller. Recent residential MARL studies also focus
+on coordinating many flexible homes while allowing each home to make its own
+control decision \cite{charbonnier2025,wilk2024}.
 
 \begin{zhtranslation}
 CityLearn 的目标是标准化需求响应和城市能源管理中的强化学习研究，其后续版本进一步
-扩展到电网友好、以住户为中心的社区控制。对本研究而言，控制器并不是在优化一个孤立
-设备：电池容量决定可转移的电能规模，供暖或制冷需求描述随气候变化的可控负荷，
-不可转移负荷则构成建筑组合必须围绕其进行跟踪的刚性背景需求。近期住宅 MARL 研究
-同样强调对分布式灵活性进行可扩展协同，而不是使用一个庞大的集中式动作向量。
+扩展到同时考虑电网需求和住户舒适度的社区控制。这适合本研究，因为控制器需要同时
+处理多种建筑信息。电池容量表示一栋建筑能储存多少电，以及能把多少用电转移到其他
+时间；供暖或制冷需求表示 HVAC 可能需要控制多少能量；不可转移负荷则是控制器无法
+移动的普通用电。近期住宅 MARL 研究也关注如何协调大量具有灵活性的住宅，同时仍让
+每栋住宅独立做出控制决定。
 \end{zhtranslation}
 
-Building and grid variables are also coupled. A battery action changes net
-electric load, the HVAC action changes both electricity use and indoor
-temperature, and simultaneous actions from many homes affect the portfolio
-peak and ramping. Physics-informed MARL research in distribution networks shows
-that domain structure can improve the relevance of learned coordination
-\cite{physicsMADRL2024}; safe building-energy studies further show that comfort
-or network constraints cannot be inferred from energy error alone
-\cite{safeDRL2025,sun2024}. These findings support using features that describe
-both controllable capacity and demand, rather than grouping homes only by a
-single load statistic.
+One control action can affect several results at the same time. Charging or
+discharging a battery changes the building's electricity load. Changing HVAC
+operation affects both electricity use and indoor temperature. When many homes
+act at the same time, their loads add together and can change the community peak
+or make the total load rise and fall more quickly. Research on power networks
+shows that adding known physical information can help MARL make better control
+decisions \cite{physicsMADRL2024}. Research on safe building control also shows
+that a small energy error does not automatically mean that comfort and network
+limits are satisfied \cite{safeDRL2025,sun2024}. For this reason, the grouping
+features in this project describe both how much a building can control and how
+much energy it normally needs.
 
 \begin{zhtranslation}
-建筑与电网变量之间存在耦合关系。电池动作会改变净电负荷，HVAC 动作同时改变用电量
-和室内温度，多栋住宅的同步动作又会改变组合峰值和爬坡。配电网中的物理信息 MARL
-研究表明，引入领域结构能够提高学习协同的有效性；安全建筑能源控制研究也表明，
-舒适度或网络约束不能仅由能源误差推断。这些结论支持同时采用“可控容量”和“需求”
-特征，而不是只根据一个负荷统计量对住宅分组。
+一个控制动作可能同时影响多个结果。电池充电或放电会改变建筑的用电负荷；改变 HVAC
+运行会同时影响用电量和室内温度。当很多住宅同时执行动作时，它们的负荷会叠加，从而
+改变社区峰值，或者使总负荷上升和下降得更快。电网研究表明，在 MARL 中加入已知的
+物理信息能够帮助模型做出更好的控制决定；安全建筑控制研究也表明，能源误差较小并不
+代表舒适度和电网限制一定得到满足。因此，本项目的分组特征既描述建筑有多少可控能力，
+也描述建筑通常需要多少能量。
 \end{zhtranslation}
 
 \section{Grouping Algorithms}
 
-K-means remains a useful baseline because it is simple, fast, and directly
-minimizes within-cluster squared distance \cite{kmeans1967}. Its limitations in
-this task are equally important: the result assumes roughly spherical groups,
-depends on initialization, and does not explicitly control group size. Ward
-agglomerative clustering instead merges the pair of clusters that gives the
-smallest increase in a variance-like objective \cite{ward1963}. For only 25
-buildings, its deterministic hierarchy is attractive because it removes one
-source of random initialization noise.
+\subsection{K-means}
+
+K-means is used as the original baseline because it is simple and fast
+\cite{kmeans1967}. It first places several group centres, assigns every building
+to its nearest centre, updates the centres, and repeats these steps. In plain
+terms, it tries to put buildings with similar feature values into the same
+group. However, its result can change when the starting centres change. It also
+works best when groups form simple compact shapes and does not guarantee that
+the groups contain similar numbers of buildings. These limitations matter
+because an actor trained on a very small group receives less experience than an
+actor trained on a large group.
 
 \begin{zhtranslation}
-K-means 是一个简单、快速并直接最小化簇内平方距离的基线方法。但在本任务中，它也
-具有明显限制：默认簇近似球形、结果依赖初始化，而且不显式控制每组大小。Ward 凝聚
-层次聚类则在每一步合并使类内方差型目标增加最少的两个簇。对于只有 25 栋建筑的
-场景，其确定性的层次结构具有吸引力，因为它消除了一个随机初始化来源。
+K-means 被用作最初的基线，因为它简单而且计算速度快。它先放置几个组中心，把每栋
+建筑分给距离最近的中心，再更新中心并重复这些步骤。简单来说，它尝试把特征数值相近
+的建筑放进同一组。但如果起始中心改变，最终结果也可能改变。它更适合形状简单且集中的
+分组，而且不能保证每组包含相近数量的建筑。这些限制很重要，因为小组中的 actor 能
+获得的训练经验会少于大组中的 actor。
 \end{zhtranslation}
 
-GMM gives a probabilistic alternative in which each group is represented by a
-Gaussian component with its own covariance structure
-\cite{fraleyraftery2002}. It can represent elongated or overlapping groups that
-K-means cannot, although estimating a full covariance matrix from 25 samples is
-potentially fragile. Spectral clustering maps the similarity graph into a low-
-dimensional eigenspace before clustering \cite{ng2001spectral}. The implemented
-balanced spectral variant additionally assigns buildings to exact near-equal
-cluster slots with the Hungarian algorithm, following the general balanced
-clustering principle that assignment quality and cluster size must be optimized
-together \cite{malinen2014balanced}. This is operationally relevant because a
-severely imbalanced partition gives some actor heads much less data than others.
+\subsection{Gaussian Mixture Model}
+
+A Gaussian mixture model (GMM) treats the data as if they were produced by
+several overlapping bell-shaped groups \cite{fraleyraftery2002}. Instead of
+only measuring the distance to a centre, GMM estimates the probability that a
+building belongs to each group. The building can then be assigned to the group
+with the highest probability. This allows GMM to describe groups that have
+different widths, directions, or some overlap, so it is more flexible than
+K-means. The disadvantage in this experiment is the small dataset: there are
+only 25 buildings. A full GMM must estimate many values from these 25 examples,
+so its grouping can be unstable or too strongly influenced by a few buildings.
 
 \begin{zhtranslation}
-GMM 提供概率式替代方案，每个组由具有独立协方差结构的高斯成分表示。它能够表达
-K-means 难以处理的拉长或重叠簇，但在只有 25 个样本时估计完整协方差矩阵可能较不
-稳定。谱聚类先把相似度图映射到低维特征空间，再执行聚类。本项目实现的 balanced
-spectral 进一步使用匈牙利算法把建筑分配到大小近乎相等的组槽中，体现了同时优化
-分配质量和组大小的平衡聚类思想。这一点具有实际意义，因为严重失衡的分组会让某些
-actor head 获得远少于其他 head 的训练数据。
+Gaussian mixture model（GMM）把数据看成由几个可能相互重叠、形状类似钟形的组产生
+\cite{fraleyraftery2002}。它不只是计算建筑到中心的距离，而是估计每栋建筑属于每一组
+的概率，再把建筑分到概率最高的组。这样，GMM 可以表示宽度、方向不同或有一定重叠的
+组，因此比 K-means 更灵活。本实验中的缺点是数据量很小，只有 25 栋建筑。完整 GMM
+需要从这 25 个样本中估计很多数值，所以结果可能不稳定，也可能受到少数建筑的较大
+影响。
+\end{zhtranslation}
+
+\subsection{Agglomerative Clustering}
+
+Agglomerative clustering works from small groups to large groups. At the
+beginning, every building is its own group. The method then repeatedly merges
+the two most similar groups until the required number of groups remains. This
+project uses Ward's rule, which chooses the merge that keeps the buildings
+inside each new group as similar as possible \cite{ward1963}. The method does
+not need random starting centres, so the same input produces the same grouping.
+This is useful for a small set of 25 buildings because it removes one source of
+randomness from the later MAPPO experiment. Its limitation is that an early
+merge cannot be undone, and it does not guarantee equal group sizes.
+
+\begin{zhtranslation}
+Agglomerative clustering 按照“从小组到大组”的方式工作。开始时，每栋建筑都是单独
+的一组；然后不断合并最相似的两组，直到剩下需要的组数。本项目使用 Ward 规则，选择
+能让新组内部建筑尽量相似的合并方式 \cite{ward1963}。该方法不需要随机设置起始中心，
+因此相同输入会得到相同分组。对于只有 25 栋建筑的实验，这可以减少后续 MAPPO 实验
+中的一个随机来源。它的限制是，前面做出的合并不能撤销，而且不能保证每组大小相等。
+\end{zhtranslation}
+
+\subsection{Balanced Spectral Clustering}
+
+Spectral clustering first builds a similarity graph \cite{ng2001spectral}.
+Each building is a point in the graph, and two buildings receive a stronger
+connection when their selected features are more similar. The method then uses
+the main patterns of this graph to create a simpler representation in which
+strongly connected buildings are easier to separate from the others. This step
+is why the method is called ``spectral'': it studies numerical patterns in the
+similarity graph. The buildings are then grouped using this simpler view of
+their relationships.
+
+The balanced version used in this project adds one more rule: group sizes must
+be equal or differ by at most one building. It creates a fixed number of places
+in each group. It then uses a standard matching method, called the Hungarian
+assignment algorithm, to place all buildings while keeping the total difference
+between buildings and their assigned groups as small as possible. This follows
+the idea of balanced clustering
+\cite{malinen2014balanced}. This prevents one actor from receiving many
+buildings while another actor receives very few. It can also find groups that
+are not simple round clusters. However, the result still depends on how
+similarity is calculated, and forcing equal sizes may sometimes separate
+buildings that would otherwise naturally stay together.
+
+\begin{zhtranslation}
+Spectral clustering 首先建立一张相似度图 \cite{ng2001spectral}。图中的每个点代表一栋
+建筑；如果两栋建筑所选特征更相似，它们之间的连接就更强。随后，该方法利用图中的
+主要结构建立一个更简单的表示，使连接较强的建筑更容易与其他建筑区分开来。它之所以
+称为“spectral”，是因为它会分析这张相似度图中的数值规律。最后，再根据这个更简单的
+建筑关系进行分组。
+
+本项目使用的 balanced 版本还增加了一条规则：各组大小必须相等，或者最多只相差一栋
+建筑。它先为每组设置固定数量的位置，再使用一种称为 Hungarian assignment algorithm
+的标准匹配方法分配所有建筑，并尽量减小建筑与其所属组之间的总差异。这与 balanced
+clustering 的思想一致 \cite{malinen2014balanced}。
+这样可以避免一个 actor 分到很多建筑，而另一个 actor 只分到很少建筑。该方法也能发现
+并非简单圆形的组。但它仍然会受到相似度计算方式的影响，而且强制组大小相等有时可能
+会把原本适合放在一起的建筑分开。
 \end{zhtranslation}
 
 \section{Grouping Features and Redundancy}
 
-Feature selection is not equivalent to adding every available descriptor.
-Mutual-information feature selection formalizes the useful principle of high
-relevance with low redundancy: two strongly correlated features may repeat the
-same information while increasing estimation noise and changing distance
-geometry \cite{peng2005mrmr}. This is especially important for clustering,
-because standardization gives every included column equal opportunity to alter
-neighbourhoods. For example, mean and maximum heating demand are related, and
-HVAC rating is also related to thermal demand. Including all of them can
-overweight one physical mechanism.
+Using more features does not always produce better groups. A useful feature
+should help distinguish buildings, but it should not simply repeat information
+that is already present. This idea is often described as selecting features
+that are relevant but not redundant \cite{peng2005mrmr}. For example, mean
+heating demand, maximum heating demand, and HVAC rating all describe related
+parts of a building's heating requirement. If all three are included, heating
+may influence the grouping several times, while battery or ordinary electrical
+load is counted only once. The feature ablation therefore tests small
+combinations instead of assuming that every available column should be used.
 
 \begin{zhtranslation}
-特征选择并不等于加入所有可用描述量。基于互信息的特征选择提出了“高相关、低冗余”
-原则：两个强相关特征可能重复表达同一信息，同时增加估计噪声并改变距离几何。对聚类
-而言这一点尤其重要，因为标准化后，每一列特征都有同等机会改变样本邻域。例如，平均
-供暖需求与最大供暖需求相关，HVAC 额定容量也与热需求相关；把它们全部加入可能会对
-同一种物理机制重复加权。
+使用更多特征不一定能产生更好的分组。一个有用的特征应当能够区分建筑，但不应该只是
+重复已经存在的信息。这通常被称为选择“有用但不重复”的特征 \cite{peng2005mrmr}。
+例如，平均供暖需求、最大供暖需求和 HVAC 额定容量都与建筑的供暖需求有关。如果三者
+同时加入，供暖因素可能在分组中被重复计算多次，而电池或普通用电只被计算一次。因此，
+特征消融实验比较较小的特征组合，而不是假设所有可用特征都应该加入。
 \end{zhtranslation}
 
-The selected 3fA set separates three roles: \texttt{bes\_capacity\_kwh}
-represents actuation potential, \texttt{heating\_mean} represents the seasonal
-controllable thermal burden in Vermont, and \texttt{nsl\_mean} represents the
-uncontrolled electrical base load. This is a hypothesis grounded in the task,
-not an assumption that these three variables are universally optimal. The
-feature-count and feature-combination ablations in Chapter~\ref{ch:eval} are
-therefore necessary to test whether the compact physical description is more
-useful than a larger but more redundant feature vector.
+The selected 3fA set gives one feature to each main part of the task.
+\texttt{bes\_capacity\_kwh} tells us how much energy the battery can move.
+\texttt{heating\_mean} describes the average heating need during the Vermont
+winter. \texttt{nsl\_mean} describes the average ordinary electrical load that
+the controller cannot move. These three features are not assumed to be best for
+every problem. The experiments in Chapter~\ref{ch:eval} compare different
+feature counts and combinations to check whether this simple set works better
+than a larger set containing repeated information.
 
 \begin{zhtranslation}
-选定的 3fA 特征分别承担三种作用：\texttt{bes\_capacity\_kwh} 表示可控能力，
-\texttt{heating\_mean} 表示 Vermont 冬季可控热负荷，\texttt{nsl\_mean} 表示不可控
-电气基础负荷。这是基于任务提出的假设，而不是声称这三个变量在所有场景中都绝对最优。
-因此，第~\ref{ch:eval}章中的特征数量和特征组合消融是必要的，用来检验紧凑的物理描述
-是否比更大但更冗余的特征向量更有效。
+选定的 3fA 为任务中的三个主要部分分别保留一个特征：
+\texttt{bes\_capacity\_kwh} 表示电池能够转移多少能量，\texttt{heating\_mean} 表示
+Vermont 冬季的平均供暖需求，\texttt{nsl\_mean} 表示控制器无法转移的平均普通用电。
+这里并不假设这三个特征对所有问题都最好。第~\ref{ch:eval}章会比较不同的特征数量和
+组合，检验这个简单组合是否比包含重复信息的更大特征集合更有效。
 \end{zhtranslation}
 
 \section{Soft Routing and Mixtures of Experts}
 
-Mixture-of-experts models replace one universal computation path with several
-specialized experts and a learned router. Recent Soft MoE work shows that fully
-differentiable soft assignments can avoid some discontinuities of hard routing
-\cite{puigcerver2024softmoe}, while work in deep reinforcement learning reports
-that MoE modules can improve useful parameter scaling
-\cite{obandoceron2024moerl}. The present soft router applies this idea at the
-policy level: fixed group actors become experts, and each building receives a
-state-dependent mixture of expert actions.
+Mixture-of-experts models use several candidate neural networks and another
+small network that chooses between them. The candidate networks are often
+called ``experts'', and the choosing network is called a ``router''. In soft
+routing, the router gives every candidate a probability instead of immediately
+choosing only one. Candidates with higher probabilities have more influence on
+the result. Previous Soft MoE and reinforcement-learning studies show that this
+kind of selection can help different networks learn different jobs
+\cite{puigcerver2024softmoe,obandoceron2024moerl}. In this project, the
+candidates are the actors trained for different building groups. For each
+building and each time step, the router examines the current building
+information and helps select which actor should guide the action.
 
 \begin{zhtranslation}
-Mixture-of-experts 模型用多个专门化 expert 和一个可学习 router 取代单一通用计算路径。
-近期 Soft MoE 研究表明，完全可微的软分配可以避免硬路由带来的部分不连续问题；深度
-强化学习研究也表明，MoE 模块能够改善模型容量扩展。本项目在策略层应用这一思想：
-把固定分组 actor 作为 experts，并让每栋建筑获得随状态变化的 expert 动作混合。
+Mixture-of-experts 模型使用多个候选神经网络，再用另一个小型网络在它们之间进行选择。
+候选网络通常称为 experts，负责选择的网络称为 router。在 soft routing 中，router 不会
+马上只选择一个候选网络，而是给每个候选网络一个概率；概率越高，它对最终结果的影响
+越大。已有 Soft MoE 和强化学习研究表明，这种选择方式可以帮助不同网络学习不同任务
+\cite{puigcerver2024softmoe,obandoceron2024moerl}。在本项目中，候选网络就是为不同建筑
+组训练的 actors。对每栋建筑和每个时间步，router 会查看建筑当前的信息，并帮助选择
+应由哪个 actor 指导动作。
 \end{zhtranslation}
 
-However, routing introduces a chicken-and-egg problem. If experts are not
-already distinct and useful, the router has no stable alternatives to select;
-if the router changes too quickly, it also changes the data distribution seen
-by each expert. This motivates the staged experiments in this report: first
-train useful fixed-group experts, then train the router while preserving those
-experts, and only then test limited joint adaptation. The design deliberately
-treats soft routing as an enhancement to a good partition rather than assuming
-that it can discover good groups from scratch.
+The selector is difficult to train when the candidate actors have not learned
+useful behaviours. In that case, choosing one actor instead of another provides
+little benefit. Training the actors and the selector together from the beginning
+can also be unstable because both sides keep changing. The staged experiments
+therefore first train actors with fixed groups, then keep those actors unchanged
+while training the selector, and finally test whether a small amount of further
+actor training is helpful. This means that soft routing is treated as an
+improvement built on a good initial grouping, rather than a method that is
+expected to create good groups by itself from the beginning.
 
 \begin{zhtranslation}
-但路由会带来“先有鸡还是先有蛋”的问题。如果 experts 尚未形成差异化且有效的策略，
-router 就没有稳定的候选项可选；如果 router 变化过快，又会不断改变每个 expert 看到的
-数据分布。因此，本报告采用分阶段实验：先训练有效的固定分组 experts，再在保留这些
-experts 的情况下训练 router，最后才测试有限的联合适应。该设计把 soft routing 定位为
-良好固定分组之上的增强，而不是假设它能够从零自动发现优质分组。
+如果候选 actors 还没有学到有用的行为，这个选择器就很难训练，因为此时选择哪个 actor
+都没有明显好处。如果从一开始同时训练 actors 和选择器，也可能不稳定，因为两边都在
+不断变化。因此，本报告先使用固定分组训练 actors，再保持这些 actors 不变并训练选择器，
+最后测试少量继续训练 actor 是否有帮助。这意味着 soft routing 是建立在良好初始分组
+之上的改进方法，而不是期望它从一开始就能自己产生良好分组。
 \end{zhtranslation}
