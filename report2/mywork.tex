@@ -188,8 +188,8 @@ Gated 融合会学习一组 0 到 1 之间的权重，可以把它们理解成�
 \section{Grouping Method Settings}
 
 As explained in Chapter~\ref{ch:background}, this task has no correct actor-group
-labels, so it requires unsupervised grouping. The final grouping-method comparison
-included K-means as the baseline and three alternatives: GMM, agglomerative
+labels, so it requires unsupervised grouping. The grouping-method ablation
+compares K-means as the baseline with three alternatives: GMM, agglomerative
 clustering, and balanced spectral clustering. GMM was included to allow groups
 with different spreads and some overlap; agglomerative clustering was included
 to remove random initialization; and balanced spectral clustering was included
@@ -197,23 +197,17 @@ to test whether directly balancing group size could improve the result. Methods
 such as xRFM, XGBoost, and Random Forest require known training targets, so they
 were not used for this grouping task.
 
-The four grouping methods were studied in sequence: K-means, GMM, agglomerative
-clustering, and balanced spectral clustering. Before the best feature set was
-known, one provisional 5F combination was chosen for this grouping-method
-ablation. All four methods used exactly the same 5F input, linear Hybrid fusion,
-and random seed, and each grouping was used to complete the same grouped MAPPO
-training and test. K-means therefore has its own 5F result in the controlled
-comparison. Agglomerative clustering produced the lowest CV-RMSE among the four
-methods, so it was fixed as the grouping method for the following feature-count
-and feature-combination ablations. Only after those feature experiments was 3fA
-selected as the best overall compromise.
+The grouping-method ablation used one common 5F configuration to compare K-means,
+GMM, agglomerative clustering, and balanced spectral clustering. All four methods
+used exactly the same feature input, TarMAC Hybrid fusion, random seed, grouped
+MAPPO training procedure, and evaluation procedure. This controlled design keeps
+the grouping method as the main difference between the four experiments.
 
-The initial grouping-method ablation used the feature matrix
-$X\in\mathbb{R}^{25\times5}$. Each row represented one building, and the five
-columns were battery capacity, total HVAC rated power, mean heating demand, mean
-non-shiftable load, and mean lower-comfort-bound exceedance. This provisional
-combination was used only to compare the grouping methods fairly; it had not yet
-been shown to be the best feature set. In the later feature ablations, the matrix
+The grouping-method ablation uses the feature matrix
+$X\in\mathbb{R}^{25\times5}$. Each row represents one building, and the five
+columns are battery capacity, total HVAC rated power, mean heating demand, mean
+non-shiftable load, and mean lower-comfort-bound exceedance. The same combination
+is supplied to all four methods for a fair comparison. In the feature ablations, the matrix
 has the more general form $X\in\mathbb{R}^{25\times d}$, where $d$ changes with
 the selected feature columns. Once a feature combination is fixed for one
 comparison, every run uses exactly the same data-derived matrix; the matrix
@@ -241,10 +235,9 @@ four or five groups remain. It does not use a random starting point, so the same
 feature matrix produces the same result.
 
 \noindent\textbf{Balanced spectral clustering.}
-This was the fourth grouping method studied in sequence and used the same
-controlled 5F setting as the other methods. It first gives a stronger connection
-to buildings with more similar features, and then uses the connection pattern to
-form groups. A fixed number of places is created in every group. The
+This method first gives a stronger connection to buildings with more similar
+features, and then uses the connection pattern to form groups. A fixed number of
+places is created in every group. The
 Hungarian algorithm is simply a matching method: it considers the possible
 building-to-place assignments and finds the one with the smallest total
 assignment difference. This assigns every building while keeping group sizes
@@ -268,22 +261,19 @@ so that an unusable grouping is not selected.
 
 \begin{zhtranslation}
 正如第~\ref{ch:background}章所述，本任务没有正确的 actor 分组标签，因此需要使用无监督
-分组。最终的分组方法比较使用 K-means 作为基线，并比较 GMM、凝聚聚类和 Balanced
+分组。分组方法消融使用 K-means 作为基线，并比较 GMM、凝聚聚类和 Balanced
 spectral 三种替代方法。选择 GMM 是为了允许各组具有不同宽度并存在一定重叠；选择凝聚
 聚类是为了避免随机初始化；选择 Balanced spectral 是为了检验直接平衡各组大小是否能够
 改善结果。
 
-四种分组方法按照 K-means、GMM、凝聚聚类和 Balanced spectral 的顺序逐个研究。在确定
-最佳特征组合之前，先选取了一组暂定的5F特征用于这次分组方法消融。四种方法都使用完全
-相同的5F输入、Linear Hybrid 融合方式和随机种子，并且每一种分组都完成相同的 grouped
-MAPPO 训练和测试。因此，K-means 也有一组独立的5F实验结果。凝聚聚类在四种方法中得到
-最低的 CV-RMSE，因此后续特征数量消融和特征组合消融固定使用凝聚聚类。只有完成这些特征
-实验后，3fA 才被选为最佳综合折中。
+分组方法消融使用同一组5F配置比较 K-means、GMM、凝聚聚类和 Balanced spectral。四种
+方法使用完全相同的特征输入、TarMAC Hybrid 融合方式、随机种子、grouped MAPPO 训练流程
+和评价流程。这样的控制变量设计使四次实验之间的主要差别只来自分组方法。
 
-最初分组方法消融使用的输入是特征矩阵 $X\in\mathbb{R}^{25\times5}$。每一行代表一栋
+分组方法消融使用的输入是特征矩阵 $X\in\mathbb{R}^{25\times5}$。每一行代表一栋
 建筑，五列分别为电池容量、HVAC 总额定功率、平均供暖需求、平均不可转移负荷和平均舒适
-下界超限。这个暂定组合只是为了公平比较分组方法，当时还没有证明它是最佳特征组合。在
-后续特征消融中，矩阵写成更一般的 $X\in\mathbb{R}^{25\times d}$，其中 $d$ 会随所选特征
+下界超限。四种方法使用同一个特征组合，以保证比较公平。在特征消融中，矩阵写成更一般的
+$X\in\mathbb{R}^{25\times d}$，其中 $d$ 会随所选特征
 列改变。某个特征组合一旦确定，同一轮比较中的各次实验就使用完全相同的实际建筑数据；
 矩阵中的数值不是随机生成的。
 
@@ -302,9 +292,8 @@ GMM 会估计每栋建筑属于各组的概率，再把建筑分到概率最高�
 特征矩阵会得到相同结果。
 
 \noindent\textbf{Balanced spectral。}
-这是按顺序研究的第四种分组方法，使用与其他方法相同的受控5F设置。它先让特征更相似的
-建筑具有更强的连接，再根据这些连接关系形成分组。算法会为每组预先设置固定数量的位置。
-匈牙利算法可以简单理解为一种
+该方法先让特征更相似的建筑具有更强的连接，再根据这些连接关系形成分组。而Balanced spectral的匈牙利算法会为每组
+预先设置固定数量的位置。匈牙利算法可以简单理解为一种
 匹配方法：它比较建筑与这些位置之间的各种分配方式，找出总体分配差异最小的一种。这样
 既能把每栋建筑分到一个组，也能让各组大小相等或最多相差一栋。如果两个候选结果同样
 平衡，则优先选择 normalized-cut cost 更低的结果，因为这表示连接较强的建筑更好地保留
@@ -327,24 +316,21 @@ $n_k$ 表示第 $k$ 组的建筑数量；平衡分数越接近1，说明各组�
 The full control-profile feature pool includes battery capacity, total HVAC
 rating, mean and maximum heating demand, mean and maximum non-shiftable load,
 mean occupancy, indoor-temperature variation, and comfort-bound exceedance.
-Every selected column is standardized before clustering. After agglomerative
-clustering was selected in the initial 5F method comparison, the feature study
-was completed in two stages.
+Every selected column is standardized before clustering. The feature study fixes
+agglomerative clustering as the grouping method and consists of two stages.
 
-The first stage was the feature-count ablation. It used a provisional
-three-feature candidate A, which had not yet been shown to be the best, and
-compared it with two larger sets:
+The first stage is the feature-count ablation, which compares a three-feature
+candidate A with two larger sets:
 \begin{itemize}
   \item 3F candidate A: battery capacity, mean heating demand, and mean non-shiftable load;
   \item 4F: candidate A plus total HVAC rating;
   \item 5F: 4F plus mean lower-comfort-bound exceedance.
 \end{itemize}
-The second stage was the feature-combination ablation. It held the count at three
+The second stage is the feature-combination ablation. It holds the count at three
 while replacing mean with maximum demand, replacing thermal demand with HVAC
 rating, adding a comfort or temperature statistic, or removing battery capacity.
-Only after these combinations were compared was candidate A selected as the best
-overall compromise and named 3fA. This sequence separates the effect of feature
-count from the effect of which physical information is included.
+This design separates the effect of feature count from the effect of which
+physical information is included.
 
 For Texas, the same feature roles are retained but
 \texttt{heating\_mean} is replaced with \texttt{cooling\_mean}. Thus the
@@ -355,16 +341,15 @@ heating feature into a cooling-dominated season.
 \begin{zhtranslation}
 完整的 control-profile 特征池包括电池容量、HVAC 总额定功率、平均和最大供暖需求、
 平均和最大不可转移负荷、平均住户数、室温波动以及舒适下界超限。聚类前对所选列分别
-标准化。在最初的5F分组方法比较中选出凝聚聚类后，特征实验分为两个阶段进行。
+标准化。特征实验固定使用凝聚聚类作为分组方法，并分为两个阶段进行。
 
-第一阶段是特征数量消融。当时先使用一个暂定的三特征组合 A，它还没有被证明是最佳组合；
-然后将它与两个更大的特征集合比较：三特征组合 A 包含电池容量、平均供暖需求和平均不可
+第一阶段是特征数量消融，将三特征组合 A 与两个更大的特征集合比较：三特征组合 A 包含
+电池容量、平均供暖需求和平均不可
 转移负荷；4F 在组合 A 上增加 HVAC 总额定功率；5F 再增加平均舒适下界超限。
 
 第二阶段是特征组合消融。实验把特征数量固定为三个，通过 mean/max 替换、用 HVAC 替代
-热需求、增加舒适度或温度统计以及移除电池容量，比较不同物理信息的影响。只有完成这些
-组合比较后，组合 A 才被选为最佳综合折中，并命名为 3fA。这个顺序把“特征数量”的影响
-和“具体选择哪些物理信息”的影响分开研究。
+热需求、增加舒适度或温度统计以及移除电池容量，比较不同物理信息的影响。这个设计把
+“特征数量”的影响和“具体选择哪些物理信息”的影响分开研究。
 
 在 Texas 中保留同样的角色结构，但把 \texttt{heating\_mean} 替换为
 \texttt{cooling\_mean}。因此跨气候实验检验的是“容量、可控热负荷、背景负荷”这一
