@@ -23,47 +23,59 @@ CityLearn 的目标是标准化需求响应和城市能源管理中的强化学�
 每栋住宅独立做出控制决定。
 \end{zhtranslation}
 
-One control action can affect several results at the same time. Charging or
-discharging a battery changes the building's electricity load. Changing HVAC
+In a power grid, one control action can affect several building results at the
+same time. For example, charging or discharging a battery changes the building's
+electricity load. Changing HVAC
 operation affects both electricity use and indoor temperature. When many homes
 act at the same time, their loads add together and can change the community peak
 or make the total load rise and fall more quickly. Research on power networks
 shows that adding known physical information can help MARL make better control
 decisions \cite{physicsMADRL2024}. Research on safe building control also shows
 that a small energy error does not automatically mean that comfort and network
-limits are satisfied \cite{safeDRL2025,sun2024}. For this reason, the grouping
-features in this project describe both how much a building can control and how
-much energy it normally needs.
+limits are satisfied \cite{safeDRL2025,sun2024}. These studies suggest that
+buildings should not be grouped using only one measure of electricity use. This
+project therefore considers battery capacity, which affects how much load can
+be moved to another time; heating demand, which reflects the building's heating
+needs; and non-shiftable load, which is the ordinary electricity use that the
+controller cannot move. Using these features allows buildings with similar
+energy use and similar control tasks to be placed in the same group.
 
 \begin{zhtranslation}
-一个控制动作可能同时影响多个结果。电池充电或放电会改变建筑的用电负荷；改变 HVAC
+在电网中，一个控制动作可能同时影响建筑的多个结果。比如，电池充电或放电会改变建筑的用电负荷；改变 HVAC
 运行会同时影响用电量和室内温度。当很多住宅同时执行动作时，它们的负荷会叠加，从而
 改变社区峰值，或者使总负荷上升和下降得更快。电网研究表明，在 MARL 中加入已知的
 物理信息能够帮助模型做出更好的控制决定；安全建筑控制研究也表明，能源误差较小并不
-代表舒适度和电网限制一定得到满足。因此，本项目的分组特征既描述建筑有多少可控能力，
-也描述建筑通常需要多少能量。
+代表舒适度和电网限制一定得到满足。这些研究说明，只使用一个用电指标对建筑进行分组
+可能会忽略重要差异。因此，本项目同时考虑电池容量、供暖需求和不可转移负荷。电池容量
+影响建筑能够把多少用电转移到其他时间；供暖需求反映建筑需要多少供暖；不可转移负荷
+则表示控制器无法改变的普通用电。使用这些特征，是为了把用电情况和控制任务比较相似的
+建筑分到同一组。
 \end{zhtranslation}
 
 \section{Grouping Algorithms}
 
 \subsection{K-means}
 
-K-means is used as the original baseline because it is simple and fast
-\cite{kmeans1967}. It first places several group centres, assigns every building
-to its nearest centre, updates the centres, and repeats these steps. In plain
-terms, it tries to put buildings with similar feature values into the same
-group. However, its result can change when the starting centres change. It also
-works best when groups form simple compact shapes and does not guarantee that
-the groups contain similar numbers of buildings. These limitations matter
-because an actor trained on a very small group receives less experience than an
-actor trained on a large group.
+In the previous experiments, K-means was used as the initial grouping baseline
+because it is simple and fast \cite{kmeans1967}. It also reduced the overall
+computational complexity, which was helpful for the later study of communication
+methods. K-means first places several group centres, assigns every building to
+its nearest centre, updates the centres, and repeats these steps. In plain terms,
+it tries to put buildings with similar feature values into the same group.
+However, if the starting centres change from one run to another, the final result
+may also change. It works best for simple, compact groups and does not guarantee
+similar numbers of buildings in every group. Large differences in group size can
+seriously affect the later training: an actor for a small group receives less
+training experience than an actor for a large group and can be more easily
+influenced by information from the large group. Therefore, K-means is not a
+sufficiently stable method for the overall experiment.
 
 \begin{zhtranslation}
-K-means 被用作最初的基线，因为它简单而且计算速度快。它先放置几个组中心，把每栋
+在先前的实验中，K-means 被用作最初的分组方法基线，因为它简单而且计算速度快，并且降低了整体实验的计算复杂度，这对后续通讯方法的研究十分有利。它先放置几个组中心，把每栋
 建筑分给距离最近的中心，再更新中心并重复这些步骤。简单来说，它尝试把特征数值相近
-的建筑放进同一组。但如果起始中心改变，最终结果也可能改变。它更适合形状简单且集中的
-分组，而且不能保证每组包含相近数量的建筑。这些限制很重要，因为小组中的 actor 能
-获得的训练经验会少于大组中的 actor。
+的建筑放进同一组。但如果每次起始中心改变，最终结果也可能改变。它更适合形状简单且集中的
+分组，而且不能保证每组包含相近数量的建筑。然而每组建筑数量差过大会严重影响后续算法的训练，因为小组中的 actor 能
+获得的训练经验会少于大组中的 actor，并且更容易受到大组信息的影响。因此对于整个实验而言，K-means并不是一个合适的稳定方法。
 \end{zhtranslation}
 
 \subsection{Gaussian Mixture Model}
@@ -95,16 +107,16 @@ the two most similar groups until the required number of groups remains. This
 project uses Ward's rule, which chooses the merge that keeps the buildings
 inside each new group as similar as possible \cite{ward1963}. The method does
 not need random starting centres, so the same input produces the same grouping.
-This is useful for a small set of 25 buildings because it removes one source of
-randomness from the later MAPPO experiment. Its limitation is that an early
-merge cannot be undone, and it does not guarantee equal group sizes.
+For a small experiment with only 25 buildings, this reduces the effect of random
+grouping on the later MAPPO experiment. Its limitation is that an early merge
+cannot be undone, and it does not guarantee exactly equal group sizes.
 
 \begin{zhtranslation}
 Agglomerative clustering 按照“从小组到大组”的方式工作。开始时，每栋建筑都是单独
 的一组；然后不断合并最相似的两组，直到剩下需要的组数。本项目使用 Ward 规则，选择
 能让新组内部建筑尽量相似的合并方式 \cite{ward1963}。该方法不需要随机设置起始中心，
-因此相同输入会得到相同分组。对于只有 25 栋建筑的实验，这可以减少后续 MAPPO 实验
-中的一个随机来源。它的限制是，前面做出的合并不能撤销，而且不能保证每组大小相等。
+因此相同输入会得到相同分组。对于只有 25 栋建筑的实验，这可以减少分组随机性对后续 MAPPO 实验
+中的影响。它的限制是，前面做出的合并不能撤销，而且不能保证每组大小绝对相等。
 \end{zhtranslation}
 
 \subsection{Balanced Spectral Clustering}
@@ -125,10 +137,20 @@ assignment algorithm, to place all buildings while keeping the total difference
 between buildings and their assigned groups as small as possible. This follows
 the idea of balanced clustering
 \cite{malinen2014balanced}. This prevents one actor from receiving many
-buildings while another actor receives very few. It can also find groups that
-are not simple round clusters. However, the result still depends on how
-similarity is calculated, and forcing equal sizes may sometimes separate
-buildings that would otherwise naturally stay together.
+buildings while another actor receives very few. Unlike K-means, spectral
+clustering does not require all buildings in a group to gather around one centre.
+It can keep a chain of buildings in the same group when each building is similar
+to the next, even if the buildings at the two ends are not very close.
+
+In this experiment, ``similarity'' is not an additional building feature. The
+selected features are first standardized so that their scales are comparable.
+The method then calculates the overall distance between each pair of buildings
+and uses an RBF rule to convert that distance into a connection strength: a
+shorter distance gives a stronger connection, while a longer distance gives a
+weaker connection. Therefore, changing the selected features or the rule used to
+convert distance into connection strength can change the grouping result.
+Forcing equal group sizes may also separate buildings that would otherwise be
+placed together.
 
 \begin{zhtranslation}
 Spectral clustering 首先建立一张相似度图 \cite{ng2001spectral}。图中的每个点代表一栋
@@ -141,9 +163,15 @@ Spectral clustering 首先建立一张相似度图 \cite{ng2001spectral}。图�
 建筑。它先为每组设置固定数量的位置，再使用一种称为 Hungarian assignment algorithm
 的标准匹配方法分配所有建筑，并尽量减小建筑与其所属组之间的总差异。这与 balanced
 clustering 的思想一致 \cite{malinen2014balanced}。
-这样可以避免一个 actor 分到很多建筑，而另一个 actor 只分到很少建筑。该方法也能发现
-并非简单圆形的组。但它仍然会受到相似度计算方式的影响，而且强制组大小相等有时可能
-会把原本适合放在一起的建筑分开。
+这样可以避免一个 actor 分到很多建筑，而另一个 actor 只分到很少建筑。与 K-means 不同，
+spectral clustering 不要求同一组的所有建筑都集中在一个中心附近。如果几栋建筑依次相似，
+即使这组中位于两端的建筑相距较远，spectral clustering 仍可能把它们放在同一组。
+
+这里的“相似度”不是一个额外的建筑特征。本实验先将选定的特征标准化，使不同特征的
+数值范围可以相互比较；再计算每两栋建筑在这些特征上的总体距离，并使用 RBF 规则把
+距离转换成连接强度：距离越近，连接越强；距离越远，连接越弱。因此，改变所选特征，
+或者改变从距离到连接强度的转换规则，都可能改变分组结果。另外，强制各组大小相等，
+有时也可能把原本适合放在一起的建筑分开。
 \end{zhtranslation}
 
 \section{Grouping Features and Redundancy}
@@ -166,21 +194,24 @@ combinations instead of assuming that every available column should be used.
 特征消融实验比较较小的特征组合，而不是假设所有可用特征都应该加入。
 \end{zhtranslation}
 
-The selected 3fA set gives one feature to each main part of the task.
-\texttt{bes\_capacity\_kwh} tells us how much energy the battery can move.
+The Annex~96 benchmark provides 37 related features. For the initial grouping
+tests, one feature can first be randomly selected from each main part. For
+example, the best feature set found after testing, referred to here as 3fA, was
+formed by selecting one feature from each of three main parts:
+\texttt{bes\_capacity\_kwh} tells us how much energy the battery can move,
 \texttt{heating\_mean} describes the average heating need during the Vermont
-winter. \texttt{nsl\_mean} describes the average ordinary electrical load that
-the controller cannot move. These three features are not assumed to be best for
-every problem. The experiments in Chapter~\ref{ch:eval} compare different
-feature counts and combinations to check whether this simple set works better
-than a larger set containing repeated information.
+winter, and \texttt{nsl\_mean} describes the average ordinary electrical load
+that the controller cannot move. This does not mean that these three features
+are best for every problem. Chapter~\ref{ch:eval} compares different feature
+counts and combinations and shows that this simple set is more effective than a
+larger feature set containing repeated information.
 
 \begin{zhtranslation}
-选定的 3fA 为任务中的三个主要部分分别保留一个特征：
+实验中，annex96基准设定中一共有37个相关特征，但我们可以先分别随机选定各个主要部分的一个特征进行分组测试。比如最终测试后所获得的最佳特征（这里简称3fA）， 就是在三个主要部分分别选出一个特征得到的：
 \texttt{bes\_capacity\_kwh} 表示电池能够转移多少能量，\texttt{heating\_mean} 表示
 Vermont 冬季的平均供暖需求，\texttt{nsl\_mean} 表示控制器无法转移的平均普通用电。
-这里并不假设这三个特征对所有问题都最好。第~\ref{ch:eval}章会比较不同的特征数量和
-组合，检验这个简单组合是否比包含重复信息的更大特征集合更有效。
+需要注意的是，这里并不表示这三个特征对所有问题都最好。第~\ref{ch:eval}章会比较不同的特征数量和
+组合，验证了这个简单组合比包含重复信息的更大特征集合更有效。
 \end{zhtranslation}
 
 \section{Soft Routing and Mixtures of Experts}
