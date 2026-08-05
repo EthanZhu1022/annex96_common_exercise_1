@@ -674,15 +674,23 @@ group proportion. The balance term discourages routing collapse but is not an
 additional CityLearn reward. The critic remains trainable and continues to
 improve the value estimate even while the expert actors are frozen.
 
+Several safeguards work together to reduce routing collapse. The router starts
+with nearly equal expert probabilities, and training samples experts from these
+probabilities instead of always taking the largest one. The entropy term
+discourages the probabilities from becoming too concentrated, the original-group
+prior and gradual increase of $\alpha$ preserve early diversity, the balance loss
+discourages one expert from receiving nearly all buildings, and PPO clipping
+limits abrupt probability changes. These measures reduce, but do not completely
+eliminate, the possibility that an expert is rarely selected.
+
 Freezing improves stability because it removes a moving-target problem. If the
 router and every expert change rapidly at the same time, the router is trying to
 learn which expert is suitable while the meaning and behaviour of every expert
 are also changing. With pretrained experts fixed, their action distributions are
 reliable reference points, and the smaller router only has to learn how to combine
-them. The original-group prior and gradual increase of $\alpha$ prevent abrupt
-policy changes, PPO clipping limits each probability update, and the balance term
-prevents all buildings from collapsing onto one expert. In the stable full-expert
-experiment, episodes 1--500 update the router while freezing all experts;
+them. Together with the safeguards above, this staged freezing makes learning
+more stable. In the stable full-expert experiment, episodes 1--500 update the
+router while freezing all experts;
 episodes 501--1000 freeze the learned router and update only the small action
 heads at a low learning rate. Keeping the encoders and TarMAC module fixed
 preserves their pretrained latent spaces and communication behaviour. During
@@ -830,12 +838,17 @@ $\bar g_k$ 是 batch 中 expert $k$ 的平均使用比例，$\bar p_k$ 是原固
 防止所有建筑都集中选择同一 expert，但它不是额外的 CityLearn reward。expert actor 冻结时，
 critic 仍然继续训练和改善 value 估计。
 
+代码还用几种方法一起降低选择塌缩的风险。Router 开始时给各 expert 的概率接近平均；训练时
+按照概率随机选择，而不是每次都取最大值；entropy 项避免概率过早集中；原固定分组 prior 和
+逐步增加的 $\alpha$ 在训练初期保留多种选择；balance loss 避免一个 expert 接收几乎所有
+建筑；PPO clipping 则限制选择概率一次改变太多。
+
 冻结能够提高稳定性，是因为它消除了 moving-target 问题。如果 router 和全部 expert 同时快速
 变化，router 一边学习哪个 expert 更合适，各 expert 的含义和行为却也在不断改变；这样同一
 routing 概率在前后 episode 中可能对应不同控制行为。固定预训练 expert 后，它们成为可靠的
-参考点，参数量更小的 router 只需要学习如何组合这些已有能力。原固定分组 prior 和逐步增加
-$\alpha$ 避免策略突然改变，PPO clipping 限制每次概率更新幅度，平衡项避免选择塌缩到单一
-expert。在 stable full-expert 实验中，第1--500个 episode 冻结全部 expert、只更新 router；
+参考点，参数量更小的 router 只需要学习如何组合这些已有能力。配合上面的防塌缩措施，分阶段
+冻结使学习过程更加稳定。在 stable full-expert 实验中，第1--500个 episode 冻结全部
+expert、只更新 router；
 第501--1000个 episode 冻结已经学好的 router，只以很低学习率更新较小的 action heads。
 encoder 和 TarMAC 始终固定，从而保留预训练的隐藏空间和通信行为。确定性测试时，每栋建筑
 直接使用 routing 概率最大的 expert。
@@ -850,8 +863,9 @@ The soft-router experiments evolved through four designs:
   and final prior weight were varied. These runs established that a router could
   assign different selection probabilities to the experts, but policy learning
   was unstable.
-  \item \textbf{Pretrained two-stage training.} A strong fixed 3fA actor
-  checkpoint was loaded first. Experts were frozen for 200 episodes before
+  \item \textbf{Pretrained two-stage training.} A fixed-group checkpoint using
+  the strong 3fA feature combination identified earlier was loaded first.
+  Experts were frozen for 200 episodes before
   limited joint fine-tuning, with temperature 0.5 or 0.7, final dynamic weight
   1.0 or 0.7, and with/without the seven capacity-aware router inputs.
   \item \textbf{Three-stage training.} Experiments separated static actor
@@ -889,20 +903,56 @@ encoder 和 TarMAC 保持冻结，适应阶段 router 也冻结。
 预训练与稳定版本应当表现更好。
 \end{zhtranslation}
 
-\section{Completed Experimental Framework}
+\section{Completed Experiments}
 
-The completed experimental framework supports selectable clustering, arbitrary feature
-columns, cluster summaries, hybrid fusion ablations, fixed and dynamic routing,
-capacity-aware router inputs, router entropy and balance terms, feed-forward and
-GRU routers, checkpoint-based staged training, per-stage freezing, and multi-
-seed experiments. Each experiment records its configuration,
-cluster assignment, checkpoint, primary and secondary metrics, daily traces,
-comfort tables, training curves, and router history where applicable.
+At the current stage, the following experiments have been completed:
+\begin{itemize}
+  \item reward-weight comparisons using the baseline, comfort-focused, and
+  load-tracking-focused parameter settings;
+  \item comparison of the original TarMAC communication with TarMAC Hybrid, as
+  well as the ReLU, Linear, and Gated fusion ablations;
+  \item grouping-method experiments comparing K-means, GMM, agglomerative
+  clustering, and balanced spectral clustering under the same 5F setting;
+  \item grouping-feature experiments covering the full 9F control profile, the
+  5F, 4F, and 3F feature-count ablations, and the nine representative 3F
+  combinations A--I with multiple random seeds;
+  \item multi-seed stability and cross-climate experiments for the selected 3fA
+  feature roles in Vermont and Texas;
+  \item Soft Router experiments that gradually improved the training process from
+  an unstable initial design to the final stable version. The final version first
+  keeps the pretrained actors unchanged while training the selector, and then
+  keeps the learned selector fixed while making small adjustments to the actor
+  output layers.
+\end{itemize}
 
 \begin{zhtranslation}
-目前完成的实验框架支持可选聚类方法、任意特征列、cluster summary、hybrid fusion 消融、固定与
-动态路由、capacity-aware router 输入、router entropy/balance 项、前馈与 GRU router、
-基于 checkpoint 的阶段训练、分阶段冻结以及多随机种子实验。每次实验都会记录运行
-配置、分组、checkpoint、主次指标、逐日轨迹、舒适度表、训练曲线，以及适用时的 router
-history。
+目前已经完成以下实验：
+\begin{itemize}
+  \item 奖励函数权重对比，包括基线参数、偏重舒适度的参数和偏重负荷跟踪的参数；
+  \item 原始 TarMAC 与 TarMAC Hybrid 的对比，以及 ReLU、Linear 和 Gated 融合方式消融；
+  \item 在相同5F设置下比较 K-means、GMM、凝聚聚类和 Balanced spectral 的分组方法实验；
+  \item 分组特征实验，包括完整9F control profile、5F、4F、3F 特征数量消融，以及九种代表性
+  3F 组合 A--I 的多随机种子实验；
+  \item 选定 3fA 特征角色在 Vermont 和 Texas 上的多随机种子稳定性与跨气候实验；
+  \item Soft Router 实验经过多次训练方式改进，从最初不稳定的设计发展到最终的稳定版本。
+  最终版本先保持预训练 actor 不变，只训练负责选择 actor 的网络；然后固定已经学好的选择器，
+  只对 actor 的输出部分进行小幅调整。
+\end{itemize}
+\end{zhtranslation}
+
+\section{Current Limitations}
+
+The final stable Soft Router can be trained reliably and provides a useful
+performance enhancement over fixed grouping. Its main limitation is that this
+stability depends on strong pretrained actors produced by an earlier fixed
+grouping; it still cannot learn equally strong actors and routing from random
+initialization. Therefore, Soft Router currently improves an existing grouping
+rather than replacing clustering completely. Validation on more climates and
+portfolio sizes is still needed.
+
+\begin{zhtranslation}
+最终的 stable Soft Router 已经能够稳定训练，并且可以作为固定分组之上的性能提升方法。
+它的主要局限是，这种稳定性仍然依赖前期固定分组训练出的强 actor；从随机初始化开始时，
+它还不能自己学出同样有效的 actor 和 routing。因此，Soft Router 目前是在已有分组基础上
+进一步提升性能，而不是完全替代聚类。后续仍需要在更多气候和不同建筑数量下验证。
 \end{zhtranslation}
