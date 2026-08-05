@@ -503,15 +503,32 @@ trained. It therefore tests whether actor selection can become more flexible and
 less dependent on one fixed grouping.
 
 Each trained group actor is treated as one candidate actor; the following
-training descriptions also call it an expert. At every time step,
-the observation of each building is first converted into a compact internal
-representation and combined with the information received from the other
-buildings through TarMAC. In the capacity-aware version, the router also receives
-seven easy-to-interpret building variables: normalized battery capacity,
-normalized HVAC rating, battery state of charge, remaining charging space,
-currently available discharge energy, current non-shiftable load, and current
-heating demand. The first two describe the building's equipment, while the other
-five describe its current operating condition. The remaining charging space is
+training descriptions also call it an expert. At every time step, each building
+provides an observation. Here, an observation means the information that the
+controller can see at that moment, such as battery state of charge, current
+non-shiftable load, heating demand, indoor temperature, and time information. It
+does not mean the complete building dataset.
+
+The first part of the actor network converts these observation values into a
+learned internal representation. This representation is not a new physical
+measurement; it is a fixed-length set of numbers in which the network summarizes
+the parts of the observation that it considers useful for control. TarMAC then
+combines this summary with information from the other buildings. The standard
+Soft Router selects an actor mainly from this communicated summary.
+
+However, this communicated summary may not clearly retain some physical
+information that is directly useful for actor selection, such as battery
+capability and current load.
+
+The capacity-aware version is an enhanced Soft Router that gives the selector
+additional physical information instead of asking it to infer everything from
+the summary above. It receives seven extra variables: normalized battery
+capacity, normalized HVAC rating, battery state of charge, remaining charging
+space, currently available discharge energy, current non-shiftable load, and
+current heating demand. It is called capacity-aware because battery size and the
+currently available charging and discharging space are supplied explicitly.
+The first two variables describe the building's equipment, while the other five
+describe its current operating condition. The remaining charging space is
 calculated from capacity and the unused part of the battery, and the available
 discharge energy is calculated from capacity and the current state of charge.
 
@@ -586,12 +603,22 @@ largest probability is selected directly for each building.
 的分组 actor。这个实验用于检验 actor 的选择能否更加灵活，并减少对单一固定分组的依赖。
 
 每个已经训练好的分组 actor 都被看作一个候选 actor，后面的训练说明也把它称为 expert。
-在每个时间步，实验先把每栋建筑的
-观测转换成紧凑的内部表示，并通过 TarMAC 与其他建筑的信息结合。在 capacity-aware 版本中，
-router 还会接收七个容易理解的建筑变量：归一化电池容量、归一化 HVAC 额定功率、电池 SOC、
-剩余可充电空间、当前可放电电量、当前不可转移负荷和当前供暖需求。前两个变量描述建筑的
-设备能力，后五个变量描述当前运行情况。剩余可充电空间由电池容量和未使用的电量比例计算，
-当前可放电电量则由电池容量和当前 SOC 计算。
+在每个时间步，每栋建筑都会提供一组观测。这里的“观测”是控制器在当前时刻能够看到的信息，
+例如电池 SOC、当前不可转移负荷、供暖需求、室内温度和时间信息，而不是整套建筑数据。
+
+actor 网络的前半部分会把这些观测值转换成内部表示。内部表示不是新的物理测量值，而是网络
+整理出的一组固定长度的数值，用来概括观测中对控制有用的信息。TarMAC 再把这组信息与其他
+建筑的信息结合。普通 Soft Router 主要根据这组通信后的信息选择 actor。
+
+但是，这组通信后的信息不一定能清楚保留与 actor 选择直接相关的电池能力和当前负荷等
+物理信息。
+
+capacity-aware 是 Soft Router 的增强版本。它会把明确的建筑物理信息额外提供给选择器，而
+不是让选择器只从上面的内部表示中自己判断。它额外接收七个变量：归一化电池容量、归一化
+HVAC 额定功率、电池 SOC、剩余可充电空间、当前可放电电量、当前不可转移负荷和当前供暖
+需求。这个版本称为 capacity-aware，是因为它明确使用了电池容量以及当前可充电和可放电的
+空间。前两个变量描述建筑的设备能力，后五个变量描述当前运行情况。剩余可充电空间由电池
+容量和未使用的电量比例计算，当前可放电电量则由电池容量和当前 SOC 计算。
 
 这些输入进入一个小型两层神经网络。对于时刻 $t$ 的建筑 $i$，网络会为每个候选 actor 输出
 一个分数，再把这些分数转换成概率：
