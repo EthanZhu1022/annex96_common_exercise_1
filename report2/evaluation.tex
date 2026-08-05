@@ -4,15 +4,13 @@ This chapter reports only values already exported by the experiment pipeline.
 The main sources are
 \texttt{experiment\_metric\_summary/grouping\_feature\_ablation\_primary\_only\_sorted.csv}
 and \texttt{selected\_experiment\_metrics\_full.csv}, which were produced by
-\texttt{summarize\_selected\_experiment\_metrics}. No plotted or tabulated
-value is manually synthesized from an unrecorded run.
+\texttt{summarize\_selected\_experiment\_metrics}.
 
 \begin{zhtranslation}
 本章只报告实验流程已经导出的数值。主要来源为
 \texttt{grouping\_feature\_ablation\_primary\_only\_sorted.csv} 和
 \texttt{selected\_experiment\_metrics\_full.csv}，两者由
-\texttt{summarize\_selected\_experiment\_metrics} 生成。图表中没有使用任何来自未记录
-实验的人工构造数值。
+\texttt{summarize\_selected\_experiment\_metrics} 生成。
 \end{zhtranslation}
 
 \section{Evaluation Scope and Metrics}
@@ -380,6 +378,88 @@ $49.86\pm3.65$\% 和 $3251\pm892$。两组没有严格配对，但 router 条件
 $1.19\pm0.60$\%，degree-hours 为 $3184\pm872$，舒适超限为 $18.73\pm2.43$\%。因此
 router-only 比不受控联合训练更安全，但相对固定 3fA 的平均提升有限；更明显的提升来自
 保留稳定预训练分支，并只允许范围很小的 head adaptation。
+\end{zhtranslation}
+
+\section{Selected-Controller Diagnostics}
+
+The following plots use two representative runs. The fixed 3fA seed-42 run is
+shown because its checkpoint supplies the pretrained actors used by the final
+router experiments. Stable Soft Router seed 0 is shown because it has the best
+primary rank among the three final stable-head runs. These are individual-run
+diagnostics rather than plots averaged across seeds.
+
+\begin{figure}[!htbp]
+\begin{center}
+\includegraphics[width=0.95\textwidth]{figures/3fa_test_daily_metrics.png}
+\end{center}
+\caption{Daily primary metrics for the selected fixed 3fA controller, seed 42.}
+\label{fig:3fa-daily}
+\end{figure}
+
+\begin{figure}[!htbp]
+\begin{center}
+\includegraphics[width=0.95\textwidth]{figures/stable_soft_router_test_daily_metrics.png}
+\end{center}
+\caption{Daily primary metrics for the final stable Soft Router, router-training seed 0.}
+\label{fig:stable-router-daily}
+\end{figure}
+
+Figures~\ref{fig:3fa-daily} and~\ref{fig:stable-router-daily} make the trade-off
+between the two representative runs clear. The fixed 3fA run has slightly lower
+CV-RMSE and absolute NMBE, whereas the stable router reduces comfort exceedance
+from 20.07\% to 16.45\% and comfort degree-hours from 3162 to 2400. The router
+therefore improves the overall balance without winning every metric in this
+single-run comparison.
+
+\begin{figure}[!htbp]
+\begin{center}
+\includegraphics[width=0.98\textwidth]{figures/3fa_test_building_temperatures_full.png}
+\end{center}
+\caption{Full-month building temperatures for the selected fixed 3fA controller, seed 42.}
+\label{fig:3fa-temperature-full}
+\end{figure}
+
+\begin{figure}[!htbp]
+\begin{center}
+\includegraphics[width=0.98\textwidth]{figures/stable_soft_router_test_building_temperatures_full.png}
+\end{center}
+\caption{Full-month building temperatures for the final stable Soft Router, router-training seed 0.}
+\label{fig:stable-router-temperature-full}
+\end{figure}
+
+The full-month temperature traces show that the stable router reduces the total
+severity of comfort violations but does not eliminate them. Several buildings
+still remain above the upper comfort bound for long periods, so building-level
+comfort remains an important limitation.
+
+\begin{figure}[!htbp]
+\begin{center}
+\includegraphics[width=0.95\textwidth]{figures/stable_soft_router_test_load_tracking_week1.png}
+\end{center}
+\caption{First-week aggregate load tracking for the final stable Soft Router, router-training seed 0.}
+\label{fig:stable-router-week1}
+\end{figure}
+
+Figure~\ref{fig:stable-router-week1} is produced in the same way as the week-1
+plot in the first report: the trained checkpoint is rerun over the February test
+month, and the controlled portfolio load, no-storage baseline, and district
+target are exported for the first 168 hours.
+
+\begin{zhtranslation}
+上述图像选择了两个有代表性的实验。固定 3fA 使用 seed 42，因为它的 checkpoint
+正是最终 router 实验使用的预训练 actors；stable Soft Router 使用 seed 0，因为它在
+三个最终 stable-head 实验中的主指标综合排名最高。这些是单次实验的详细图，
+不是多个 seeds 的平均曲线。
+
+日指标图显示，固定 3fA 的 CV-RMSE 和绝对 NMBE 略低，而 stable router 将舒适度
+超限从 20.07\% 降到 16.45\%，并将 degree-hours 从 3162 降到 2400。因此，router 改善了
+整体平衡，但并不是在这两次实验的每个指标上都更好。整月室温曲线进一步表明，
+stable router 降低了舒适度问题的总严重程度，但没有完全消除越界，仍有几栋建筑长时间
+高于舒适温度上限。
+
+第~\ref{fig:stable-router-week1}图与第一份报告的 week-1 图使用相同方法生成：在二月测试环境中
+重新运行训练完成的 checkpoint，并导出前 168 小时的建筑组合受控负荷、无储能基线与
+district target。
 \end{zhtranslation}
 
 \section{Overall Interpretation and Limitations}

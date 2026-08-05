@@ -17,12 +17,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from annex96_reporting import export_building_temperature_artifacts
 
 
 REPO_DIR = Path(__file__).resolve().parent.parent
 if str(REPO_DIR) not in sys.path:
     sys.path.insert(0, str(REPO_DIR))
+
+from annex96_reporting import export_building_temperature_artifacts
 
 DEFAULT_OUTPUT_ROOT_NAME = "target_folder"
 
@@ -71,6 +72,18 @@ MONTH_NAMES: Dict[int, str] = {
 
 
 MODULE_BY_PREFIX: List[Tuple[str, str]] = [
+    ("mappo_grouped_tarmac_soft_router", "mappo_grouped_tarmac_soft_router.train"),
+    (
+        "mappo_grouped_tarmac_hybrid_agglomerative",
+        "mappo_grouped_tarmac_hybrid_grouping.train",
+    ),
+    (
+        "mappo_grouped_tarmac_hybrid_balanced_spectral",
+        "mappo_grouped_tarmac_hybrid_grouping.train",
+    ),
+    ("mappo_grouped_tarmac_hybrid_gmm", "mappo_grouped_tarmac_hybrid_grouping.train"),
+    ("mappo_grouped_tarmac_hybrid_kmeans", "mappo_grouped_tarmac_hybrid_grouping.train"),
+    ("mappo_grouped_tarmac_hybrid", "mappo_grouped_tarmac_hybrid.train"),
     ("mappo_grouped_powernet_global", "mappo_grouped_powernet_global.train"),
     ("mappo_grouped_comm_weighted", "mappo_grouped_comm_weighted.train"),
     ("mappo_grouped_comm_v2", "mappo_grouped_comm_v2.train"),

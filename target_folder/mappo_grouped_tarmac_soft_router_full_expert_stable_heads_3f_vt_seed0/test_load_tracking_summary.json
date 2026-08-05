@@ -1,0 +1,15 @@
+{
+  "result_dir": "C:\\Users\\16199\\Desktop\\RL\\annex96_common_exercise_1\\results\\mappo_grouped_tarmac_soft_router_full_expert_stable_heads_3f_vt_seed0",
+  "label": "mappo_grouped_tarmac_soft_router_full_expert_stable_heads_3f_vt_seed0",
+  "climate": "VT",
+  "test_month": 2,
+  "test_month_name": "February",
+  "n_steps": 671,
+  "target_source": "district",
+  "controlled_mean": 107.33154178624514,
+  "baseline_mean": 106.2987680307266,
+  "district_target_mean": 67.19536817614481,
+  "computed_reference_mean": 106.2987680307266,
+  "tracking_mae_to_plotted_target": 55.91043064308141,
+  "tracking_rmse_to_plotted_target": 63.470085054955184
+}

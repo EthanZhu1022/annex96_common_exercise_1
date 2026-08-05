@@ -1,0 +1,19 @@
+{
+  "climate": "VT",
+  "test_month": 2,
+  "test_month_name": "February",
+  "test_start_step": 744,
+  "test_end_step": 1415,
+  "test/primary/load_tracking/nmbe_pct": 1.0390791070026348,
+  "test/primary/load_tracking/cv_rmse_pct": 45.376480131507755,
+  "test/primary/load_tracking/reference_mean": 106.20140178146816,
+  "test/primary/load_tracking/actual_mean": 107.30491835872333,
+  "test/primary/load_tracking/reference_peak": 179.64405409495035,
+  "test/primary/load_tracking/actual_peak": 281.2884216308594,
+  "test/primary/thermal_comfort/temperature_exceedance_hours_total": 2747.0,
+  "test/primary/thermal_comfort/temperature_exceedance_hours_mean": 109.88,
+  "test/primary/thermal_comfort/temperature_exceedance_hours_max": 553.0,
+  "test/primary/thermal_comfort/portfolio_exceedance_pct": 16.351190476190478,
+  "test/primary/thermal_comfort/lower_bound_c": 20.0,
+  "test/primary/thermal_comfort/upper_bound_c": 24.0
+}

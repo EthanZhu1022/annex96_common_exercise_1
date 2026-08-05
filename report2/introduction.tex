@@ -78,6 +78,17 @@ fixed grouping?
 分组特征选择，以提高MARL的性能？ 又或者有没有一种方法能在一定程度上降低模型对固定分组的依赖？
 \end{zhtranslation}
 
+\noindent\textbf{The main innovation of this work} is a Soft Router for grouped
+MAPPO that dynamically selects a complete actor for each building according to
+its current state, relaxing the permanent building-to-actor assignment imposed
+by fixed grouping.
+
+\begin{zhtranslation}
+\noindent\textbf{本研究最大的创新点}是在分组 MAPPO 中加入 Soft Router，
+根据建筑当前状态为其动态选择完整的 actor，从而放松固定分组造成的
+建筑与 actor 之间始终不变的对应关系。
+\end{zhtranslation}
+
 This second report addresses those problems in four connected studies. First,
 it introduces \emph{TarMAC Hybrid}. It reduces each agent's own information to
 a smaller and clearer form and uses ReLU to keep the more useful parts. This
