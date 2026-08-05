@@ -491,35 +491,150 @@ heating feature into a cooling-dominated season.
 可迁移原则，而不是把 Vermont 的供暖特征机械复制到制冷主导季节。
 \end{zhtranslation}
 
-\section{State-Conditioned Soft Router}
+\section{Soft Router for Dynamic Actor Selection}
 
-Let $K$ fixed group policies be experts. For building $i$ at time $t$, the
-router receives the globally communicated hidden state and, in the capacity-
-aware version, seven physical variables: normalized battery capacity,
-normalized HVAC rating, state of charge, available charge headroom, available
-discharge headroom, current non-shiftable load, and current heating demand. A
-two-layer router produces logits $z_{it}$ and dynamic weights
+Fixed grouping assigns each building to one actor before training, and that actor
+does not change when the building's battery level, load, or heating demand
+changes. Its performance therefore depends strongly on the quality of the
+initial grouping. Soft Router was introduced to address this limitation. Its
+purpose is to let each building choose the most suitable actor for its current
+condition, while still making use of the group actors that have already been
+trained. It therefore tests whether actor selection can become more flexible and
+less dependent on one fixed grouping.
+
+Each trained group actor is treated as one candidate actor; the following
+training descriptions also call it an expert. At every time step,
+the observation of each building is first converted into a compact internal
+representation and combined with the information received from the other
+buildings through TarMAC. In the capacity-aware version, the router also receives
+seven easy-to-interpret building variables: normalized battery capacity,
+normalized HVAC rating, battery state of charge, remaining charging space,
+currently available discharge energy, current non-shiftable load, and current
+heating demand. The first two describe the building's equipment, while the other
+five describe its current operating condition. The remaining charging space is
+calculated from capacity and the unused part of the battery, and the available
+discharge energy is calculated from capacity and the current state of charge.
+
+These inputs pass through a small two-layer neural network. For building $i$ at
+time $t$, it produces one score for each candidate actor. The scores are converted
+into probabilities,
+\begin{equation}
+d_{it}=\operatorname{softmax}(z_{it}/\tau),
+\end{equation}
+where every element of $d_{it}$ is the probability of selecting one actor. The
+probabilities add up to one. The temperature $\tau$ controls how decisive the
+choice is: a lower value makes the router concentrate more strongly on one actor,
+whereas a higher value spreads the probabilities more evenly.
+
+At the beginning of training, immediately abandoning the original grouping can
+destroy the useful behaviour already learned by the actors. The router therefore
+combines its new probabilities with the original fixed assignment,
+\begin{equation}
+g_{it}=(1-\alpha)p_i+\alpha d_{it}.
+\end{equation}
+Here, $p_i$ marks the actor originally assigned to building $i$, and $\alpha$
+controls how much freedom is given to the router. When $\alpha=0$, the original
+fixed actor is used. As $\alpha$ increases, the router is allowed to choose other
+actors more often. The experiments pass $\tau$, the starting and final values of
+$\alpha$, the warm-up length, the router learning rate, and the balance strength
+as training settings. This makes it possible to change how quickly and how
+strongly dynamic selection is introduced without changing the building data.
+
+During training, an actor is selected according to $g_{it}$, and that actor
+produces the building action. CityLearn then executes the actions of all
+buildings and returns the same reward defined in
+Equation~\eqref{eq:report2-reward}. Thus, the router does not use a separate
+reward. The shared part of the reward measures how well the total portfolio load
+follows the target, while the building-specific part measures indoor comfort.
+Consequently, an actor choice is encouraged only when it helps load tracking
+without creating excessive comfort violations.
+
+After a sequence of actions, MAPPO compares the received reward with the value
+predicted before those actions. In simple terms, it estimates whether the result
+was better or worse than expected. This comparison is then used to update the
+probability of the selected actions. The probability calculation contains both
+the router probabilities and the actor outputs. Therefore, when the result is
+better than expected, training can increase the probability of similar
+router--actor choices; when it is worse, their probability can be reduced. The
+reward does not need to pass directly through the CityLearn simulator. It is
+used to weight the action probability, and the resulting training error is
+passed backwards through the actor-selection calculation to the router network.
+
+Which parameters receive this update depends on the training stage. When the
+pretrained actors are frozen, only the router parameters are updated, so the
+router learns to use reliable existing actors without changing them. During
+joint fine-tuning, the gradient can also update the allowed actor parameters. In
+the most stable experiments, the encoders and TarMAC communication module remain
+fixed and only the small action-output layers are allowed to change with a low
+learning rate. A separate balance term also prevents all buildings from choosing
+the same actor by keeping the average actor usage reasonably close to the
+original group proportions. This term guides actor usage but is not an additional
+CityLearn reward.
+
+Soft Router can be trained effectively because the candidate actors already know
+useful control behaviours, the original grouping provides a safe starting point,
+and $\alpha$ introduces dynamic choice gradually. The probability-based selection
+also allows the training error to reach the router, while the balance term and
+staged freezing reduce the risk that one actor dominates or that useful
+pretrained behaviour is lost. During deterministic testing, the actor with the
+largest probability is selected directly for each building.
+
+\begin{zhtranslation}
+固定分组会在训练前为每栋建筑指定一个 actor。即使建筑的电池电量、负荷或供暖需求发生变化，
+它仍然使用同一个 actor，因此最终效果会明显受到初始分组质量的影响。引入 Soft Router 就是
+为了解决这一限制：让每栋建筑能够根据当前情况选择更合适的 actor，同时继续使用已经训练好
+的分组 actor。这个实验用于检验 actor 的选择能否更加灵活，并减少对单一固定分组的依赖。
+
+每个已经训练好的分组 actor 都被看作一个候选 actor，后面的训练说明也把它称为 expert。
+在每个时间步，实验先把每栋建筑的
+观测转换成紧凑的内部表示，并通过 TarMAC 与其他建筑的信息结合。在 capacity-aware 版本中，
+router 还会接收七个容易理解的建筑变量：归一化电池容量、归一化 HVAC 额定功率、电池 SOC、
+剩余可充电空间、当前可放电电量、当前不可转移负荷和当前供暖需求。前两个变量描述建筑的
+设备能力，后五个变量描述当前运行情况。剩余可充电空间由电池容量和未使用的电量比例计算，
+当前可放电电量则由电池容量和当前 SOC 计算。
+
+这些输入进入一个小型两层神经网络。对于时刻 $t$ 的建筑 $i$，网络会为每个候选 actor 输出
+一个分数，再把这些分数转换成概率：
 \begin{equation}
 d_{it}=\operatorname{softmax}(z_{it}/\tau).
 \end{equation}
-The final gate interpolates between the one-hot fixed assignment $p_i$ and the
-dynamic gate,
-\begin{equation}
-g_{it}=(1-\alpha)p_i+\alpha d_{it},
-\end{equation}
-where $\alpha$ is increased during training. A balance penalty discourages
-collapse to one expert by comparing average gate usage with the usage implied
-by the original partition. Evaluation can use hard selection from the largest
-gate while training remains differentiable.
+$d_{it}$ 中的每个值表示选择某个 actor 的概率，并且所有概率之和为1。参数 $\tau$ 控制选择的
+集中程度：数值越小，router 越倾向集中选择某一个 actor；数值越大，概率分配越平均。
 
-\begin{zhtranslation}
-设 $K$ 个固定分组策略为 experts。对时刻 $t$ 的建筑 $i$，router 接收全局通信后的隐藏
-状态；在 capacity-aware 版本中还接收七个物理变量：归一化电池容量、归一化 HVAC
-额定值、SOC、可充电余量、可放电余量、当前不可转移负荷和当前供暖需求。两层 router
-输出 logits，再经温度 $\tau$ 控制的 softmax 得到动态权重。最终 gate 在固定 one-hot
-分组 $p_i$ 和动态 gate $d_{it}$ 之间插值，$\alpha$ 随训练增加。balance penalty 通过
-比较平均 expert 使用率与原固定分组的使用率来避免路由塌缩。训练保持可微，测试时可以
-选择 gate 最大的 expert。
+如果训练一开始就完全放弃原固定分组，可能会破坏 actor 已经学到的有效控制能力。因此，
+router 会把新概率与原来的固定分组结合：
+\begin{equation}
+g_{it}=(1-\alpha)p_i+\alpha d_{it}.
+\end{equation}
+其中，$p_i$ 表示原来分给建筑 $i$ 的 actor，$\alpha$ 控制 router 拥有多大的选择自由。
+当 $\alpha=0$ 时完全使用原固定 actor；随着 $\alpha$ 增加，router 可以更频繁地选择其他
+actor。实验把 $\tau$、$\alpha$ 的起始值和最终值、逐步增加所需的训练长度、router 学习率
+以及平衡项强度作为训练参数。这样可以在不改变建筑数据的情况下，控制动态选择以多快、
+多大的程度加入训练。
+
+训练时，实验根据 $g_{it}$ 的概率选择 actor，再由该 actor 生成建筑动作。CityLearn 执行
+所有建筑的动作后，返回公式~\eqref{eq:report2-reward} 中定义的同一个 reward，因此 router
+没有单独的 reward。reward 的共享部分衡量全部建筑的总负荷对目标曲线的跟踪情况，每栋建筑
+自己的部分衡量室内舒适度。因此，只有当某次 actor 选择有助于负荷跟踪，并且没有造成过多
+舒适度超限时，这个选择才会受到鼓励。
+
+完成一段动作后，MAPPO 会比较实际得到的 reward 与执行动作前预测的价值。简单来说，就是
+判断这次结果比预期更好还是更差，然后据此调整所选动作的概率。这个概率同时包含 router 的
+选择概率和 actor 的动作输出。因此，如果结果比预期好，训练就会提高类似 router--actor
+选择的概率；如果结果较差，就会降低其概率。reward 不需要直接穿过 CityLearn 模拟器，
+而是用于调整动作概率对应的训练误差；这个误差再沿着 actor 选择过程反向传到 router 网络。
+
+哪些参数会收到这个更新取决于训练阶段。冻结预训练 actor 时，只有 router 参数更新，因此
+router 可以在不改变已有 actor 的情况下学习如何使用它们。联合微调时，更新也可以传到允许
+训练的 actor 参数。在最稳定的实验中，encoder 和 TarMAC 通信模块保持不变，只让较小的
+动作输出层以低学习率调整。实验还加入单独的平衡项，避免所有建筑都选择同一个 actor，方法
+是让各 actor 的平均使用比例不要过度偏离原分组比例。这个平衡项只帮助控制 actor 的使用，
+不是额外的 CityLearn reward。
+
+Soft Router 能够有效训练，是因为候选 actor 已经掌握了有用的控制方式，原固定分组提供了
+安全的训练起点，而 $\alpha$ 会逐步加入动态选择。基于概率的选择使训练误差能够传到 router，
+平衡项和分阶段冻结则降低了单个 actor 被过度使用以及已有控制能力被破坏的风险。在确定性
+测试时，每栋建筑直接选择概率最大的 actor。
 \end{zhtranslation}
 
 \section{Router Training Sequence}
