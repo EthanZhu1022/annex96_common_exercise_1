@@ -504,39 +504,60 @@ less dependent on one fixed grouping.
 
 Each trained group actor is treated as one candidate actor; the following
 training descriptions also call it an expert. At every time step, each building
-provides an observation. Here, an observation means the information that the
-controller can see at that moment, such as battery state of charge, current
-non-shiftable load, heating demand, indoor temperature, and time information. It
-does not mean the complete building dataset.
+provides an observation $o_{it}$. This is the information visible to the
+controller at that moment, such as battery state of charge (SOC), non-shiftable
+load, heating demand, indoor temperature, and time information, rather than the
+complete building dataset.
 
-The first part of the actor network converts these observation values into a
-learned internal representation. This representation is not a new physical
-measurement; it is a fixed-length set of numbers in which the network summarizes
-the parts of the observation that it considers useful for control. TarMAC then
-combines this summary with information from the other buildings. The standard
-Soft Router selects an actor mainly from this communicated summary.
-
-However, this communicated summary may not clearly retain some physical
-information that is directly useful for actor selection, such as battery
-capability and current load.
-
-The capacity-aware version is an enhanced Soft Router that gives the selector
-additional physical information instead of asking it to infer everything from
-the summary above. It receives seven extra variables: normalized battery
-capacity, normalized HVAC rating, battery state of charge, remaining charging
-space, currently available discharge energy, current non-shiftable load, and
-current heating demand. It is called capacity-aware because battery size and the
-currently available charging and discharging space are supplied explicitly.
-The first two variables describe the building's equipment, while the other five
-describe its current operating condition. The remaining charging space is
-calculated from capacity and the unused part of the battery, and the available
-discharge energy is calculated from capacity and the current state of charge.
-
-These inputs pass through a small two-layer neural network. For building $i$ at
-time $t$, it produces one score for each candidate actor. The scores are converted
-into probabilities,
+For the full-expert experiment, the router input has two complementary parts.
+First, the encoder of the actor originally assigned to each building converts
+its observation into a 256-dimensional latent feature. TarMAC then communicates
+among all 25 buildings. Thus, the communicated feature for building $i$ can be
+written as
 \begin{equation}
-d_{it}=\operatorname{softmax}(z_{it}/\tau),
+h_{it}=\operatorname{TarMAC}_i\!\left(
+\left\{\operatorname{Enc}_{c_j}(o_{jt})\right\}_{j=1}^{N}
+\right)\in\mathbb{R}^{256},
+\end{equation}
+where $c_j$ is the original fixed group of building $j$. Although $h_{it}$ is
+associated with building $i$, it contains information received from the other
+buildings. It is a learned summary rather than a directly measured physical
+quantity.
+
+The learned summary is rich, but an encoder trained mainly for action generation
+may compress or obscure physical quantities that are especially important for
+choosing between experts. The capacity-aware router therefore appends seven
+explicit features for the same building $i$,
+\begin{equation}
+q_{it}=\left[
+\bar C_i,\;\bar H_i,\;s_{it},\;
+\bar C_i(1-s_{it}),\;\bar C_i s_{it},\;
+\ell_{it},\;u_{it}
+\right]\in\mathbb{R}^{7},
+\end{equation}
+where $\bar C_i$ and $\bar H_i$ are its normalized battery capacity and HVAC
+rating, $s_{it}$ is its SOC, $\ell_{it}$ is its current non-shiftable load, and
+$u_{it}$ is its current heating demand. The fourth and fifth entries explicitly
+represent remaining charging space and available discharge energy. These seven
+values belong only to building $i$; they are not a concatenation of the seven
+features of all buildings. Cross-building information is already supplied by
+$h_{it}$.
+
+The complete router input is therefore
+\begin{equation}
+x^{\mathrm{router}}_{it}=[h_{it};q_{it}]\in\mathbb{R}^{263}.
+\end{equation}
+There is one shared router network, not one separately parameterized router per
+building. The same parameters $\theta$ are applied to all 25 inputs, while the
+different building states produce 25 different routing distributions. In the
+reported stable full-expert run, this feed-forward network has the form
+$263\rightarrow64\rightarrow5$: a linear layer, ReLU, and a second linear layer
+that produces one logit for each of the five experts. For building $i$ at time
+$t$, the logits are converted into probabilities,
+\begin{equation}
+d_{it}=\operatorname{softmax}\!\left(
+\operatorname{Router}_{\theta}(x^{\mathrm{router}}_{it})/\tau
+\right),
 \end{equation}
 where every element of $d_{it}$ is the probability of selecting one actor. The
 probabilities add up to one. The temperature $\tau$ controls how decisive the
@@ -557,44 +578,97 @@ $\alpha$, the warm-up length, the router learning rate, and the balance strength
 as training settings. This makes it possible to change how quickly and how
 strongly dynamic selection is introduced without changing the building data.
 
-During training, an actor is selected according to $g_{it}$, and that actor
-produces the building action. CityLearn then executes the actions of all
-buildings and returns the same reward defined in
-Equation~\eqref{eq:report2-reward}. Thus, the router does not use a separate
-reward. The shared part of the reward measures how well the total portfolio load
-follows the target, while the building-specific part measures indoor comfort.
-Consequently, an actor choice is encouraged only when it helps load tracking
-without creating excessive comfort violations.
+During training, an expert is selected according to $g_{it}$ and generates the
+building action. Let $\pi_{\phi_k}(a_{it}\mid s_t)$ denote the action distribution
+of expert $k$, with expert parameters $\phi_k$. The complete routed policy is the
+mixture
+\begin{equation}
+\pi_{\theta,\phi}(a_{it}\mid s_t)
+=\sum_{k=1}^{K}g_{itk}(\theta)\,
+\pi_{\phi_k}(a_{it}\mid s_t).
+\label{eq:soft-router-mixture-policy}
+\end{equation}
+This equation is the key reason why the router can still be trained when all
+experts are frozen. Freezing an expert fixes $\phi_k$ and its action distribution,
+but it does not fix the complete policy: changing $\theta$ changes the mixture
+weights $g_{itk}$ and therefore changes the probability of the executed action.
 
-After a sequence of actions, MAPPO compares the received reward with the value
-predicted before those actions. In simple terms, it estimates whether the result
-was better or worse than expected. This comparison is then used to update the
-probability of the selected actions. The probability calculation contains both
-the router probabilities and the actor outputs. Therefore, when the result is
-better than expected, training can increase the probability of similar
-router--actor choices; when it is worse, their probability can be reduced. The
-reward does not need to pass directly through the CityLearn simulator. It is
-used to weight the action probability, and the resulting training error is
-passed backwards through the actor-selection calculation to the router network.
+CityLearn executes the actions and returns the same reward defined in
+Equation~\eqref{eq:report2-reward}; the router has no separate reward. The shared
+part measures portfolio load tracking, and the building-specific part measures
+indoor comfort. After one rollout, MAPPO uses the rewards and the critic to form
+an advantage estimate, which can be summarized as
+\begin{equation}
+\hat A_{it}=\hat R_{it}-V_{\psi}(s_t).
+\end{equation}
+A positive advantage means that the sampled action led to a better result than
+the critic expected, while a negative advantage means that it was worse. For the
+stored action, PPO recomputes the routed-policy probability and forms the ratio
+\begin{equation}
+r_{it}(\theta,\phi)=
+\frac{\pi_{\theta,\phi}(a_{it}\mid s_t)}
+{\pi_{\mathrm{old}}(a_{it}\mid s_t)}.
+\end{equation}
+The clipped policy loss is
+\begin{equation}
+\mathcal{L}_{\mathrm{PPO}}
+=-\mathbb{E}_{i,t}\!\left[
+\min\!\left(
+r_{it}\hat A_{it},
+\operatorname{clip}(r_{it},1-\epsilon,1+\epsilon)\hat A_{it}
+\right)
+\right].
+\label{eq:soft-router-ppo-loss}
+\end{equation}
+Even when $\phi_k$ is frozen, Equation~\eqref{eq:soft-router-mixture-policy}
+shows that $r_{it}$ and the PPO loss still depend on $\theta$. The gradient path is
+\begin{equation}
+\frac{\partial\mathcal{L}_{\mathrm{PPO}}}{\partial\theta}
+=\frac{\partial\mathcal{L}_{\mathrm{PPO}}}{\partial\pi}
+\frac{\partial\pi}{\partial g}
+\frac{\partial g}{\partial\theta}.
+\end{equation}
+Thus, the reward itself is not differentiated through CityLearn. It determines
+$\hat A_{it}$, which tells PPO whether to increase or decrease the probability of
+the stored action; automatic differentiation then converts this probability
+error into a gradient for the router.
 
-Which parameters receive this update depends on the training stage. When the
-pretrained actors are frozen, only the router parameters are updated, so the
-router learns to use reliable existing actors without changing them. During
-joint fine-tuning, the gradient can also update the allowed actor parameters. In
-the most stable experiments, the encoders and TarMAC communication module remain
-fixed and only the small action-output layers are allowed to change with a low
-learning rate. A separate balance term also prevents all buildings from choosing
-the same actor by keeping the average actor usage reasonably close to the
-original group proportions. This term guides actor usage but is not an additional
-CityLearn reward.
+For example, suppose two frozen experts assign probabilities 0.8 and 0.2 to the
+executed action, and the router initially gives them weights 0.5 and 0.5. The
+mixture assigns probability $0.5(0.8)+0.5(0.2)=0.5$ to that action. If its
+advantage is positive, increasing the first router weight to 0.6 and decreasing
+the second to 0.4 raises the mixture probability to
+$0.6(0.8)+0.4(0.2)=0.56$, without changing either expert. This is the source of
+the policy loss and router gradient during the frozen-expert stage.
 
-Soft Router can be trained effectively because the candidate actors already know
-useful control behaviours, the original grouping provides a safe starting point,
-and $\alpha$ introduces dynamic choice gradually. The probability-based selection
-also allows the training error to reach the router, while the balance term and
-staged freezing reduce the risk that one actor dominates or that useful
-pretrained behaviour is lost. During deterministic testing, the actor with the
-largest probability is selected directly for each building.
+The implemented actor objective also includes exploration and routing-balance
+terms,
+\begin{align}
+\mathcal{L}_{\mathrm{actor}}
+&=\mathcal{L}_{\mathrm{PPO}}-c_H\mathcal{H}(\pi)
++c_B\mathcal{L}_{\mathrm{balance}},\\
+\mathcal{L}_{\mathrm{balance}}
+&=\frac{1}{K}\sum_{k=1}^{K}(\bar g_k-\bar p_k)^2,
+\end{align}
+where $\bar g_k$ is mean expert usage in the batch and $\bar p_k$ is the original
+group proportion. The balance term discourages routing collapse but is not an
+additional CityLearn reward. The critic remains trainable and continues to
+improve the value estimate even while the expert actors are frozen.
+
+Freezing improves stability because it removes a moving-target problem. If the
+router and every expert change rapidly at the same time, the router is trying to
+learn which expert is suitable while the meaning and behaviour of every expert
+are also changing. With pretrained experts fixed, their action distributions are
+reliable reference points, and the smaller router only has to learn how to combine
+them. The original-group prior and gradual increase of $\alpha$ prevent abrupt
+policy changes, PPO clipping limits each probability update, and the balance term
+prevents all buildings from collapsing onto one expert. In the stable full-expert
+experiment, episodes 1--500 update the router while freezing all experts;
+episodes 501--1000 freeze the learned router and update only the small action
+heads at a low learning rate. Keeping the encoders and TarMAC module fixed
+preserves their pretrained latent spaces and communication behaviour. During
+deterministic testing, each building directly uses the expert with the largest
+routing probability.
 
 \begin{zhtranslation}
 固定分组会在训练前为每栋建筑指定一个 actor。即使建筑的电池电量、负荷或供暖需求发生变化，
@@ -603,27 +677,46 @@ largest probability is selected directly for each building.
 的分组 actor。这个实验用于检验 actor 的选择能否更加灵活，并减少对单一固定分组的依赖。
 
 每个已经训练好的分组 actor 都被看作一个候选 actor，后面的训练说明也把它称为 expert。
-在每个时间步，每栋建筑都会提供一组观测。这里的“观测”是控制器在当前时刻能够看到的信息，
-例如电池 SOC、当前不可转移负荷、供暖需求、室内温度和时间信息，而不是整套建筑数据。
+在每个时间步，每栋建筑提供观测 $o_{it}$。它是控制器在当前时刻能够看到的信息，例如电池
+SOC、当前不可转移负荷、供暖需求、室内温度和时间信息，而不是整套建筑数据。
 
-actor 网络的前半部分会把这些观测值转换成内部表示。内部表示不是新的物理测量值，而是网络
-整理出的一组固定长度的数值，用来概括观测中对控制有用的信息。TarMAC 再把这组信息与其他
-建筑的信息结合。普通 Soft Router 主要根据这组通信后的信息选择 actor。
-
-但是，这组通信后的信息不一定能清楚保留与 actor 选择直接相关的电池能力和当前负荷等
-物理信息。
-
-capacity-aware 是 Soft Router 的增强版本。它会把明确的建筑物理信息额外提供给选择器，而
-不是让选择器只从上面的内部表示中自己判断。它额外接收七个变量：归一化电池容量、归一化
-HVAC 额定功率、电池 SOC、剩余可充电空间、当前可放电电量、当前不可转移负荷和当前供暖
-需求。这个版本称为 capacity-aware，是因为它明确使用了电池容量以及当前可充电和可放电的
-空间。前两个变量描述建筑的设备能力，后五个变量描述当前运行情况。剩余可充电空间由电池
-容量和未使用的电量比例计算，当前可放电电量则由电池容量和当前 SOC 计算。
-
-这些输入进入一个小型两层神经网络。对于时刻 $t$ 的建筑 $i$，网络会为每个候选 actor 输出
-一个分数，再把这些分数转换成概率：
+在 full-expert 实验中，router 输入由两个互补部分组成。第一部分由每栋建筑原固定分组的 actor
+encoder 把观测转成 256 维隐藏特征，再由 TarMAC 在全部25栋建筑之间通信。建筑 $i$ 得到的
+通信特征可以写成
 \begin{equation}
-d_{it}=\operatorname{softmax}(z_{it}/\tau).
+h_{it}=\operatorname{TarMAC}_i\!\left(
+\left\{\operatorname{Enc}_{c_j}(o_{jt})\right\}_{j=1}^{N}
+\right)\in\mathbb{R}^{256},
+\end{equation}
+其中 $c_j$ 是建筑 $j$ 的原固定分组。$h_{it}$ 虽然对应建筑 $i$，但已经包含其他建筑发来的
+信息；它是网络学习得到的概括，而不是新的物理测量值。
+
+这种隐藏表示信息丰富，但主要为动作生成训练的 encoder 可能压缩或弱化对 expert 选择特别
+重要的物理量。因此，capacity-aware router 会额外拼接同一栋建筑 $i$ 的七个明确特征：
+\begin{equation}
+q_{it}=\left[
+\bar C_i,\;\bar H_i,\;s_{it},\;
+\bar C_i(1-s_{it}),\;\bar C_i s_{it},\;
+\ell_{it},\;u_{it}
+\right]\in\mathbb{R}^{7}.
+\end{equation}
+$\bar C_i$ 和 $\bar H_i$ 分别是该建筑归一化后的电池容量和 HVAC 额定功率，$s_{it}$ 是当前
+SOC，$\ell_{it}$ 是当前不可转移负荷，$u_{it}$ 是当前供暖需求；第四、第五项明确给出剩余
+充电空间和当前可放电电量。这七维只属于当前正在选择 expert 的建筑 $i$，不是把25栋建筑的
+$25\times7$ 个特征全部拼接。其他建筑的信息已经通过 $h_{it}$ 中的 TarMAC 通信提供。
+
+完整 router 输入因此是
+\begin{equation}
+x^{\mathrm{router}}_{it}=[h_{it};q_{it}]\in\mathbb{R}^{263}.
+\end{equation}
+系统只有一个共享参数的 router NN，并不是每栋建筑各有一个独立 router。同一套参数 $\theta$
+应用于25栋建筑的25组输入，但各建筑状态不同，因此会得到25组不同的 routing distribution。
+在 stable full-expert 实验中，它是 $263\rightarrow64\rightarrow5$ 的前馈网络：第一层线性
+变换后接 ReLU，第二层为5个 expert 分别输出一个 logit。建筑 $i$ 在时刻 $t$ 的概率为
+\begin{equation}
+d_{it}=\operatorname{softmax}\!\left(
+\operatorname{Router}_{\theta}(x^{\mathrm{router}}_{it})/\tau
+\right).
 \end{equation}
 $d_{it}$ 中的每个值表示选择某个 actor 的概率，并且所有概率之和为1。参数 $\tau$ 控制选择的
 集中程度：数值越小，router 越倾向集中选择某一个 actor；数值越大，概率分配越平均。
@@ -639,29 +732,80 @@ actor。实验把 $\tau$、$\alpha$ 的起始值和最终值、逐步增加所�
 以及平衡项强度作为训练参数。这样可以在不改变建筑数据的情况下，控制动态选择以多快、
 多大的程度加入训练。
 
-训练时，实验根据 $g_{it}$ 的概率选择 actor，再由该 actor 生成建筑动作。CityLearn 执行
-所有建筑的动作后，返回公式~\eqref{eq:report2-reward} 中定义的同一个 reward，因此 router
-没有单独的 reward。reward 的共享部分衡量全部建筑的总负荷对目标曲线的跟踪情况，每栋建筑
-自己的部分衡量室内舒适度。因此，只有当某次 actor 选择有助于负荷跟踪，并且没有造成过多
-舒适度超限时，这个选择才会受到鼓励。
+训练时根据 $g_{it}$ 选择 expert，再由该 expert 生成建筑动作。令 expert $k$ 的动作分布为
+$\pi_{\phi_k}(a_{it}\mid s_t)$，其中 $\phi_k$ 是它的参数，则完整 routing policy 是混合分布
+\begin{equation}
+\pi_{\theta,\phi}(a_{it}\mid s_t)
+=\sum_{k=1}^{K}g_{itk}(\theta)\,
+\pi_{\phi_k}(a_{it}\mid s_t).
+\label{eq:soft-router-mixture-policy-zh}
+\end{equation}
+这个公式解释了为什么冻结全部 expert 后仍然能训练 router。冻结 expert 只是固定 $\phi_k$ 和
+各自的动作分布，并没有固定完整 policy；router 参数 $\theta$ 改变时，混合权重 $g_{itk}$
+仍会改变，因此实际动作的总概率也会改变。
 
-完成一段动作后，MAPPO 会比较实际得到的 reward 与执行动作前预测的价值。简单来说，就是
-判断这次结果比预期更好还是更差，然后据此调整所选动作的概率。这个概率同时包含 router 的
-选择概率和 actor 的动作输出。因此，如果结果比预期好，训练就会提高类似 router--actor
-选择的概率；如果结果较差，就会降低其概率。reward 不需要直接穿过 CityLearn 模拟器，
-而是用于调整动作概率对应的训练误差；这个误差再沿着 actor 选择过程反向传到 router 网络。
+CityLearn 执行动作后返回公式~\eqref{eq:report2-reward} 中的同一个 reward，router 没有单独
+reward。共享部分衡量全部建筑的负荷跟踪，每栋建筑自己的部分衡量室内舒适度。一次 rollout
+结束后，MAPPO 用 reward 和 critic 计算 advantage，可简写为
+\begin{equation}
+\hat A_{it}=\hat R_{it}-V_{\psi}(s_t).
+\end{equation}
+$\hat A_{it}>0$ 表示这次动作结果比 critic 预期更好，$\hat A_{it}<0$ 表示更差。对于已经保存
+的动作，PPO 重新计算当前 routing policy 下的概率，并构造比例
+\begin{equation}
+r_{it}(\theta,\phi)=
+\frac{\pi_{\theta,\phi}(a_{it}\mid s_t)}
+{\pi_{\mathrm{old}}(a_{it}\mid s_t)}.
+\end{equation}
+对应的 clipped policy loss 为
+\begin{equation}
+\mathcal{L}_{\mathrm{PPO}}
+=-\mathbb{E}_{i,t}\!\left[
+\min\!\left(
+r_{it}\hat A_{it},
+\operatorname{clip}(r_{it},1-\epsilon,1+\epsilon)\hat A_{it}
+\right)
+\right].
+\label{eq:soft-router-ppo-loss-zh}
+\end{equation}
+即使 $\phi_k$ 冻结，公式~\eqref{eq:soft-router-mixture-policy-zh} 说明 $r_{it}$ 和 PPO loss 仍
+依赖 $\theta$，梯度路径为
+\begin{equation}
+\frac{\partial\mathcal{L}_{\mathrm{PPO}}}{\partial\theta}
+=\frac{\partial\mathcal{L}_{\mathrm{PPO}}}{\partial\pi}
+\frac{\partial\pi}{\partial g}
+\frac{\partial g}{\partial\theta}.
+\end{equation}
+因此 reward 本身不需要穿过 CityLearn 求导。它先决定 $\hat A_{it}$，告诉 PPO 应该提高还是
+降低已执行动作的概率；自动微分再把这个概率误差转成 router 参数的梯度。
 
-哪些参数会收到这个更新取决于训练阶段。冻结预训练 actor 时，只有 router 参数更新，因此
-router 可以在不改变已有 actor 的情况下学习如何使用它们。联合微调时，更新也可以传到允许
-训练的 actor 参数。在最稳定的实验中，encoder 和 TarMAC 通信模块保持不变，只让较小的
-动作输出层以低学习率调整。实验还加入单独的平衡项，避免所有建筑都选择同一个 actor，方法
-是让各 actor 的平均使用比例不要过度偏离原分组比例。这个平衡项只帮助控制 actor 的使用，
-不是额外的 CityLearn reward。
+例如，两个冻结 expert 对已执行动作分别给出0.8和0.2的概率，router 初始权重为0.5和0.5，
+则混合 policy 对该动作的概率是 $0.5(0.8)+0.5(0.2)=0.5$。如果 advantage 为正，把第一项
+权重提高到0.6、第二项降到0.4，会让总概率提高到
+$0.6(0.8)+0.4(0.2)=0.56$，而两个 expert 自身都不需要改变。这就是冻结 expert 阶段仍然
+存在 policy loss，并且能够产生 router 梯度的原因。
 
-Soft Router 能够有效训练，是因为候选 actor 已经掌握了有用的控制方式，原固定分组提供了
-安全的训练起点，而 $\alpha$ 会逐步加入动态选择。基于概率的选择使训练误差能够传到 router，
-平衡项和分阶段冻结则降低了单个 actor 被过度使用以及已有控制能力被破坏的风险。在确定性
-测试时，每栋建筑直接选择概率最大的 actor。
+实际 actor 目标还包含探索项和平衡项：
+\begin{align}
+\mathcal{L}_{\mathrm{actor}}
+&=\mathcal{L}_{\mathrm{PPO}}-c_H\mathcal{H}(\pi)
++c_B\mathcal{L}_{\mathrm{balance}},\\
+\mathcal{L}_{\mathrm{balance}}
+&=\frac{1}{K}\sum_{k=1}^{K}(\bar g_k-\bar p_k)^2.
+\end{align}
+$\bar g_k$ 是 batch 中 expert $k$ 的平均使用比例，$\bar p_k$ 是原固定分组比例。平衡项用于
+防止所有建筑都集中选择同一 expert，但它不是额外的 CityLearn reward。expert actor 冻结时，
+critic 仍然继续训练和改善 value 估计。
+
+冻结能够提高稳定性，是因为它消除了 moving-target 问题。如果 router 和全部 expert 同时快速
+变化，router 一边学习哪个 expert 更合适，各 expert 的含义和行为却也在不断改变；这样同一
+routing 概率在前后 episode 中可能对应不同控制行为。固定预训练 expert 后，它们成为可靠的
+参考点，参数量更小的 router 只需要学习如何组合这些已有能力。原固定分组 prior 和逐步增加
+$\alpha$ 避免策略突然改变，PPO clipping 限制每次概率更新幅度，平衡项避免选择塌缩到单一
+expert。在 stable full-expert 实验中，第1--500个 episode 冻结全部 expert、只更新 router；
+第501--1000个 episode 冻结已经学好的 router，只以很低学习率更新较小的 action heads。
+encoder 和 TarMAC 始终固定，从而保留预训练的隐藏空间和通信行为。确定性测试时，每栋建筑
+直接使用 routing 概率最大的 expert。
 \end{zhtranslation}
 
 \section{Router Training Sequence}
