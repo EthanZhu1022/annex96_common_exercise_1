@@ -592,19 +592,25 @@ as training settings. This makes it possible to change how quickly and how
 strongly dynamic selection is introduced without changing the building data.
 
 During training, an expert is selected according to $g_{it}$ and generates the
-building action. Let $\pi_{\phi_k}(a_{it}\mid s_t)$ denote the action distribution
-of expert $k$, with expert parameters $\phi_k$. The complete routed policy is the
-mixture
+building action. To protect the useful behaviour in the pretrained actors, the
+stable experiment uses staged training: it first freezes all experts and updates
+only the router. This raises an important question: if the experts no longer
+change, how can a policy loss still train the router? The reason is that the
+complete policy includes both the expert action distributions and the router's
+selection probabilities. Let $\pi_{\phi_k}(a_{it}\mid s_t)$ denote the action
+distribution of expert $k$, with expert parameters $\phi_k$. The complete routed
+policy is the mixture
 \begin{equation}
 \pi_{\theta,\phi}(a_{it}\mid s_t)
 =\sum_{k=1}^{K}g_{itk}(\theta)\,
 \pi_{\phi_k}(a_{it}\mid s_t).
 \label{eq:soft-router-mixture-policy}
 \end{equation}
-This equation is the key reason why the router can still be trained when all
-experts are frozen. Freezing an expert fixes $\phi_k$ and its action distribution,
-but it does not fix the complete policy: changing $\theta$ changes the mixture
-weights $g_{itk}$ and therefore changes the probability of the executed action.
+Freezing an expert fixes $\phi_k$ and its action distribution, but it does not
+fix the complete policy. Changing the router parameters $\theta$ changes the
+mixture weights $g_{itk}$ and therefore changes the probability of the executed
+action. Equation~\eqref{eq:soft-router-mixture-policy} is therefore the link
+between staged freezing and the PPO loss derived below.
 
 CityLearn executes the actions and returns the same reward defined in
 Equation~\eqref{eq:report2-reward}; the router has no separate reward. The shared
@@ -756,7 +762,10 @@ actor。实验把 $\tau$、$\alpha$ 的起始值和最终值、逐步增加所�
 以及平衡项强度作为训练参数。这样可以在不改变建筑数据的情况下，控制动态选择以多快、
 多大的程度加入训练。
 
-训练时根据 $g_{it}$ 选择 expert，再由该 expert 生成建筑动作。令 expert $k$ 的动作分布为
+训练时根据 $g_{it}$ 选择 expert，再由该 expert 生成建筑动作。为了保护预训练 actor 已经
+学好的控制能力，stable 实验采用分阶段训练：第一阶段冻结全部 expert，只更新 router。
+这会带来一个问题：expert 不再变化时，policy loss 为什么还能训练 router？原因是完整 policy
+不仅包括 expert 的动作分布，还包括 router 的选择概率。令 expert $k$ 的动作分布为
 $\pi_{\phi_k}(a_{it}\mid s_t)$，其中 $\phi_k$ 是它的参数，则完整 routing policy 是混合分布
 \begin{equation}
 \pi_{\theta,\phi}(a_{it}\mid s_t)
@@ -764,9 +773,9 @@ $\pi_{\phi_k}(a_{it}\mid s_t)$，其中 $\phi_k$ 是它的参数，则完整 rou
 \pi_{\phi_k}(a_{it}\mid s_t).
 \label{eq:soft-router-mixture-policy-zh}
 \end{equation}
-这个公式解释了为什么冻结全部 expert 后仍然能训练 router。冻结 expert 只是固定 $\phi_k$ 和
-各自的动作分布，并没有固定完整 policy；router 参数 $\theta$ 改变时，混合权重 $g_{itk}$
-仍会改变，因此实际动作的总概率也会改变。
+冻结 expert 只会固定 $\phi_k$ 和各自的动作分布，并不会固定完整 policy。Router 参数
+$\theta$ 改变时，混合权重 $g_{itk}$ 仍会改变，因此实际动作的总概率也会改变。
+公式~\eqref{eq:soft-router-mixture-policy-zh} 就把前面的分阶段冻结与下面的 PPO loss 连接起来。
 
 CityLearn 执行动作后返回公式~\eqref{eq:report2-reward} 中的同一个 reward，router 没有单独
 reward。共享部分衡量全部建筑的负荷跟踪，每栋建筑自己的部分衡量室内舒适度。一次 rollout
@@ -839,7 +848,8 @@ The soft-router experiments evolved through four designs:
   \item \textbf{End-to-end legacy training.} Router and actors were trained
   together from randomly initialized policies. Temperature, warm-up duration,
   and final prior weight were varied. These runs established that a router could
-  learn non-uniform gates, but policy learning was unstable.
+  assign different selection probabilities to the experts, but policy learning
+  was unstable.
   \item \textbf{Pretrained two-stage training.} A strong fixed 3fA actor
   checkpoint was loaded first. Experts were frozen for 200 episodes before
   limited joint fine-tuning, with temperature 0.5 or 0.7, final dynamic weight
@@ -865,7 +875,8 @@ partition.
 \begin{zhtranslation}
 Soft router 实验经历了四个设计阶段。第一，最初的 end-to-end 版本从随机 actor 开始，
 同时训练 router 和 experts，并改变 temperature、warm-up 和 prior 权重；它证明 router
-可以产生非均匀 gate，但策略不稳定。第二，两阶段版本先载入强 3fA 固定分组 checkpoint，
+可以为不同 expert 分配不同的选择概率，但策略不稳定。第二，两阶段版本先载入先前得出的强特征组合 3fA 固定
+分组 checkpoint，
 冻结 experts 200 episodes 后再有限联合微调，同时比较 temperature 0.5/0.7、最终动态
 权重 1.0/0.7，以及是否使用七个 capacity-aware 输入。第三，三阶段版本明确分开静态
 actor、router-only 和动态 actor 适应，并比较 shared-encoder 与 full-expert。第四，
