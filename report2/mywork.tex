@@ -502,14 +502,25 @@ condition, while still making use of the group actors that have already been
 trained. It therefore tests whether actor selection can become more flexible and
 less dependent on one fixed grouping.
 
-Each trained group actor is treated as one candidate actor; the following
-training descriptions also call it an expert. At every time step, each building
-provides an observation $o_{it}$. This is the information visible to the
-controller at that moment, such as battery state of charge (SOC), non-shiftable
-load, heating demand, indoor temperature, and time information, rather than the
-complete building dataset.
+Each trained group actor is treated as one candidate actor, also called an
+expert. To explain how the router chooses among them, first consider how one
+expert produces an action. At every time step, a building provides an observation
+$o_{it}$, such as its battery SOC, current load, heating demand, indoor
+temperature, and time information. The expert's \emph{encoder} turns these raw
+values into a short internal summary. TarMAC adds useful information from the
+other buildings, and the \emph{action head} finally converts the communicated
+summary into a control action.
 
-For the full-expert experiment, the router input has two complementary parts.
+The encoder and action head of each pretrained expert were learned together.
+Some early routers switched only the action head, so a head could receive an
+internal summary produced by an encoder with which it had never been trained.
+The stable version instead switches the matched encoder and action head together;
+this is called \emph{full-expert routing}. It preserves the complete control
+behaviour of each pretrained actor and is therefore easier to keep stable. The
+following explanation focuses on this version, while the other router designs
+are summarized later.
+
+To choose a full expert, the router receives an input with two complementary parts.
 First, the encoder of the actor originally assigned to each building converts
 its observation into a 256-dimensional latent feature. TarMAC then communicates
 among all 25 buildings. Thus, the communicated feature for building $i$ can be
@@ -676,12 +687,21 @@ routing probability.
 为了解决这一限制：让每栋建筑能够根据当前情况选择更合适的 actor，同时继续使用已经训练好
 的分组 actor。这个实验用于检验 actor 的选择能否更加灵活，并减少对单一固定分组的依赖。
 
-每个已经训练好的分组 actor 都被看作一个候选 actor，后面的训练说明也把它称为 expert。
-在每个时间步，每栋建筑提供观测 $o_{it}$。它是控制器在当前时刻能够看到的信息，例如电池
-SOC、当前不可转移负荷、供暖需求、室内温度和时间信息，而不是整套建筑数据。
+每个已经训练好的分组 actor 都被看作一个候选 actor，也称为 expert。要说明 router 怎样在
+这些 expert 之间选择，可以先看一个 expert 怎样产生动作。在每个时间步，每栋建筑提供观测
+$o_{it}$，例如电池 SOC、当前负荷、供暖需求、室内温度和时间信息。Expert 的
+\emph{encoder} 先把这些原始观测值整理成一组较短的内部信息，TarMAC 再加入来自其他建筑的
+有用信息，最后由 \emph{action head} 把通信后的信息变成控制动作。
 
-在 full-expert 实验中，router 输入由两个互补部分组成。第一部分由每栋建筑原固定分组的 actor
-encoder 把观测转成 256 维隐藏特征，再由 TarMAC 在全部25栋建筑之间通信。建筑 $i$ 得到的
+每个预训练 expert 的 encoder 和 action head 原本是配套训练的。早期 router 只切换 action
+head，可能让一个 head 收到由陌生 encoder 产生的内部信息。稳定版本把配套的 encoder 和
+action head 一起切换，这种方式称为 \emph{full-expert routing}。它保留了每个预训练 actor
+已经学好的完整控制方式，因此更容易保持稳定。下面重点说明这个版本，其他 router 结构会在
+后文概括。
+
+为了决定选择哪个完整 expert，router 的输入由两个互补部分组成。第一部分由每栋建筑原固定
+分组的 actor encoder 把观测转成 256 维隐藏特征，再由 TarMAC 在全部25栋建筑之间通信。
+建筑 $i$ 得到的
 通信特征可以写成
 \begin{equation}
 h_{it}=\operatorname{TarMAC}_i\!\left(
