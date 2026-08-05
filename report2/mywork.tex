@@ -502,9 +502,11 @@ condition, while still making use of the group actors that have already been
 trained. It therefore tests whether actor selection can become more flexible and
 less dependent on one fixed grouping.
 
-Each trained group actor is treated as one candidate actor, also called an
-expert. To explain how the router chooses among them, first consider how one
-expert produces an action. At every time step, a building provides an observation
+The Soft Router itself is a small shared neural network: for each building, it
+reads the building's current information and outputs one selection probability
+for every candidate actor. Each trained group actor is one such candidate, also
+called an expert. To explain how the router chooses among them, first consider
+how one expert produces an action. At every time step, a building provides an observation
 $o_{it}$, such as its battery SOC, current load, heating demand, indoor
 temperature, and time information. The expert's \emph{encoder} turns these raw
 values into a short internal summary. TarMAC adds useful information from the
@@ -687,8 +689,10 @@ routing probability.
 为了解决这一限制：让每栋建筑能够根据当前情况选择更合适的 actor，同时继续使用已经训练好
 的分组 actor。这个实验用于检验 actor 的选择能否更加灵活，并减少对单一固定分组的依赖。
 
-每个已经训练好的分组 actor 都被看作一个候选 actor，也称为 expert。要说明 router 怎样在
-这些 expert 之间选择，可以先看一个 expert 怎样产生动作。在每个时间步，每栋建筑提供观测
+Soft Router 本身是一个小型共享神经网络：它读取每栋建筑的当前信息，并为所有候选 actor
+分别输出一个选择概率。每个已经训练好的分组 actor 就是一个候选 actor，也称为 expert。
+要说明 router 怎样在这些 expert 之间选择，可以先看一个 expert 怎样产生动作。在每个时间步，
+每栋建筑提供观测
 $o_{it}$，例如电池 SOC、当前负荷、供暖需求、室内温度和时间信息。Expert 的
 \emph{encoder} 先把这些原始观测值整理成一组较短的内部信息，TarMAC 再加入来自其他建筑的
 有用信息，最后由 \emph{action head} 把通信后的信息变成控制动作。
