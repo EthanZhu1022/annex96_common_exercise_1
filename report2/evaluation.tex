@@ -220,8 +220,7 @@ metric. 3fI, which removes capacity and adds comfort, has the lowest mean
 CV-RMSE and degree-hours. 3fE has the lowest comfort variability. In contrast,
 3fA has by far the lowest and most stable absolute bias, $0.49\pm0.18$\%, and
 its features remain directly interpretable across climates. It is therefore
-selected as the best overall compromise, rather than claimed as the winner of
-every column.
+selected as the best overall compromise.
 
 \begin{table}[!htbp]
 \scriptsize
@@ -260,7 +259,7 @@ bias, although seed sensitivity in load shape has not disappeared.
 实验，“最佳”取决于指标：移除 capacity、加入 comfort 的 3fI 具有最低平均 CV-RMSE
 和 degree-hours，3fE 的舒适度方差最小；而 3fA 的绝对偏差明显最低且最稳定，为
 $0.49\pm0.18$\%，并且三个特征能跨气候直接解释。因此，本报告把 3fA 选为“最佳综合
-折中”，而不是声称它在每一列都第一。
+折中”。
 
 在更大的五次 3fA 稳定性实验（seeds 0、1、2、3、42）中，CV-RMSE 为
 $49.86\pm3.65$\%，绝对 NMBE 为 $0.81\pm0.68$\%，每栋建筑每天的平均 degree-hours 为
@@ -303,8 +302,7 @@ compared with 163.74\% for the no-control baseline and 207.63\% for RBC. Mean
 absolute NMBE is 45.57\%, compared with 79.12\% and 89.57\%, respectively. TX
 bias therefore remains a clear limitation, but the learned controller is still
 substantially better than both references and has low seed variation in comfort
-and bias. This supports generalization of the compact feature principle, not
-zero-shot generalization of one policy.
+and bias. This supports generalization of the compact feature principle.
 
 \begin{zhtranslation}
 跨气候实验迁移的是 3fA 的“特征角色”，而不是 Vermont 已训练参数。Vermont 使用
@@ -315,7 +313,7 @@ capacity--heating mean--NSL mean；Texas 使用 capacity--cooling mean--NSL mean
 Texas 三个 CV-RMSE 为 73.78--83.57\%，而 no-control baseline 为 163.74\%、RBC 为
 207.63\%；平均绝对 NMBE 为 45.57\%，两个参考分别为 79.12\% 和 89.57\%。TX 的 bias
 仍然是明显限制，但学习控制器依然大幅优于两个参考，而且舒适度与偏差的 seed 波动较小。
-因此，结果支持紧凑特征原则的泛化，而不是声称一个 policy 可以零样本跨气候泛化。
+因此，结果支持紧凑特征原则的泛化。
 \end{zhtranslation}
 
 \section{Soft-Router Ablation and Training Progression}
