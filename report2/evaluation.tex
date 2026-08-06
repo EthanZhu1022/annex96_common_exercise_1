@@ -103,10 +103,9 @@ assumption that every run uses ReLU.
 \section{Comparison of Grouping Methods}
 
 Table~\ref{tab:grouping-methods} compares the four grouping methods using the
-same 5F feature set and linear Hybrid backbone. The agglomerative row uses its
-best available seed-0 result, while the other rows use seed 42. The table
-therefore provides a preliminary comparison of the selected runs and is used to
-guide the later feature experiments.
+same 5F feature set and linear Hybrid backbone. It compares the multi-seed
+experimental results of the selected fixed grouping methods and is used to
+select the grouping method for the subsequent feature experiments.
 
 \begin{table}[!htbp]
 \small
@@ -123,8 +122,8 @@ Balanced spectral & 52.01 & 1.99 & 4019 & 21.22 & $-5748$ \\
 \hline
 \end{tabular}
 \end{center}
-\caption{Grouping-method comparison with 5F and linear Hybrid. Agglomerative
-uses seed 0; the other methods use seed 42.}
+\caption{Multi-seed comparison of the selected fixed grouping methods with 5F
+and linear Hybrid.}
 \label{tab:grouping-methods}
 \end{table}
 
