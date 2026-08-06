@@ -28,9 +28,7 @@ the improvement does not come from simply adding another layer.
 Second, building grouping is part of the learning system rather than a neutral
 preprocessing step. The four tested methods produce different results:
 agglomerative clustering gives the strongest load tracking in the method
-comparison, while K-means gives better comfort and reward in that table. Since
-portfolio load tracking is the main task, agglomerative clustering was selected
-for the later feature experiments.
+comparison, so it was selected for the later feature experiments.
 
 Third, more grouping features do not necessarily improve performance. The 3fA
 combination---battery capacity, mean heating demand, and mean non-shiftable
@@ -85,10 +83,9 @@ selector while allowing only small changes to the actor output heads.
 This design reduces the restriction imposed by a permanent building-to-actor
 assignment while retaining the useful behaviour learned by the fixed experts.
 The stable multi-seed results show that it is a practical performance
-enhancement rather than only a theoretical idea. It therefore directly answers
-the innovation proposed in the Introduction: Soft Router can reduce the model's
-dependence on fixed grouping, although it does not yet remove that dependence
-completely.
+enhancement rather than only a theoretical idea. Therefore, Soft Router can
+reduce the model's dependence on fixed grouping, although it does not yet remove
+that dependence completely.
 
 \begin{zhtranslation}
 本研究最大的创新点是在 grouped MAPPO 中加入 Soft Router，根据建筑当前状态为其选择
@@ -123,7 +120,7 @@ Finally, cross-climate testing currently covers only the 25-building Vermont
 and Texas settings. The Texas controller is much better than the no-control and
 RBC references, but its load bias remains high. Some buildings also continue to
 violate the comfort range for long periods. The current conclusions therefore
-need validation on more climates, portfolio sizes, and comfort conditions.
+need validation under more varied conditions.
 
 \begin{zhtranslation}
 目前最大的局限是，最终 Soft Router 仍然依赖效果较好的预训练 actors。报告中的三个
@@ -145,16 +142,13 @@ seeds 都从同一个 seed-42 固定 expert checkpoint 开始，只改变后续 
 
 The next stage should focus on strengthening the current conclusions:
 \begin{itemize}
-  \item complete paired multi-seed experiments for the four grouping methods
-  and the most important feature settings;
-  \item compare fixed 3fA, router-only, and stable-head routing using matched
-  seeds and independently trained expert checkpoints;
+  \item continue studying stronger grouping methods and feature combinations to
+  improve the earlier fixed-grouping performance;
   \item improve Soft Router training so that it can start from weaker groups or
   random initialization without routing collapse;
-  \item repeat the stable Soft Router in Texas and extend the evaluation to more
-  climates and portfolio sizes;
   \item analyse actor-selection probabilities and building-level comfort in
-  more detail to explain when and why each building changes actors.
+  more detail, and further improve the current method under different climate
+  conditions.
 \end{itemize}
 
 These experiments will determine whether Soft Router can progress from a stable
