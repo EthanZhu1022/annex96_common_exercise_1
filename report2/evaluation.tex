@@ -21,8 +21,22 @@ testing. Texas uses August for training/group features and September for
 testing. Unless otherwise stated, runs use 500 training episodes. Load tracking
 is reported using CV-RMSE and the absolute value of NMBE. Comfort is reported as
 both the percentage of building-hours outside the seasonal comfort band and
-degree-hours, which preserves the magnitude as well as the duration of a
-temperature violation. Lower values are better for all four metrics.
+degree-hours per building-day, which preserves the magnitude as well as the
+duration of a temperature violation while making results comparable across test
+periods and portfolio sizes. It is calculated as
+\begin{equation}
+\label{eq:degree-hours-per-building-day}
+\mathrm{DH}_{\mathrm{bd}}
+=\frac{\text{portfolio total degree-hours}}
+{N_{\mathrm{building}}\,D_{\mathrm{test}}}
+=\frac{\sum_{i=1}^{N_{\mathrm{building}}}\sum_{t=1}^{T}d_{i,t}\Delta t}
+{N_{\mathrm{building}}\,D_{\mathrm{test}}},
+\end{equation}
+where $d_{i,t}$ is the number of degrees by which building $i$ is outside the
+comfort band at time $t$, $\Delta t$ is the time-step duration,
+$N_{\mathrm{building}}$ is the number of buildings, and $D_{\mathrm{test}}$ is
+the number of test days. Its unit is $^\circ$C h per building-day. Lower values
+are better for all four metrics.
 
 The evaluation combines repeated training results from multiple random seeds
 across the main feature, climate, and Soft Router studies.
@@ -36,7 +50,11 @@ controlled comparison.
 Vermont 使用一月进行训练和分组特征提取、二月测试；Texas 使用八月训练和提取特征、
 九月测试。除非另有说明，每个实验训练 500 episodes。负荷跟踪使用 CV-RMSE 和 NMBE
 绝对值；舒适度同时使用超限 building-hours 比例和 degree-hours，后者同时保留温度越界
-的幅度与持续时间。四个指标均越低越好。
+的幅度与持续时间。本报告使用的是每栋建筑每天的平均超标度时，即组合总超标度时除以
+建筑数量与测试天数的乘积，如公式~\eqref{eq:degree-hours-per-building-day} 所示。其中
+$d_{i,t}$ 是建筑 $i$ 在时间 $t$ 超出舒适温度范围的度数，$\Delta t$ 是时间步长度，
+$N_{\mathrm{building}}$ 是建筑数量，$D_{\mathrm{test}}$ 是测试天数。该指标的单位为
+$^\circ$C h/建筑--天。四个指标均越低越好。
 
 本章综合使用了多次不同随机种子的重复训练结果，覆盖主要的特征、气候和 Soft Router
 实验。控制变量的消融实验在相同 seed 和相同设置下进行比较；需要判断稳定性时，则使用
@@ -113,12 +131,12 @@ select the grouping method for the subsequent feature experiments.
 \begin{tabular}{|l|r|r|r|r|r|}
 \hline
 Method & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort & Reward \\
- & (\%) & (\%) & ($^\circ$C h) & exceed. (\%) & sum \\
+ & (\%) & (\%) & ($^\circ$C h/building-day) & exceed. (\%) & sum \\
 \hline
-K-means & 51.56 & 2.53 & \textbf{3197} & \textbf{17.33} & \textbf{$-4715$} \\
-GMM & 53.08 & 0.94 & 4127 & 23.75 & $-6115$ \\
-Agglomerative & \textbf{46.93} & \textbf{0.49} & 4687 & 23.13 & $-6121$ \\
-Balanced spectral & 52.01 & 1.99 & 4019 & 21.22 & $-5748$ \\
+K-means & 51.56 & 2.53 & \textbf{4.57} & \textbf{17.33} & \textbf{$-4715$} \\
+GMM & 53.08 & 0.94 & 5.90 & 23.75 & $-6115$ \\
+Agglomerative & \textbf{46.93} & \textbf{0.49} & 6.70 & 23.13 & $-6121$ \\
+Balanced spectral & 52.01 & 1.99 & 5.74 & 21.22 & $-5748$ \\
 \hline
 \end{tabular}
 \end{center}
@@ -129,7 +147,8 @@ and linear Hybrid.}
 
 Agglomerative clustering gives the strongest load-tracking result, with the
 lowest CV-RMSE (46.93\%) and absolute NMBE (0.49\%). K-means performs better on
-thermal comfort and reward, giving the fewest degree-hours (3197), the lowest
+thermal comfort and reward, giving the fewest degree-hours per building-day
+(4.57), the lowest
 comfort exceedance (17.33\%), and the least negative reward ($-4715$). Balanced
 spectral lies between these methods on most metrics, while GMM has the highest
 CV-RMSE and does not provide a clear overall advantage. Since portfolio load
@@ -142,7 +161,7 @@ improving load tracking does not automatically produce the best comfort result.
 比较，并用于为后续特征实验选择分组方法。
 
 凝聚聚类的负荷跟踪结果最好，CV-RMSE 最低，为46.93\%，绝对 NMBE 也最低，为0.49\%。
-K-means 在热舒适度和 reward 上更好，degree-hours 最少，为3197，舒适度超限最低，为
+K-means 在热舒适度和 reward 上更好，每栋建筑每天的平均 degree-hours 最少，为4.57，舒适度超限最低，为
 17.33\%，reward 也最接近0，为 $-4715$。Balanced spectral 在大部分指标上位于两者之间，
 GMM 的 CV-RMSE 最高，没有表现出明确的整体优势。由于本研究的主要目标是建筑组合负荷
 跟踪，因此后续特征实验选择凝聚聚类。该结果也说明，负荷跟踪更好并不一定同时带来最好的
@@ -153,8 +172,9 @@ GMM 的 CV-RMSE 最高，没有表现出明确的整体优势。由于本研究�
 
 Table~\ref{tab:feature-count} compares 3fA, 4F, and 5F under the same
 agglomerative, linear-Hybrid, seed-42 setting. Adding HVAC rating to 3fA raises
-CV-RMSE by 9.24 percentage points and degree-hours by 2294. Adding the comfort
-feature in 5F partly recovers performance but remains worse than 3fA on every
+CV-RMSE by 9.24 percentage points and degree-hours per building-day by 3.28.
+Adding the comfort feature in 5F partly recovers performance but remains worse
+than 3fA on every
 reported primary metric. The result supports the low-redundancy hypothesis:
 more standardized columns can change the geometry of grouping even when each
 column appears individually relevant.
@@ -165,11 +185,11 @@ column appears individually relevant.
 \begin{tabular}{|l|l|r|r|r|r|}
 \hline
 Set & Added information & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort \\
- & & (\%) & (\%) & ($^\circ$C h) & exceed. (\%) \\
+ & & (\%) & (\%) & ($^\circ$C h/building-day) & exceed. (\%) \\
 \hline
-3fA & capacity, heat mean, NSL mean & \textbf{44.62} & \textbf{0.57} & \textbf{3162} & \textbf{20.07} \\
-4F & 3fA + HVAC rating & 53.86 & 1.34 & 5456 & 28.52 \\
-5F & 4F + comfort lower excess & 49.28 & 2.32 & 4070 & 22.38 \\
+3fA & capacity, heat mean, NSL mean & \textbf{44.62} & \textbf{0.57} & \textbf{4.52} & \textbf{20.07} \\
+4F & 3fA + HVAC rating & 53.86 & 1.34 & 7.79 & 28.52 \\
+5F & 4F + comfort lower excess & 49.28 & 2.32 & 5.81 & 22.38 \\
 \hline
 \end{tabular}
 \end{center}
@@ -187,8 +207,9 @@ Set & Added information & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort \\
 
 \begin{zhtranslation}
 表~\ref{tab:feature-count}在相同凝聚聚类、linear Hybrid 和 seed 42 下比较 3fA、4F、
-5F。向 3fA 加入 HVAC 后，CV-RMSE 增加 9.24 个百分点、degree-hours 增加 2294；5F
-加入舒适度特征后虽有部分恢复，但所有主指标仍差于 3fA。这支持低冗余假设：即使每个
+5F。向 3fA 加入 HVAC 后，CV-RMSE 增加 9.24 个百分点、每栋建筑每天的平均 degree-hours
+增加 3.28；5F 加入舒适度特征后虽有部分恢复，但所有主指标仍差于 3fA。这支持低冗余
+假设：即使每个
 特征单独看来都相关，增加更多标准化列仍会改变聚类几何并损害结果。
 \end{zhtranslation}
 
@@ -210,17 +231,17 @@ every column.
 \begin{tabular}{|l|l|r|r|r|r|}
 \hline
 Set & Three features (capacity is included unless stated) & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort \\
- & & (\%) & (\%) & ($^\circ$C h) & exceed. (\%) \\
+ & & (\%) & (\%) & ($^\circ$C h/building-day) & exceed. (\%) \\
 \hline
-A & capacity, heating mean, NSL mean & $51.93\pm2.46$ & $\mathbf{0.49\pm0.18}$ & $3653\pm848$ & $20.27\pm2.44$ \\
-B & capacity, HVAC, NSL mean & $52.59\pm4.50$ & $1.00\pm0.98$ & $5254\pm1748$ & $21.63\pm2.48$ \\
-C & capacity, heating max, NSL mean & $49.39\pm3.99$ & $1.52\pm1.26$ & $4963\pm1464$ & $18.61\pm3.74$ \\
-D & capacity, heating mean, NSL max & $53.57\pm3.29$ & $2.01\pm3.02$ & $5614\pm3433$ & $21.18\pm3.03$ \\
-E & capacity, HVAC, NSL max & $53.24\pm2.45$ & $1.38\pm0.86$ & $2939\pm685$ & $18.88\pm1.53$ \\
-F & capacity, heating max, NSL max & $49.64\pm2.58$ & $2.48\pm1.07$ & $4248\pm994$ & $20.43\pm2.59$ \\
-G & capacity, heating mean, comfort & $49.47\pm1.70$ & $1.52\pm0.56$ & $3729\pm1319$ & $19.49\pm3.01$ \\
-H & capacity, heating mean, temp. std & $52.09\pm4.08$ & $2.96\pm2.69$ & $6787\pm4403$ & $22.24\pm4.59$ \\
-I & heating mean, NSL mean, comfort (no capacity) & $\mathbf{48.93\pm2.31}$ & $2.09\pm1.01$ & $\mathbf{2639\pm993}$ & $18.06\pm4.86$ \\
+A & capacity, heating mean, NSL mean & $51.93\pm2.46$ & $\mathbf{0.49\pm0.18}$ & $5.22\pm1.21$ & $20.27\pm2.44$ \\
+B & capacity, HVAC, NSL mean & $52.59\pm4.50$ & $1.00\pm0.98$ & $7.51\pm2.50$ & $21.63\pm2.48$ \\
+C & capacity, heating max, NSL mean & $49.39\pm3.99$ & $1.52\pm1.26$ & $7.09\pm2.09$ & $18.61\pm3.74$ \\
+D & capacity, heating mean, NSL max & $53.57\pm3.29$ & $2.01\pm3.02$ & $8.02\pm4.90$ & $21.18\pm3.03$ \\
+E & capacity, HVAC, NSL max & $53.24\pm2.45$ & $1.38\pm0.86$ & $4.20\pm0.98$ & $18.88\pm1.53$ \\
+F & capacity, heating max, NSL max & $49.64\pm2.58$ & $2.48\pm1.07$ & $6.07\pm1.42$ & $20.43\pm2.59$ \\
+G & capacity, heating mean, comfort & $49.47\pm1.70$ & $1.52\pm0.56$ & $5.33\pm1.88$ & $19.49\pm3.01$ \\
+H & capacity, heating mean, temp. std & $52.09\pm4.08$ & $2.96\pm2.69$ & $9.70\pm6.29$ & $22.24\pm4.59$ \\
+I & heating mean, NSL mean, comfort (no capacity) & $\mathbf{48.93\pm2.31}$ & $2.09\pm1.01$ & $\mathbf{3.77\pm1.42}$ & $18.06\pm4.86$ \\
 \hline
 \end{tabular}}
 \end{center}
@@ -230,7 +251,7 @@ I & heating mean, NSL mean, comfort (no capacity) & $\mathbf{48.93\pm2.31}$ & $2
 
 The larger five-run 3fA stability set (seeds 0, 1, 2, 3, and 42) gives
 CV-RMSE $49.86\pm3.65$\%, $|$NMBE$|$ $0.81\pm0.68$\%, degree-hours
-$3251\pm892$, comfort exceedance $19.21\pm2.85$\%, and reward
+$4.64\pm1.27$ per building-day, comfort exceedance $19.21\pm2.85$\%, and reward
 $-5125\pm731$. Its CV-RMSE range is 44.62--54.09\%, while all five absolute
 NMBE values remain at or below 2.01\%. This supports stability in portfolio
 bias, although seed sensitivity in load shape has not disappeared.
@@ -243,7 +264,8 @@ $0.49\pm0.18$\%，并且三个特征能跨气候直接解释。因此，本报�
 折中”，而不是声称它在每一列都第一。
 
 在更大的五次 3fA 稳定性实验（seeds 0、1、2、3、42）中，CV-RMSE 为
-$49.86\pm3.65$\%，绝对 NMBE 为 $0.81\pm0.68$\%，degree-hours 为 $3251\pm892$，
+$49.86\pm3.65$\%，绝对 NMBE 为 $0.81\pm0.68$\%，每栋建筑每天的平均 degree-hours 为
+$4.64\pm1.27$，
 舒适超限为 $19.21\pm2.85$\%，reward 为 $-5125\pm731$。CV-RMSE 范围仍有
 44.62--54.09\%，但五次绝对 NMBE 都不超过 2.01\%。这说明组合偏差非常稳定，不过负荷
 形状对随机种子的敏感性仍未完全消失。
@@ -263,10 +285,10 @@ with the comfort15/binary30/degree10 reward setting.
 \begin{tabular}{|l|l|r|r|r|r|}
 \hline
 Climate & Features & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort \\
- & & (\%) & (\%) & ($^\circ$C h) & exceed. (\%) \\
+ & & (\%) & (\%) & ($^\circ$C h/building-day) & exceed. (\%) \\
 \hline
-VT & capacity, heating mean, NSL mean & $49.64\pm1.59$ & $3.04\pm1.49$ & $3567\pm1368$ & $18.74\pm1.90$ \\
-TX & capacity, cooling mean, NSL mean & $78.83\pm4.90$ & $45.57\pm1.98$ & $1192\pm234$ & $11.22\pm1.66$ \\
+VT & capacity, heating mean, NSL mean & $49.64\pm1.59$ & $3.04\pm1.49$ & $5.10\pm1.95$ & $18.74\pm1.90$ \\
+TX & capacity, cooling mean, NSL mean & $78.83\pm4.90$ & $45.57\pm1.98$ & $1.59\pm0.31$ & $11.22\pm1.66$ \\
 \hline
 \end{tabular}
 \end{center}
@@ -314,16 +336,16 @@ is better because each encoder, communication path, and head remains matched.
 \begin{tabular}{|l|l|r|r|r|r|}
 \hline
 Stage / variant & Main change & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort \\
- & & (\%) & (\%) & ($^\circ$C h) & exceed. (\%) \\
+ & & (\%) & (\%) & ($^\circ$C h/building-day) & exceed. (\%) \\
 \hline
-Legacy end-to-end & $\tau=0.5$, warm-up 50 & 47.60 & 4.31 & 7011 & 24.64 \\
-Two-stage freeze200 & pretrained experts, $\tau=0.5$, $\alpha\to1$ & 48.26 & 1.35 & 4308 & 21.76 \\
-Two-stage prior0.7 & pretrained experts, $\tau=0.7$, $\alpha\to0.7$ & 46.54 & 1.02 & 4617 & 22.05 \\
-Two-stage no capacity & remove seven physical router inputs & 46.94 & \textbf{0.57} & 3873 & 19.54 \\
-Three-stage shared & shared encoder, 1500 episodes & 52.44 & 7.48 & 6491 & 31.35 \\
-Three-stage full expert & preserve complete expert branches & 45.45 & 2.28 & 4471 & 20.42 \\
-Stable router-only & freeze experts for all 500 episodes & 45.99 & 1.22 & 2915 & 19.17 \\
-Stable heads, 3 seeds & router 500 + head-only adaptation & $\mathbf{45.12\pm0.35}$ & $1.35\pm0.33$ & $\mathbf{2645\pm308}$ & $\mathbf{17.30\pm1.33}$ \\
+Legacy end-to-end & $\tau=0.5$, warm-up 50 & 47.60 & 4.31 & 10.02 & 24.64 \\
+Two-stage freeze200 & pretrained experts, $\tau=0.5$, $\alpha\to1$ & 48.26 & 1.35 & 6.15 & 21.76 \\
+Two-stage prior0.7 & pretrained experts, $\tau=0.7$, $\alpha\to0.7$ & 46.54 & 1.02 & 6.60 & 22.05 \\
+Two-stage no capacity & remove seven physical router inputs & 46.94 & \textbf{0.57} & 5.53 & 19.54 \\
+Three-stage shared & shared encoder, 1500 episodes & 52.44 & 7.48 & 9.27 & 31.35 \\
+Three-stage full expert & preserve complete expert branches & 45.45 & 2.28 & 6.39 & 20.42 \\
+Stable router-only & freeze experts for all 500 episodes & 45.99 & 1.22 & 4.16 & 19.17 \\
+Stable heads, 3 seeds & router 500 + head-only adaptation & $\mathbf{45.12\pm0.35}$ & $1.35\pm0.33$ & $\mathbf{3.78\pm0.44}$ & $\mathbf{17.30\pm1.33}$ \\
 \hline
 \end{tabular}}
 \end{center}
@@ -380,7 +402,8 @@ and raises one expert's share to 51.7\%, whereas freezing the router preserves
 entropy at 0.276 and limits the largest share to 37.0\%. The three final stable
 seeds have largest shares of 37.5\%, 40.5\%, and 37.0\%, and the matched seed-42
 stable run also improves CV-RMSE from 45.45\% to 44.72\% and degree-hours from
-4471 to 2991. Together with probability sampling and PPO clipping, this supports
+6.39 to 4.27 per building-day. Together with probability sampling and PPO
+clipping, this supports
 the combined use of the prior, gradual $\alpha$, entropy, balance, and staged
 freezing. It does not produce perfect balance: expert 3 receives only
 0.015--0.036\% of final traffic. The safeguards therefore prevent total
@@ -400,7 +423,7 @@ entropy 系数为 $c_H=0.05$，balance 系数为 $c_B=0.01$，router 学习率�
 episode 500，最大比例仍只有36.4\%。继续联合训练会使 entropy 从0.275降到0.171，并使一个
 expert 上升到51.7\%；固定 router 后，entropy 保持在0.276，最大比例只有37.0\%。三个最终
 stable seeds 的最大比例分别为37.5\%、40.5\%和37.0\%，而 matched seed-42 stable 实验还将
-CV-RMSE 从45.45\%降到44.72\%、degree-hours 从4471降到2991。这说明组合防坍塌设计有效，
+CV-RMSE 从45.45\%降到44.72\%、每栋建筑每天的平均 degree-hours 从6.39降到4.27。这说明组合防坍塌设计有效，
 包括 prior、逐步增加 $\alpha$、entropy、balance、按概率抽样、PPO clipping 和分阶段冻结。
 不过 expert 3 最终只占0.015--0.036\%，说明这些措施能避免所有选择集中到单个 expert，
 但还不能完全避免某一个分支几乎不被使用。
@@ -408,12 +431,13 @@ CV-RMSE 从45.45\%降到44.72\%、degree-hours 从4471降到2991。这说明组�
 
 The final stable-head result is the clearest evidence that routing has value.
 Across router-training seeds 0, 1, and 42, CV-RMSE is $45.12\pm0.35$\%,
-degree-hours are $2645\pm308$, and comfort exceedance is
+degree-hours per building-day are $3.78\pm0.44$, and comfort exceedance is
 $17.30\pm1.33$\%. All three runs load the same strong seed-42 fixed-expert
 checkpoint, so this measures stability of routing and limited head adaptation
 \emph{conditional on one expert anchor}; it is not an end-to-end multi-seed
 test of expert learning. The fixed 3fA family over all five available seeds has
-CV-RMSE $49.86\pm3.65$\% and degree-hours $3251\pm892$. These sets are not
+CV-RMSE $49.86\pm3.65$\% and degree-hours per building-day of
+$4.64\pm1.27$. These sets are not
 paired, but the smaller conditional router variance and improved means justify
 calling the stable router a useful enhancement. Reward is not equally stable:
 one stable-head seed has a reward sum of $-17225$ despite acceptable reported
@@ -422,7 +446,8 @@ resolved.
 
 The five available \texttt{routeronly500} runs give CV-RMSE
 $49.83\pm3.34$\%, $|$NMBE$|$ $1.19\pm0.60$\%, degree-hours
-$3184\pm872$, and comfort exceedance $18.73\pm2.43$\%. Router-only training is
+$4.55\pm1.25$ per building-day, and comfort exceedance $18.73\pm2.43$\%.
+Router-only training is
 therefore safer than uncontrolled joint training, but its mean gain over fixed
 3fA is modest. The larger gain appears when stable pretrained branches are kept
 and only a narrowly scoped head adaptation is allowed.
@@ -435,16 +460,16 @@ router 时重新组织 expert 表示会破坏已经有用的专门化；full-exp
 communication 和 head 始终保持匹配。
 
 最终 stable-head 是 soft routing 有价值的最清晰证据。router-training seeds 0、1、42
-的 CV-RMSE 为 $45.12\pm0.35$\%，degree-hours 为 $2645\pm308$，舒适超限为
+的 CV-RMSE 为 $45.12\pm0.35$\%，每栋建筑每天的平均 degree-hours 为 $3.78\pm0.44$，舒适超限为
 $17.30\pm1.33$\%。但三次实验都载入同一个强 seed-42 固定 expert checkpoint，因此
 这里衡量的是“在同一个 expert 锚点条件下”的 router 和有限 head adaptation 稳定性，
 不是完整 expert 学习的端到端多种子检验。固定 3fA 五次可用实验分别为
-$49.86\pm3.65$\% 和 $3251\pm892$。两组没有严格配对，但 router 条件方差更小且均值
+$49.86\pm3.65$\% 和 $4.64\pm1.27$。两组没有严格配对，但 router 条件方差更小且均值
 更好，足以支持“有用增强”的判断。不过 reward 并不同样稳定：stable-head 的一个 seed
 虽然主指标可接受，reward sum 却为 $-17225$，因此该结果很强但尚未完全解决。
 
 五次 \texttt{routeronly500} 的 CV-RMSE 为 $49.83\pm3.34$\%，绝对 NMBE 为
-$1.19\pm0.60$\%，degree-hours 为 $3184\pm872$，舒适超限为 $18.73\pm2.43$\%。因此
+$1.19\pm0.60$\%，每栋建筑每天的平均 degree-hours 为 $4.55\pm1.25$，舒适超限为 $18.73\pm2.43$\%。因此
 router-only 比不受控联合训练更安全，但相对固定 3fA 的平均提升有限；更明显的提升来自
 保留稳定预训练分支，并只允许范围很小的 head adaptation。
 \end{zhtranslation}
@@ -476,7 +501,8 @@ diagnostics rather than plots averaged across seeds.
 Figures~\ref{fig:3fa-daily} and~\ref{fig:stable-router-daily} make the trade-off
 between the two representative runs clear. The fixed 3fA run has slightly lower
 CV-RMSE and absolute NMBE, whereas the stable router reduces comfort exceedance
-from 20.07\% to 16.45\% and comfort degree-hours from 3162 to 2400. The router
+from 20.07\% to 16.45\% and degree-hours per building-day from 4.52 to 3.43. The
+router
 therefore improves the overall balance without winning every metric in this
 single-run comparison.
 
@@ -521,7 +547,7 @@ target are exported for the first 168 hours.
 不是多个 seeds 的平均曲线。
 
 日指标图显示，固定 3fA 的 CV-RMSE 和绝对 NMBE 略低，而 stable router 将舒适度
-超限从 20.07\% 降到 16.45\%，并将 degree-hours 从 3162 降到 2400。因此，router 改善了
+超限从 20.07\% 降到 16.45\%，并将每栋建筑每天的平均 degree-hours 从 4.52 降到 3.43。因此，router 改善了
 整体平衡，但并不是在这两次实验的每个指标上都更好。整月室温曲线进一步表明，
 stable router 降低了舒适度问题的总严重程度，但没有完全消除越界，仍有几栋建筑长时间
 高于舒适温度上限。

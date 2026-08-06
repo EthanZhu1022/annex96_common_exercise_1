@@ -22,8 +22,9 @@ building-control algorithms \cite{citylearn2020,citylearnv2}. The experiment
 follows the IEA EBC Annex 96 Common Exercise 1 benchmark: 25 single-family homes
 are controlled as one portfolio to track a daily reference load profile using
 battery and HVAC flexibility. Evaluation covers CV-RMSE, NMBE, indoor comfort
-(measured as temperature deviation multiplied by duration), energy use, peak
-demand, ramping, load factor, and fairness. Vermont uses
+(measured as temperature deviation multiplied by duration and averaged per
+building per test day), energy use, peak demand, ramping, load factor, and
+fairness. Vermont uses
 January for training and February for testing, while Texas uses August and
 September.
 
@@ -31,8 +32,10 @@ September.
 因此，当前建筑能源研究正在从固定规则控制逐渐转向强化学习和多智能体协同。本项目使用
 CityLearn，这是一个能够以标准化、可复现方式比较建筑控制算法的开放仿真环境。实验采用
 IEA EBC Annex 96 Common Exercise 1 基准：把 25 栋独立住宅作为一个建筑组合，利用电池
-和 HVAC 灵活性跟踪每日参考负荷曲线。评价指标包括 CV-RMSE、NMBE、室内舒适度（超出温度乘超出时间）、能耗、
-峰值需求、爬坡、负荷率和公平性。Vermont 使用一月训练、二月测试，Texas 使用八月训练、
+和 HVAC 灵活性跟踪每日参考负荷曲线。评价指标包括 CV-RMSE、NMBE、室内舒适度、能耗、
+峰值需求、爬坡、负荷率和公平性。其中，室内舒适度使用超出温度乘超出时间计算，并按每栋
+建筑、每天取平均。
+Vermont 使用一月训练、二月测试，Texas 使用八月训练、
 九月测试。
 \end{zhtranslation}
 

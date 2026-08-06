@@ -141,11 +141,13 @@ def save_router_progression() -> None:
     cv = list(pd.to_numeric(singles["primary_load_cv_rmse_pct"])) + [
         float(pd.to_numeric(stable["primary_load_cv_rmse_pct"]).mean())
     ]
-    degree = list(pd.to_numeric(singles["primary_comfort_degree_hours_total"])) + [
-        float(pd.to_numeric(stable["primary_comfort_degree_hours_total"]).mean())
+    degree = list(pd.to_numeric(singles["primary_comfort_degree_hours_per_building_day"])) + [
+        float(pd.to_numeric(stable["primary_comfort_degree_hours_per_building_day"]).mean())
     ]
     cv_err = [0.0] * 5 + [float(pd.to_numeric(stable["primary_load_cv_rmse_pct"]).std(ddof=1))]
-    degree_err = [0.0] * 5 + [float(pd.to_numeric(stable["primary_comfort_degree_hours_total"]).std(ddof=1))]
+    degree_err = [0.0] * 5 + [
+        float(pd.to_numeric(stable["primary_comfort_degree_hours_per_building_day"]).std(ddof=1))
+    ]
 
     fig, axes = plt.subplots(1, 2, figsize=(10, 3.7))
     colors = ["#bab0ab", "#f28e2b", "#e15759", "#76b7b2", "#59a14f", "#2878b5"]
@@ -155,7 +157,7 @@ def save_router_progression() -> None:
     axes[0].set_ylim(42, 55)
     axes[0].set_title("Load tracking")
     axes[1].bar(x, degree, yerr=degree_err, capsize=3, color=colors)
-    axes[1].set_ylabel("Comfort degree-hours")
+    axes[1].set_ylabel("Degree-hours per building-day")
     axes[1].set_title("Thermal comfort")
     for ax in axes:
         ax.set_xticks(x, labels, rotation=25, ha="right")
