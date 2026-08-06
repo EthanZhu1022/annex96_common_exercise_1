@@ -1,0 +1,956 @@
+\chapter{Method and Progress}\label{ch:method}
+
+This chapter follows the same grouped MAPPO and centralized-training,
+decentralized-execution foundation used in the previous report. The new work is
+concentrated in the actor communication block, the construction of building
+groups, and the selection of actor experts. This stage also investigates which
+reward-function weight setting works best. The basic reward form is retained,
+but several combinations of its weights are compared to study the balance
+between load tracking and indoor comfort.
+
+\begin{zhtranslation}
+本章沿用上一份报告中的 grouped MAPPO 以及“集中训练、分散执行”基础。新的工作主要集中
+在 actor 通信模块、建筑分组构造和 actor expert 选择上。本阶段也探索研究了最佳的奖励函数参数权重：
+奖励函数的基本形式保持不变，但对多组权重参数进行了对比实验，用来研究负荷跟踪与
+室内舒适度之间的平衡。
+\end{zhtranslation}
+
+\section{Reward Function and Parameter Comparison}
+
+At time step $t$, let $y_t$ be the total electricity load of all $N$
+buildings, let $r_t$ be the target load, and let $e_t=y_t-r_t$ be the tracking
+error. The two running load-tracking terms used by the reward are
+\begin{align}
+B_t &= \left|\frac{\sum_{\tau=1}^{t}e_\tau}
+{\sum_{\tau=1}^{t}r_\tau}\right|,\\
+E_t &= \frac{\sqrt{\frac{1}{t}\sum_{\tau=1}^{t}e_\tau^2}}
+{\frac{1}{t}\sum_{\tau=1}^{t}r_\tau},
+\end{align}
+where $B_t$ is the running absolute NMBE term and $E_t$ is the running
+CV-RMSE term. NMBE shows whether the total load is generally above or below the
+target over time: a positive value means that it is generally too high, while a
+negative value means that it is generally too low. The reward uses its absolute
+value, so a result closer to zero means less overall bias. CV-RMSE shows
+the typical size of the hour-by-hour tracking errors relative to the average
+target load, and larger errors have a stronger effect on it. A lower CV-RMSE
+therefore means that the load follows the target more closely. For building $i$,
+the number of degrees outside the seasonal comfort range $[L_t,U_t]$ and the
+corresponding violation indicator are
+\begin{align}
+d_{i,t} &= \max(L_t-T_{i,t},0)+\max(T_{i,t}-U_t,0),\\
+I_{i,t} &= \mathbb{I}[d_{i,t}>0].
+\end{align}
+The complete per-building reward is therefore
+\begin{equation}
+\label{eq:report2-reward}
+R_{i,t}=-\left[
+\frac{w_{\mathrm{nmbe}}B_t+w_{\mathrm{cv\_rmse}}E_t}{N}
++w_{\mathrm{comfort}}
+\left(w_{\mathrm{binary}}I_{i,t}+w_{\mathrm{degree}}d_{i,t}\right)
+\right].
+\end{equation}
+The first two penalties are calculated from the total load and divided equally
+among the $N$ buildings. The final term is calculated separately for each
+building. It gives one penalty when the indoor temperature leaves the comfort
+range and an additional penalty according to how many degrees it exceeds the
+range. In the reported experiments, Vermont uses January for training and
+February for testing, with a comfort range of $20$--$24^{\circ}$C. Texas uses
+August for training and September for testing, with a comfort range of
+$22$--$26^{\circ}$C.
+
+The five commonly used parameters are the NMBE weight
+$w_{\mathrm{nmbe}}$, CV-RMSE weight $w_{\mathrm{cv\_rmse}}$, overall comfort weight
+$w_{\mathrm{comfort}}$, fixed comfort-violation weight
+$w_{\mathrm{binary}}$, and temperature-exceedance weight
+$w_{\mathrm{degree}}$. In this order, the usual baseline setting is
+$(1.0,1.0,0.8,1.3,0.3)$. Reward-parameter comparison experiments were also
+conducted. The tested settings included a comfort-focused combination
+$(1.0,1.0,1.5,3.0,1.5)$ and a load-tracking-focused combination
+$(5.0,5.0,1.0,1.0,1.5)$. These comparisons test whether increasing the load
+weights or the comfort weights produces a better balance in the final results;
+therefore, the reward parameters were also tuned rather than treated as fixed.
+
+\begin{zhtranslation}
+在时间步 $t$，令 $y_t$ 表示 $N$ 栋建筑的总用电负荷，$r_t$ 表示目标负荷，
+$e_t=y_t-r_t$ 表示跟踪误差。奖励函数中的 $B_t$ 是截至当前时间的绝对 NMBE，
+$E_t$ 是截至当前时间的 CV-RMSE。NMBE 用来判断总负荷在一段时间内整体偏高还是偏低：
+正值表示整体偏高，负值表示整体偏低。奖励函数使用它的绝对值，因此越接近零表示整体
+偏差越小。CV-RMSE 用来表示每个时间点的负荷通常偏离目标多少，并且
+较大的误差会对它产生更明显的影响；因此，CV-RMSE 越低，说明负荷曲线跟随目标曲线越好。
+对建筑 $i$，$d_{i,t}$ 表示室内温度超出当季舒适范围 $[L_t,U_t]$ 的度数，$I_{i,t}$
+表示室内温度是否超出该范围。因此，完整奖励函数如公式~\eqref{eq:report2-reward} 所示。
+
+其中，前两项根据所有建筑的总负荷计算，并平均分给 $N$ 栋建筑；最后一项则对每栋建筑
+单独计算。室内温度一旦超出舒适范围，就会产生一次固定惩罚；超出的温度越多，还会产生
+更大的额外惩罚。在本报告的实验中，VT 使用1月训练、2月测试，舒适温度范围为
+$20$--$24^{\circ}$C；TX 使用8月训练、9月测试，舒适温度范围为 $22$--$26^{\circ}$C。
+
+奖励函数常用的五个参数分别为 NMBE 权重 $w_{\mathrm{nmbe}}$、CV-RMSE 权重
+$w_{\mathrm{cv\_rmse}}$、总体舒适度权重 $w_{\mathrm{comfort}}$、固定舒适度超限权重
+$w_{\mathrm{binary}}$ 和温度超限度数权重 $w_{\mathrm{degree}}$。按照这个顺序，常用的
+基线参数为 $(1.0,1.0,0.8,1.3,0.3)$。本阶段也对奖励参数做了对比实验，包括更重视
+舒适度的 $(1.0,1.0,1.5,3.0,1.5)$，以及更重视负荷跟踪的
+$(5.0,5.0,1.0,1.0,1.5)$。这些实验用于比较提高负荷权重或舒适度权重后，最终结果中的
+负荷跟踪与室内舒适度能否取得更好的平衡。因此，奖励参数也经过了调参，而不是始终固定
+使用同一组数值。
+\end{zhtranslation}
+
+\section{TarMAC Hybrid Communication}
+
+The original implementation follows targeted multi-agent communication
+(TarMAC) \cite{tarmac2019}. For hidden state $h_i\in\mathbb{R}^{256}$, it forms
+three representations. The query describes what information building $i$ is
+looking for. The key describes what information each building can provide and
+is used for matching. The value contains the actual information to be passed.
+They are calculated as
+\begin{align}
+q_i &= W_q h_i, & k_i &= W_k h_i, & v_i &= W_v h_i,\\
+a_{ij} &= \operatorname{softmax}_j\left(\frac{q_i^\top k_j}{\sqrt{d_k}}\right),
+& c_i &= \sum_j a_{ij}v_j,
+\end{align}
+The model compares the query of one building with the keys of all buildings.
+A better match receives a larger weight, and the values are combined according
+to these weights to form the received communication information $c_i$. The
+division by $\sqrt{d_k}$ only prevents the matching scores from becoming too
+large. The original implementation then computes an update directly from the
+complete local state and $c_i$. Because the full 256-dimensional local state
+enters the fusion layer without compression, repeated local information can
+overwhelm the 64-dimensional communication information in this 25-building task.
+
+TarMAC Hybrid changes the fusion path to
+\begin{align}
+\ell_i &= \operatorname{ReLU}(W_{\ell}h_i), \qquad
+\ell_i\in\mathbb{R}^{64},\\
+\Delta_i &= \tanh\!\left(W_2\tanh\left(W_1[\ell_i;c_i]
++b_1\right)+b_2\right),\\
+h'_i &= h_i + \Delta_i.
+\end{align}
+Compared with the original TarMAC communication method, TarMAC Hybrid makes
+three main changes. First, a learned $256\to64$ projection
+turns the local state into a more compact representation and reduces repeated
+information. Second, ReLU provides nonlinear filtering so that useful patterns
+in the current input are more clearly represented. Third, a residual connection
+adds the communication result to the original state instead of replacing the
+original state completely. Together, these changes first simplify each
+building's local information and then combine it with information from other
+buildings without losing the original input. The default ReLU experiment uses
+32-dimensional queries and keys and 64-dimensional values. It uses one global
+communication round, meaning that all 25 buildings exchange information once
+before the action is produced, and each building can consider information from
+every other building rather than only buildings in its fixed group.
+
+To determine which part of TarMAC Hybrid produces the improvement, the
+experiments also compare two alternatives with the default ReLU fusion: Linear
+and Gated. They separate the effect of simple dimensional reduction from the
+effect of controlling how much communication information is added.
+
+Linear fusion compresses the local state from 256 dimensions to 64 dimensions
+without applying ReLU, and then combines this result directly with the received
+communication information. It is used to test whether dimensional reduction
+alone is sufficient.
+
+Gated fusion learns a set of weights between zero and one that act like
+adjustable switches. Based on the local state and the received information,
+these switches decide how much of each part of the communication information
+should be added to the local state. It is used to test whether controlling the
+amount of incoming information is more effective than direct fusion.
+
+\begin{zhtranslation}
+原始实现遵循 TarMAC 的定向多智能体通信。对 256 维隐藏状态，它生成 query、key 和
+value 三种表示。query 表示当前建筑希望获得什么信息；key 表示每栋建筑能够提供什么
+信息，用来与 query 进行匹配；value 则是真正需要传递的信息内容。模型会把一栋建筑的
+query 与所有建筑的 key 进行比较，匹配程度越高，对应 value 获得的权重就越大。最后，
+模型按照这些权重汇总所有 value，得到该建筑接收的通信信息 $c_i$。公式中的
+$\sqrt{d_k}$ 只是为了防止匹配分数过大。原始实现随后直接把完整本地状态与 $c_i$ 结合
+来生成更新结果。由于 256 维本地状态没有经过压缩就进入融合层，在这个 25 栋建筑的
+任务中，重复的本地信息可能会压过 64 维通信信息。
+
+TarMAC Hybrid 在原始TarMAC通讯算法基础上主要进行了三项改进。首先，使用可学习的 $256\to64$ 投影，把本地状态
+转换成更紧凑的表示，减少重复和冗余信息。其次，使用 ReLU 进行非线性筛选，让当前输入
+中的有效特征表现得更加清楚。最后，使用残差连接把通信结果加入原始状态，而不是直接
+替换原始状态。这样，模型会先简化每栋建筑的本地信息，再将其与其他建筑的信息结合，
+同时保留原始输入。默认的 ReLU 实验使用 32 维 query/key 和 64 维 value，并且只进行
+一次全局通信，即在生成动作之前，全部 25 栋建筑共同交换一次信息；每栋建筑都可以参考其他所有建筑的
+信息，而不只参考自己固定组内的建筑。
+
+为了进一步判断 TarMAC Hybrid 的提升主要来自哪一部分，实验还在默认的 ReLU 融合之外
+设置了 Linear 和 Gated 两种对照方式。它们分别用于区分单纯降维的作用，以及控制通信
+信息加入量的作用。
+
+Linear 融合只把本地状态从 256 维压缩到 64 维，不使用 ReLU，然后直接将压缩结果与
+接收到的通信信息结合。这个设置用于检验只做降维是否已经足够。
+
+Gated 融合会学习一组 0 到 1 之间的权重，可以把它们理解成能够调节大小的开关。模型
+根据本地状态和接收到的信息，决定通信信息的各个部分应当加入多少。这个设置用于检验
+控制外部信息的加入量，是否比直接融合更加有效。
+\end{zhtranslation}
+
+\section{Grouping Method Settings}
+
+As explained in Chapter~\ref{ch:background}, this task has no correct actor-group
+labels, so it requires unsupervised grouping. The grouping-method ablation
+compares K-means as the baseline with three alternatives: GMM, agglomerative
+clustering, and balanced spectral clustering. GMM was included to allow groups
+with different spreads and some overlap; agglomerative clustering was included
+to remove random initialization; and balanced spectral clustering was included
+to test whether directly balancing group size could improve the result.
+
+The grouping-method ablation used one common 5F configuration to compare K-means,
+GMM, agglomerative clustering, and balanced spectral clustering. All four methods
+used exactly the same feature input, TarMAC Hybrid fusion, random seed, grouped
+MAPPO training procedure, and evaluation procedure. This controlled design keeps
+the grouping method as the main difference between the four experiments.
+
+The grouping-method ablation uses the feature matrix
+$X\in\mathbb{R}^{25\times5}$. Each row represents one building, and the five
+columns are battery capacity, total HVAC rated power, mean heating demand, mean
+non-shiftable load, and mean lower-comfort-bound exceedance. The same combination
+is supplied to all four methods for a fair comparison. In the feature ablations, the matrix
+has the more general form $X\in\mathbb{R}^{25\times d}$, where $d$ changes with
+the selected feature columns. Once a feature combination is fixed for one
+comparison, every run uses exactly the same data-derived matrix; the matrix
+values are not randomly generated.
+
+\noindent\textbf{K-means.}
+For both four and five candidate groups, K-means assigns each building to its
+nearest centre and updates the centres repeatedly. Each fit tries ten initial
+centre settings to reduce the effect of an unsuitable random start. The best
+balanced candidate is retained.
+
+\noindent\textbf{GMM.}
+GMM estimates the probability that each building belongs to each group and
+assigns it to the group with the highest probability. It is tested with both four
+and five groups. Each fit uses three starting points and allows each group to
+have its own width and direction; this is the purpose of the full covariance
+matrix. A small $10^{-6}$ adjustment is added to prevent unstable numerical
+calculations.
+
+\noindent\textbf{Agglomerative clustering.}
+This method starts with each building in its own group and repeatedly merges the
+two groups that are most similar. Ward's rule selects the merge that keeps the
+buildings inside the new group as similar as possible. The process stops when
+four or five groups remain. It does not use a random starting point, so the same
+feature matrix produces the same result.
+
+\noindent\textbf{Balanced spectral clustering.}
+This method first gives a stronger connection to buildings with more similar
+features, and then uses the connection pattern to form groups. The Hungarian
+assignment used by balanced spectral reserves a fixed number of places for each
+group. It is simply a matching method: it considers the possible
+building-to-place assignments and finds the one with the smallest total
+assignment difference. This assigns every building while keeping group sizes
+equal or different by at most one. If two candidates are equally balanced, the
+lower normalized-cut cost is preferred because it means that strongly connected
+buildings are kept together more successfully.
+
+Before any method is run, every selected feature column is standardized. The
+standardization and the basic group-balance score are
+\begin{align}
+X_{ij} &= \frac{f_{ij}-\mu_j}{\sigma_j},\\
+S_{\mathrm{balance}} &= \frac{\min_k n_k}{\max_k n_k},
+\end{align}
+where $f_{ij}$ is the original value of feature $j$ for building $i$, and
+$\mu_j$ and $\sigma_j$ are the mean and standard deviation of that feature over
+the 25 buildings. Standardization stops a feature with large numerical units
+from dominating the grouping. In the balance score, $n_k$ is the number of
+buildings in group $k$; a value closer to one means that the group sizes are more
+similar. The experiments treat candidate groupings containing an empty group or
+a group with only one building separately. If a candidate contains an empty
+group, its selection score is set directly to $-1$; if its smallest group contains
+only one building, $0.5$ is subtracted from the ratio above. The selection score
+is a value used to compare whether buildings are distributed evenly across the
+different candidate groupings. Normally, it is the balance score above, namely
+the smallest group size divided by the largest group size. Finally, the candidate
+with the highest selection score is retained.
+
+\begin{zhtranslation}
+正如第~\ref{ch:background}章所述，本任务没有正确的 actor 分组标签，因此需要使用无监督
+分组。分组方法消融使用 K-means 作为基线，并比较 GMM、凝聚聚类和 Balanced
+spectral 三种替代方法。选择 GMM 是为了允许各组具有不同宽度并存在一定重叠；选择凝聚
+聚类是为了避免随机初始化；选择 Balanced spectral 是为了检验直接平衡各组大小是否能够
+改善结果。
+
+分组方法消融使用同一组5F配置比较 K-means、GMM、凝聚聚类和 Balanced spectral。四种
+方法使用完全相同的特征输入、TarMAC Hybrid 融合方式、随机种子、grouped MAPPO 训练流程
+和评价流程。这样的控制变量设计使四次实验之间的主要差别只来自分组方法。
+
+分组方法消融使用的输入是特征矩阵 $X\in\mathbb{R}^{25\times5}$。每一行代表一栋
+建筑，五列分别为电池容量、HVAC 总额定功率、平均供暖需求、平均不可转移负荷和平均舒适
+下界超限。四种方法使用同一个特征组合，以保证比较公平。在特征消融中，矩阵写成更一般的
+$X\in\mathbb{R}^{25\times d}$，其中 $d$ 会随所选特征
+列改变。某个特征组合一旦确定，同一轮比较中的各次实验就使用完全相同的实际建筑数据；
+矩阵中的数值不是随机生成的。
+
+\noindent\textbf{K-means。}
+对于4组和5组两种候选设置，K-means 会把每栋建筑分给距离最近的中心，再不断更新中心。
+每次拟合会尝试十种起始中心，以减少随机起点不合适造成的影响，最后保留更平衡的候选结果。
+
+\noindent\textbf{GMM。}
+GMM 会估计每栋建筑属于各组的概率，再把建筑分到概率最高的组。实验分别测试4组和5组。
+每次拟合使用三个起始点，并允许每组具有自己的宽度和方向，这就是完整协方差矩阵在这里
+的作用。另外加入一个很小的 $10^{-6}$ 调整数值，以防止计算不稳定。
+
+\noindent\textbf{凝聚聚类。}
+该方法开始时把每栋建筑看作单独的一组，再不断合并最相似的两组。Ward 规则会选择能够
+让新组内部建筑尽量相似的合并方式，直到剩下4组或5组。它不使用随机起始点，因此同一个
+特征矩阵会得到相同结果。
+
+\noindent\textbf{Balanced spectral。}
+该方法先让特征更相似的建筑具有更强的连接，再根据这些连接关系形成分组。而Balanced spectral的匈牙利算法会为每组
+预先设置固定数量的位置。匈牙利算法可以简单理解为一种
+匹配方法：它比较建筑与这些位置之间的各种分配方式，找出总体分配差异最小的一种。这样
+既能把每栋建筑分到一个组，也能让各组大小相等或最多相差一栋。如果两个候选结果同样
+平衡，则优先选择 normalized-cut cost 更低的结果，因为这表示连接较强的建筑更好地保留
+在同一组中。
+
+运行任何分组方法之前，都会先对每一列选定特征进行标准化。标准化公式和基本的分组平衡
+分数为
+\begin{align}
+X_{ij} &= \frac{f_{ij}-\mu_j}{\sigma_j},\\
+S_{\mathrm{balance}} &= \frac{\min_k n_k}{\max_k n_k},
+\end{align}
+其中，$f_{ij}$ 表示建筑 $i$ 的第 $j$ 个原始特征值，$\mu_j$ 和 $\sigma_j$ 分别表示该特征
+在25栋建筑中的平均值和标准差。标准化可以避免数值单位较大的特征对分组产生过大影响。
+$n_k$ 表示第 $k$ 组的建筑数量；平衡分数越接近1，说明各组大小越接近。
+实验会对含有空组或只有一栋建筑的候选结果进行特殊处理。如果一个
+候选结果含有空组，它的筛选分数直接设为 $-1$；如果最小组只有一栋建筑，就在上述比值的
+基础上减去 $0.5$。筛选分数是用来比较不同候选分组中建筑分配是否均匀的数值；通常就是上面的平衡分数，即最小组建筑数
+除以最大组建筑数。最后会保留筛选分数最高的候选结果。
+\end{zhtranslation}
+
+\section{Grouping Feature Design}
+
+Based on the results of the preceding grouping-method experiment, agglomerative
+clustering performed well and was fixed as the grouping method for the subsequent
+feature experiments. This keeps the clustering algorithm unchanged while the
+selected feature columns are varied.
+
+The initial experiment considered 37 possible features: seven static building
+features and 30 operational features. The static features describe battery and
+HVAC size, photovoltaic system size and roof area, and whether different thermal
+storage systems are installed. The operational features describe non-shiftable
+load, cooling, heating, domestic hot water, solar generation, occupancy, indoor
+temperature, and comfort-bound exceedance using statistics such as the mean,
+standard deviation, maximum, and sum.
+
+Before the compact ablations, these 37 features were screened to nine. Three
+principles were used. First, the retained features should be directly related to
+the available control flexibility, electrical demand, thermal demand, or indoor
+comfort. Second, highly repetitive descriptions of the same signal were reduced:
+mean and maximum values were kept to represent typical and peak demand, while
+several standard-deviation and sum features were removed. Third, the selection
+matched the Vermont winter experiment, so heating demand and lower-comfort
+exceedance were more informative than cooling demand and upper-comfort
+exceedance. PV, solar, storage-presence flags, and other secondary descriptors
+were not included in the compact pool because they were less direct for this
+specific control question or repeated information already represented by the
+retained demand and capacity variables. This screening produced the following
+nine control-profile features:
+\begin{itemize}
+  \item \texttt{bes\_capacity\_kwh}: battery energy capacity, representing how much
+  electrical energy the building can shift over time;
+  \item \texttt{hvac\_total\_kw}: total rated HVAC power, representing the installed
+  ability to change heating or cooling electricity use;
+  \item \texttt{heating\_mean}: average heating demand, representing the building's
+  typical thermal load;
+  \item \texttt{heating\_max}: maximum heating demand, representing its peak thermal
+  load;
+  \item \texttt{nsl\_mean}: average non-shiftable load, representing typical
+  background electricity demand;
+  \item \texttt{nsl\_max}: maximum non-shiftable load, representing peak background
+  demand;
+  \item \texttt{occupants\_mean}: average occupancy, representing typical building
+  use intensity;
+  \item \texttt{indoor\_temp\_std}: standard deviation of indoor temperature,
+  representing how much indoor temperature varies;
+  \item \texttt{comfort\_lower\_excess\_mean}: average amount by which indoor
+  temperature falls below the lower comfort limit, representing under-heating
+  behaviour.
+\end{itemize}
+
+The full 9F control-profile description consists of all nine variables above.
+The experiment first used all nine features in an agglomerative-clustering
+grouped TarMAC Hybrid MAPPO experiment. The input features were then reduced
+progressively:
+\begin{itemize}
+  \item 5F: battery capacity, HVAC rated power, mean heating demand, mean
+  non-shiftable load, and mean lower-comfort-bound exceedance;
+  \item 4F: the first four features above, with the comfort feature removed;
+  \item 3F: battery capacity, mean heating demand, and mean non-shiftable load,
+  with HVAC rated power also removed.
+\end{itemize}
+This reduction tests whether adding more building descriptions provides useful
+grouping information or introduces redundant information.
+
+After the feature-count ablation, the experimental results showed that the 3F
+settings generally performed better. A detailed analysis is provided in
+Chapter~\ref{ch:evaluation}.
+
+Choosing any three variables from the nine-feature pool gives
+$\binom{9}{3}=84$ possible combinations. Training every combination with several
+random seeds would be expensive, so nine representative combinations were
+selected using physical reasoning and controlled substitutions:
+\begin{itemize}
+  \item A: capacity + heating mean + NSL mean, covering storage flexibility,
+  typical thermal demand, and typical background load;
+  \item B: capacity + HVAC rating + NSL mean, testing installed HVAC capability
+  instead of measured heating demand;
+  \item C: capacity + heating maximum + NSL mean, testing peak rather than average
+  heating demand;
+  \item D: capacity + heating mean + NSL maximum, testing peak rather than average
+  non-shiftable load;
+  \item E: capacity + HVAC rating + NSL maximum, combining installed HVAC
+  capability with peak background demand;
+  \item F: capacity + heating maximum + NSL maximum, combining the two peak-demand
+  descriptions;
+  \item G: capacity + heating mean + lower-comfort exceedance, testing whether a
+  direct comfort-related feature is more useful than non-shiftable load;
+  \item H: capacity + heating mean + indoor-temperature variation, testing whether
+  indoor thermal stability helps to define the groups;
+  \item I: heating mean + NSL mean + lower-comfort exceedance, removing capacity to
+  test whether battery size is essential to the grouping.
+\end{itemize}
+These combinations cover the main questions of installed capability versus
+observed demand, mean versus peak demand, electrical load versus comfort and
+temperature information, and grouping with or without battery capacity. Average
+occupancy was not included in the nine compact combinations because its effect
+is partly reflected in heating and non-shiftable load, while those two variables
+are more directly related to the control task. The selected combinations are
+therefore a focused screening of the most plausible choices rather than an
+exhaustive search of all 84 possibilities.
+
+For Texas, the same feature roles are retained but
+\texttt{heating\_mean} is replaced with \texttt{cooling\_mean}. Thus the
+cross-climate experiment tests a transferable principle---capacity, controllable
+thermal burden, and background load---rather than blindly copying a Vermont
+heating feature into a cooling-dominated season.
+
+\begin{zhtranslation}
+根据前面的分组方法实验结果，凝聚聚类表现优秀，因此后续特征实验固定使用凝聚聚类。这样，
+在改变所选特征列时，分组算法本身保持不变。
+
+最初的实验考虑了37个可选特征，包括7个静态
+建筑特征和30个运行特征。静态特征描述电池与 HVAC 的大小、光伏系统大小与屋顶面积，
+以及建筑是否安装不同类型的热储能设备。运行特征使用平均值、标准差、最大值和总和等统计量，
+描述不可转移负荷、制冷、供暖、生活热水、太阳能发电、住户数、室内温度和舒适度超限。
+
+在进行紧凑特征消融之前，实验根据三条原则从37个特征中筛选出9个。第一，保留的特征应当
+与可用控制能力、用电需求、热需求或室内舒适度直接相关。第二，减少同一信号中高度重复的
+统计量：保留平均值和最大值来分别表示通常需求与峰值需求，同时移除多个标准差和总和特征。
+第三，特征选择应符合 Vermont 冬季实验，因此供暖需求和舒适下界超限比制冷需求和舒适上界
+超限更有代表性。光伏、太阳能、是否安装储能的标记以及其他次要描述没有进入紧凑候选池，
+因为它们与本实验控制问题的关系较间接，或者与保留的负荷和容量信息存在重复。经过这些
+筛选后，得到以下九个 control-profile 特征：
+\begin{itemize}
+  \item \texttt{bes\_capacity\_kwh}：电池储能容量，表示建筑能够在不同时段之间转移多少电能；
+  \item \texttt{hvac\_total\_kw}：HVAC 总额定功率，表示建筑改变供暖或制冷用电的设备能力；
+  \item \texttt{heating\_mean}：平均供暖需求，表示建筑通常的热负荷；
+  \item \texttt{heating\_max}：最大供暖需求，表示建筑的峰值热负荷；
+  \item \texttt{nsl\_mean}：平均不可转移负荷，表示通常的背景用电需求；
+  \item \texttt{nsl\_max}：最大不可转移负荷，表示峰值背景用电需求；
+  \item \texttt{occupants\_mean}：平均住户数，表示建筑通常的使用强度；
+  \item \texttt{indoor\_temp\_std}：室内温度的标准差，表示室内温度变化的幅度；
+  \item \texttt{comfort\_lower\_excess\_mean}：室温低于舒适下界的平均程度，表示供暖不足的情况。
+\end{itemize}
+
+完整的9F control-profile 描述由上述九个变量组成。
+实验先使用全部特征进行凝聚聚类的TarMac Hybrid MAPPO分组实验。
+随后，逐步减少输入特征：
+\begin{itemize}
+  \item 5F：电池容量、HVAC 总额定功率、平均供暖需求、平均不可转移负荷和平均舒适下界超限；
+  \item 4F：使用上述前四个特征，移除舒适度特征；
+  \item 3F：使用电池容量、平均供暖需求和平均不可转移负荷，并进一步移除 HVAC 总额定功率。
+\end{itemize}
+这个逐步减少特征的实验用于检验：加入更多建筑信息究竟能够帮助分组，还是会带来重复信息。
+
+特征量的消融试验结束后，通过实验数据可以发现3F的结果普遍较好（详细数据分析见下一张~\ref{ch:evaluation}）。
+
+从九个候选特征中任取三个，共有 $\binom{9}{3}=84$ 种组合。对全部组合进行多随机种子训练
+需要很高的计算成本，因此根据物理意义和控制变量的思路选取了九种代表性组合：
+\begin{itemize}
+  \item A：capacity + heating mean + NSL mean，分别表示储能灵活性、通常热负荷和通常背景负荷；
+  \item B：capacity + HVAC rating + NSL mean，用设备额定能力替代实际供暖需求；
+  \item C：capacity + heating maximum + NSL mean，用峰值供暖需求替代平均供暖需求；
+  \item D：capacity + heating mean + NSL maximum，用峰值不可转移负荷替代平均值；
+  \item E：capacity + HVAC rating + NSL maximum，组合 HVAC 设备能力与峰值背景负荷；
+  \item F：capacity + heating maximum + NSL maximum，同时使用两种峰值负荷信息；
+  \item G：capacity + heating mean + lower-comfort exceedance，检验舒适度特征能否替代不可转移负荷；
+  \item H：capacity + heating mean + indoor-temperature variation，检验室内温度稳定性是否有助于分组；
+  \item I：heating mean + NSL mean + lower-comfort exceedance，移除 capacity，用于检验电池容量是否是
+  分组中的必要信息。
+\end{itemize}
+这些组合主要比较设备能力与实际需求、平均负荷与峰值负荷、电力负荷与舒适度或温度信息，
+以及包含或不包含电池容量的差别。九种紧凑组合没有加入平均住户数，因为住户影响已经部分
+反映在供暖需求和不可转移负荷中，而这两个特征与控制任务的关系更加直接。因此，这九种组合
+是从84种可能性中筛选出的最可能有效的代表，而不是对全部组合进行穷举。
+
+在 Texas 中保留同样的角色结构，但把 \texttt{heating\_mean} 替换为
+\texttt{cooling\_mean}。因此跨气候实验检验的是“容量、可控热负荷、背景负荷”这一
+可迁移原则，而不是把 Vermont 的供暖特征机械复制到制冷主导季节。
+\end{zhtranslation}
+
+\section{Soft Router for Dynamic Actor Selection}
+
+Fixed grouping assigns each building to one actor before training, and that actor
+does not change when the building's battery level, load, or heating demand
+changes. Its performance therefore depends strongly on the quality of the
+initial grouping. Soft Router was introduced to address this limitation. Its
+purpose is to let each building choose the most suitable actor for its current
+condition, while still making use of the group actors that have already been
+trained. It therefore tests whether actor selection can become more flexible and
+less dependent on one fixed grouping.
+
+The Soft Router itself is a small shared neural network: for each building, it
+reads the building's current information and outputs one selection probability
+for every candidate actor. Each trained group actor is one such candidate, also
+called an expert. To explain how the router chooses among them, first consider
+how one expert produces an action. At every time step, a building provides an observation
+$o_{it}$, such as its battery SOC, current load, heating demand, indoor
+temperature, and time information. The expert's \emph{encoder} turns these raw
+values into a short internal summary. TarMAC adds useful information from the
+other buildings, and the \emph{action head} finally converts the communicated
+summary into a control action.
+
+The encoder and action head of each pretrained expert were learned together.
+Some early routers switched only the action head, so a head could receive an
+internal summary produced by an encoder with which it had never been trained.
+The stable version instead switches the matched encoder and action head together;
+this is called \emph{full-expert routing}. It preserves the complete control
+behaviour of each pretrained actor and is therefore easier to keep stable. The
+following explanation focuses on this version, while the other router designs
+are summarized later.
+
+To choose a full expert, the router receives an input with two complementary parts.
+First, the encoder of the actor originally assigned to each building converts
+its observation into a 256-dimensional latent feature. TarMAC then communicates
+among all 25 buildings. Thus, the communicated feature for building $i$ can be
+written as
+\begin{equation}
+h_{it}=\operatorname{TarMAC}_i\!\left(
+\left\{\operatorname{Enc}_{c_j}(o_{jt})\right\}_{j=1}^{N}
+\right)\in\mathbb{R}^{256},
+\end{equation}
+where $c_j$ is the original fixed group of building $j$. Although $h_{it}$ is
+associated with building $i$, it contains information received from the other
+buildings. It is a learned summary rather than a directly measured physical
+quantity.
+
+The learned summary is rich, but an encoder trained mainly for action generation
+may compress or obscure physical quantities that are especially important for
+choosing between experts. The capacity-aware router therefore appends seven
+explicit features for the same building $i$,
+\begin{equation}
+q_{it}=\left[
+\bar C_i,\;\bar H_i,\;s_{it},\;
+\bar C_i(1-s_{it}),\;\bar C_i s_{it},\;
+\ell_{it},\;u_{it}
+\right]\in\mathbb{R}^{7},
+\end{equation}
+where $\bar C_i$ and $\bar H_i$ are its normalized battery capacity and HVAC
+rating, $s_{it}$ is its SOC, $\ell_{it}$ is its current non-shiftable load, and
+$u_{it}$ is its current heating demand. The fourth and fifth entries explicitly
+represent remaining charging space and available discharge energy. These seven
+values belong only to building $i$; they are not a concatenation of the seven
+features of all buildings. Cross-building information is already supplied by
+$h_{it}$.
+
+The complete router input is therefore
+\begin{equation}
+x^{\mathrm{router}}_{it}=[h_{it};q_{it}]\in\mathbb{R}^{263}.
+\end{equation}
+There is one shared router network, not one separately parameterized router per
+building. The same parameters $\theta$ are applied to all 25 inputs, while the
+different building states produce 25 different routing distributions. In the
+reported stable full-expert run, this feed-forward network has the form
+$263\rightarrow64\rightarrow5$: a linear layer, ReLU, and a second linear layer
+that produces one logit for each of the five experts. For building $i$ at time
+$t$, the logits are converted into probabilities,
+\begin{equation}
+d_{it}=\operatorname{softmax}\!\left(
+\operatorname{Router}_{\theta}(x^{\mathrm{router}}_{it})/\tau
+\right),
+\end{equation}
+where every element of $d_{it}$ is the probability of selecting one actor. The
+probabilities add up to one. The temperature $\tau$ controls how decisive the
+choice is: a lower value makes the router concentrate more strongly on one actor,
+whereas a higher value spreads the probabilities more evenly.
+
+At the beginning of training, immediately abandoning the original grouping can
+destroy the useful behaviour already learned by the actors. The router therefore
+combines its new probabilities with the original fixed assignment,
+\begin{equation}
+g_{it}=(1-\alpha)p_i+\alpha d_{it}.
+\end{equation}
+Here, $p_i$ marks the actor originally assigned to building $i$, and $\alpha$
+controls how much freedom is given to the router. When $\alpha=0$, the original
+fixed actor is used. As $\alpha$ increases, the router is allowed to choose other
+actors more often. The experiments pass $\tau$, the starting and final values of
+$\alpha$, the warm-up length, the router learning rate, and the balance strength
+as training settings. This makes it possible to change how quickly and how
+strongly dynamic selection is introduced without changing the building data.
+
+During training, an expert is selected according to $g_{it}$ and generates the
+building action. To protect the useful behaviour in the pretrained actors, the
+stable experiment uses staged training: it first freezes all experts and updates
+only the router. This raises an important question: if the experts no longer
+change, how can a policy loss still train the router? The reason is that the
+complete policy includes both the expert action distributions and the router's
+selection probabilities. Let $\pi_{\phi_k}(a_{it}\mid s_t)$ denote the action
+distribution of expert $k$, with expert parameters $\phi_k$. The complete routed
+policy is the mixture
+\begin{equation}
+\pi_{\theta,\phi}(a_{it}\mid s_t)
+=\sum_{k=1}^{K}g_{itk}(\theta)\,
+\pi_{\phi_k}(a_{it}\mid s_t).
+\label{eq:soft-router-mixture-policy}
+\end{equation}
+Freezing an expert fixes $\phi_k$ and its action distribution, but it does not
+fix the complete policy. Changing the router parameters $\theta$ changes the
+mixture weights $g_{itk}$ and therefore changes the probability of the executed
+action. Equation~\eqref{eq:soft-router-mixture-policy} is therefore the link
+between staged freezing and the PPO loss derived below.
+
+CityLearn executes the actions and returns the same reward defined in
+Equation~\eqref{eq:report2-reward}; the router has no separate reward. The shared
+part measures portfolio load tracking, and the building-specific part measures
+indoor comfort. After one rollout, MAPPO uses the rewards and the critic to form
+an advantage estimate, which can be summarized as
+\begin{equation}
+\hat A_{it}=\hat R_{it}-V_{\psi}(s_t).
+\end{equation}
+A positive advantage means that the sampled action led to a better result than
+the critic expected, while a negative advantage means that it was worse. For the
+stored action, PPO recomputes the routed-policy probability and forms the ratio
+\begin{equation}
+r_{it}(\theta,\phi)=
+\frac{\pi_{\theta,\phi}(a_{it}\mid s_t)}
+{\pi_{\mathrm{old}}(a_{it}\mid s_t)}.
+\end{equation}
+The clipped policy loss is
+\begin{equation}
+\mathcal{L}_{\mathrm{PPO}}
+=-\mathbb{E}_{i,t}\!\left[
+\min\!\left(
+r_{it}\hat A_{it},
+\operatorname{clip}(r_{it},1-\epsilon,1+\epsilon)\hat A_{it}
+\right)
+\right].
+\label{eq:soft-router-ppo-loss}
+\end{equation}
+Even when $\phi_k$ is frozen, Equation~\eqref{eq:soft-router-mixture-policy}
+shows that $r_{it}$ and the PPO loss still depend on $\theta$. The gradient path is
+\begin{equation}
+\frac{\partial\mathcal{L}_{\mathrm{PPO}}}{\partial\theta}
+=\frac{\partial\mathcal{L}_{\mathrm{PPO}}}{\partial\pi}
+\frac{\partial\pi}{\partial g}
+\frac{\partial g}{\partial\theta}.
+\end{equation}
+Thus, the reward itself is not differentiated through CityLearn. It determines
+$\hat A_{it}$, which tells PPO whether to increase or decrease the probability of
+the stored action; automatic differentiation then converts this probability
+error into a gradient for the router.
+
+For example, suppose two frozen experts assign probabilities 0.8 and 0.2 to the
+executed action, and the router initially gives them weights 0.5 and 0.5. The
+mixture assigns probability $0.5(0.8)+0.5(0.2)=0.5$ to that action. If its
+advantage is positive, increasing the first router weight to 0.6 and decreasing
+the second to 0.4 raises the mixture probability to
+$0.6(0.8)+0.4(0.2)=0.56$, without changing either expert. This is the source of
+the policy loss and router gradient during the frozen-expert stage.
+
+The implemented actor objective also includes exploration and routing-balance
+terms,
+\begin{align}
+\mathcal{L}_{\mathrm{actor}}
+&=\mathcal{L}_{\mathrm{PPO}}-c_H\mathcal{H}(\pi)
++c_B\mathcal{L}_{\mathrm{balance}},\\
+\mathcal{L}_{\mathrm{balance}}
+&=\frac{1}{K}\sum_{k=1}^{K}(\bar g_k-\bar p_k)^2,
+\end{align}
+where $\bar g_k$ is mean expert usage in the batch and $\bar p_k$ is the original
+group proportion. The balance term discourages routing collapse but is not an
+additional CityLearn reward. The critic remains trainable and continues to
+improve the value estimate even while the expert actors are frozen.
+
+Several safeguards work together to reduce routing collapse. The router starts
+with nearly equal expert probabilities, and training samples experts from these
+probabilities instead of always taking the largest one. The entropy term
+discourages the probabilities from becoming too concentrated, the original-group
+prior and gradual increase of $\alpha$ preserve early diversity, the balance loss
+discourages one expert from receiving nearly all buildings, and PPO clipping
+limits abrupt probability changes. These measures reduce, but do not completely
+eliminate, the possibility that an expert is rarely selected.
+
+Freezing improves stability because it removes a moving-target problem. If the
+router and every expert change rapidly at the same time, the router is trying to
+learn which expert is suitable while the meaning and behaviour of every expert
+are also changing. With pretrained experts fixed, their action distributions are
+reliable reference points, and the smaller router only has to learn how to combine
+them. Together with the safeguards above, this staged freezing makes learning
+more stable. In the stable full-expert experiment, episodes 1--500 update the
+router while freezing all experts;
+episodes 501--1000 freeze the learned router and update only the small action
+heads at a low learning rate. Keeping the encoders and TarMAC module fixed
+preserves their pretrained latent spaces and communication behaviour. During
+deterministic testing, each building directly uses the expert with the largest
+routing probability.
+
+\begin{zhtranslation}
+固定分组会在训练前为每栋建筑指定一个 actor。即使建筑的电池电量、负荷或供暖需求发生变化，
+它仍然使用同一个 actor，因此最终效果会明显受到初始分组质量的影响。引入 Soft Router 就是
+为了解决这一限制：让每栋建筑能够根据当前情况选择更合适的 actor，同时继续使用已经训练好
+的分组 actor。这个实验用于检验 actor 的选择能否更加灵活，并减少对单一固定分组的依赖。
+
+Soft Router 本身是一个小型共享神经网络：它读取每栋建筑的当前信息，并为所有候选 actor
+分别输出一个选择概率。每个已经训练好的分组 actor 就是一个候选 actor，也称为 expert。
+要说明 router 怎样在这些 expert 之间选择，可以先看一个 expert 怎样产生动作。在每个时间步，
+每栋建筑提供观测
+$o_{it}$，例如电池 SOC、当前负荷、供暖需求、室内温度和时间信息。Expert 的
+\emph{encoder} 先把这些原始观测值整理成一组较短的内部信息，TarMAC 再加入来自其他建筑的
+有用信息，最后由 \emph{action head} 把通信后的信息变成控制动作。
+
+每个预训练 expert 的 encoder 和 action head 原本是配套训练的。早期 router 只切换 action
+head，可能让一个 head 收到由陌生 encoder 产生的内部信息。稳定版本把配套的 encoder 和
+action head 一起切换，这种方式称为 \emph{full-expert routing}。它保留了每个预训练 actor
+已经学好的完整控制方式，因此更容易保持稳定。下面重点说明这个版本，其他 router 结构会在
+后文概括。
+
+为了决定选择哪个完整 expert，router 的输入由两个互补部分组成。第一部分由每栋建筑原固定
+分组的 actor encoder 把观测转成 256 维隐藏特征，再由 TarMAC 在全部25栋建筑之间通信。
+建筑 $i$ 得到的
+通信特征可以写成
+\begin{equation}
+h_{it}=\operatorname{TarMAC}_i\!\left(
+\left\{\operatorname{Enc}_{c_j}(o_{jt})\right\}_{j=1}^{N}
+\right)\in\mathbb{R}^{256},
+\end{equation}
+其中 $c_j$ 是建筑 $j$ 的原固定分组。$h_{it}$ 虽然对应建筑 $i$，但已经包含其他建筑发来的
+信息；它是网络学习得到的概括，而不是新的物理测量值。
+
+这种隐藏表示信息丰富，但主要为动作生成训练的 encoder 可能压缩或弱化对 expert 选择特别
+重要的物理量。因此，capacity-aware router 会额外拼接同一栋建筑 $i$ 的七个明确特征：
+\begin{equation}
+q_{it}=\left[
+\bar C_i,\;\bar H_i,\;s_{it},\;
+\bar C_i(1-s_{it}),\;\bar C_i s_{it},\;
+\ell_{it},\;u_{it}
+\right]\in\mathbb{R}^{7}.
+\end{equation}
+$\bar C_i$ 和 $\bar H_i$ 分别是该建筑归一化后的电池容量和 HVAC 额定功率，$s_{it}$ 是当前
+SOC，$\ell_{it}$ 是当前不可转移负荷，$u_{it}$ 是当前供暖需求；第四、第五项明确给出剩余
+充电空间和当前可放电电量。这七维只属于当前正在选择 expert 的建筑 $i$，不是把25栋建筑的
+$25\times7$ 个特征全部拼接。其他建筑的信息已经通过 $h_{it}$ 中的 TarMAC 通信提供。
+
+完整 router 输入因此是
+\begin{equation}
+x^{\mathrm{router}}_{it}=[h_{it};q_{it}]\in\mathbb{R}^{263}.
+\end{equation}
+系统只有一个共享参数的 router NN，并不是每栋建筑各有一个独立 router。同一套参数 $\theta$
+应用于25栋建筑的25组输入，但各建筑状态不同，因此会得到25组不同的 routing distribution。
+在 stable full-expert 实验中，它是 $263\rightarrow64\rightarrow5$ 的前馈网络：第一层线性
+变换后接 ReLU，第二层为5个 expert 分别输出一个 logit。建筑 $i$ 在时刻 $t$ 的概率为
+\begin{equation}
+d_{it}=\operatorname{softmax}\!\left(
+\operatorname{Router}_{\theta}(x^{\mathrm{router}}_{it})/\tau
+\right).
+\end{equation}
+$d_{it}$ 中的每个值表示选择某个 actor 的概率，并且所有概率之和为1。参数 $\tau$ 控制选择的
+集中程度：数值越小，router 越倾向集中选择某一个 actor；数值越大，概率分配越平均。
+
+如果训练一开始就完全放弃原固定分组，可能会破坏 actor 已经学到的有效控制能力。因此，
+router 会把新概率与原来的固定分组结合：
+\begin{equation}
+g_{it}=(1-\alpha)p_i+\alpha d_{it}.
+\end{equation}
+其中，$p_i$ 表示原来分给建筑 $i$ 的 actor，$\alpha$ 控制 router 拥有多大的选择自由。
+当 $\alpha=0$ 时完全使用原固定 actor；随着 $\alpha$ 增加，router 可以更频繁地选择其他
+actor。实验把 $\tau$、$\alpha$ 的起始值和最终值、逐步增加所需的训练长度、router 学习率
+以及平衡项强度作为训练参数。这样可以在不改变建筑数据的情况下，控制动态选择以多快、
+多大的程度加入训练。
+
+训练时根据 $g_{it}$ 选择 expert，再由该 expert 生成建筑动作。为了保护预训练 actor 已经
+学好的控制能力，stable 实验采用分阶段训练：第一阶段冻结全部 expert，只更新 router。
+这会带来一个问题：expert 不再变化时，policy loss 为什么还能训练 router？原因是完整 policy
+不仅包括 expert 的动作分布，还包括 router 的选择概率。令 expert $k$ 的动作分布为
+$\pi_{\phi_k}(a_{it}\mid s_t)$，其中 $\phi_k$ 是它的参数，则完整 routing policy 是混合分布
+\begin{equation}
+\pi_{\theta,\phi}(a_{it}\mid s_t)
+=\sum_{k=1}^{K}g_{itk}(\theta)\,
+\pi_{\phi_k}(a_{it}\mid s_t).
+\label{eq:soft-router-mixture-policy-zh}
+\end{equation}
+冻结 expert 只会固定 $\phi_k$ 和各自的动作分布，并不会固定完整 policy。Router 参数
+$\theta$ 改变时，混合权重 $g_{itk}$ 仍会改变，因此实际动作的总概率也会改变。
+公式~\eqref{eq:soft-router-mixture-policy-zh} 就把前面的分阶段冻结与下面的 PPO loss 连接起来。
+
+CityLearn 执行动作后返回公式~\eqref{eq:report2-reward} 中的同一个 reward，router 没有单独
+reward。共享部分衡量全部建筑的负荷跟踪，每栋建筑自己的部分衡量室内舒适度。一次 rollout
+结束后，MAPPO 用 reward 和 critic 计算 advantage，可简写为
+\begin{equation}
+\hat A_{it}=\hat R_{it}-V_{\psi}(s_t).
+\end{equation}
+$\hat A_{it}>0$ 表示这次动作结果比 critic 预期更好，$\hat A_{it}<0$ 表示更差。对于已经保存
+的动作，PPO 重新计算当前 routing policy 下的概率，并构造比例
+\begin{equation}
+r_{it}(\theta,\phi)=
+\frac{\pi_{\theta,\phi}(a_{it}\mid s_t)}
+{\pi_{\mathrm{old}}(a_{it}\mid s_t)}.
+\end{equation}
+对应的 clipped policy loss 为
+\begin{equation}
+\mathcal{L}_{\mathrm{PPO}}
+=-\mathbb{E}_{i,t}\!\left[
+\min\!\left(
+r_{it}\hat A_{it},
+\operatorname{clip}(r_{it},1-\epsilon,1+\epsilon)\hat A_{it}
+\right)
+\right].
+\label{eq:soft-router-ppo-loss-zh}
+\end{equation}
+即使 $\phi_k$ 冻结，公式~\eqref{eq:soft-router-mixture-policy-zh} 说明 $r_{it}$ 和 PPO loss 仍
+依赖 $\theta$，梯度路径为
+\begin{equation}
+\frac{\partial\mathcal{L}_{\mathrm{PPO}}}{\partial\theta}
+=\frac{\partial\mathcal{L}_{\mathrm{PPO}}}{\partial\pi}
+\frac{\partial\pi}{\partial g}
+\frac{\partial g}{\partial\theta}.
+\end{equation}
+因此 reward 本身不需要穿过 CityLearn 求导。它先决定 $\hat A_{it}$，告诉 PPO 应该提高还是
+降低已执行动作的概率；自动微分再把这个概率误差转成 router 参数的梯度。
+
+例如，两个冻结 expert 对已执行动作分别给出0.8和0.2的概率，router 初始权重为0.5和0.5，
+则混合 policy 对该动作的概率是 $0.5(0.8)+0.5(0.2)=0.5$。如果 advantage 为正，把第一项
+权重提高到0.6、第二项降到0.4，会让总概率提高到
+$0.6(0.8)+0.4(0.2)=0.56$，而两个 expert 自身都不需要改变。这就是冻结 expert 阶段仍然
+存在 policy loss，并且能够产生 router 梯度的原因。
+
+实际 actor 目标还包含探索项和平衡项：
+\begin{align}
+\mathcal{L}_{\mathrm{actor}}
+&=\mathcal{L}_{\mathrm{PPO}}-c_H\mathcal{H}(\pi)
++c_B\mathcal{L}_{\mathrm{balance}},\\
+\mathcal{L}_{\mathrm{balance}}
+&=\frac{1}{K}\sum_{k=1}^{K}(\bar g_k-\bar p_k)^2.
+\end{align}
+$\bar g_k$ 是 batch 中 expert $k$ 的平均使用比例，$\bar p_k$ 是原固定分组比例。平衡项用于
+防止所有建筑都集中选择同一 expert，但它不是额外的 CityLearn reward。expert actor 冻结时，
+critic 仍然继续训练和改善 value 估计。
+
+代码还用几种方法一起降低选择塌缩的风险。Router 开始时给各 expert 的概率接近平均；训练时
+按照概率随机选择，而不是每次都取最大值；entropy 项避免概率过早集中；原固定分组 prior 和
+逐步增加的 $\alpha$ 在训练初期保留多种选择；balance loss 避免一个 expert 接收几乎所有
+建筑；PPO clipping 则限制选择概率一次改变太多。
+
+冻结能够提高稳定性，是因为它消除了 moving-target 问题。如果 router 和全部 expert 同时快速
+变化，router 一边学习哪个 expert 更合适，各 expert 的含义和行为却也在不断改变；这样同一
+routing 概率在前后 episode 中可能对应不同控制行为。固定预训练 expert 后，它们成为可靠的
+参考点，参数量更小的 router 只需要学习如何组合这些已有能力。配合上面的防塌缩措施，分阶段
+冻结使学习过程更加稳定。在 stable full-expert 实验中，第1--500个 episode 冻结全部
+expert、只更新 router；
+第501--1000个 episode 冻结已经学好的 router，只以很低学习率更新较小的 action heads。
+encoder 和 TarMAC 始终固定，从而保留预训练的隐藏空间和通信行为。确定性测试时，每栋建筑
+直接使用 routing 概率最大的 expert。
+\end{zhtranslation}
+
+\section{Router Training Sequence}
+
+The soft-router experiments evolved through four designs:
+\begin{enumerate}
+  \item \textbf{End-to-end legacy training.} Router and actors were trained
+  together from randomly initialized policies. Temperature, warm-up duration,
+  and final prior weight were varied. These runs established that a router could
+  assign different selection probabilities to the experts, but policy learning
+  was unstable.
+  \item \textbf{Pretrained two-stage training.} A fixed-group checkpoint using
+  the strong 3fA feature combination identified earlier was loaded first.
+  Experts were frozen for 200 episodes before
+  limited joint fine-tuning, with temperature 0.5 or 0.7, final dynamic weight
+  1.0 or 0.7, and with/without the seven capacity-aware router inputs.
+  \item \textbf{Three-stage training.} Experiments separated static actor
+  training, router-only learning, and dynamic actor adaptation. Both a shared-
+  encoder version and a full-expert version were tested. The shared version
+  attempted to put every head in one latent space; the full-expert version
+  retained matched encoder--communication--head branches.
+  \item \textbf{Stable two-stage enhancement.} The best fixed 3fA checkpoint
+  was treated as an anchor. The most conservative run trained only the router
+  for 500 episodes (\texttt{routeronly500}). The stronger stable-head family
+  then allowed only action heads to adapt at $10^{-5}$ while encoders and TarMAC
+  remained frozen and the router was frozen during the adaptation phase.
+\end{enumerate}
+
+This sequence tests the central question directly. If soft routing could replace
+clustering, the end-to-end and shared three-stage runs should learn good experts
+without a strong prior. If it is instead an enhancement, the pretrained and
+stable variants should be better because they preserve a useful initial
+partition.
+
+\begin{zhtranslation}
+Soft router 实验经历了四个设计阶段。第一，最初的 end-to-end 版本从随机 actor 开始，
+同时训练 router 和 experts，并改变 temperature、warm-up 和 prior 权重；它证明 router
+可以为不同 expert 分配不同的选择概率，但策略不稳定。第二，两阶段版本先载入先前得出的强特征组合 3fA 固定
+分组 checkpoint，
+冻结 experts 200 episodes 后再有限联合微调，同时比较 temperature 0.5/0.7、最终动态
+权重 1.0/0.7，以及是否使用七个 capacity-aware 输入。第三，三阶段版本明确分开静态
+actor、router-only 和动态 actor 适应，并比较 shared-encoder 与 full-expert。第四，
+稳定两阶段增强把最佳 3fA checkpoint 作为锚点；最保守的 \texttt{routeronly500} 只训练
+router 500 episodes，而 stable-head 版本只允许 action heads 以 $10^{-5}$ 小学习率适应，
+encoder 和 TarMAC 保持冻结，适应阶段 router 也冻结。
+
+这一演进直接检验核心问题：如果 soft routing 能完全替代聚类，那么 end-to-end 和 shared
+三阶段应该无需强先验就能学出好 experts；如果它只是增强方法，那么保留优质初始分组的
+预训练与稳定版本应当表现更好。
+\end{zhtranslation}
+
+\section{Completed Experiments}
+
+At the current stage, the following experiments have been completed:
+\begin{itemize}
+  \item reward-weight comparisons using the baseline, comfort-focused, and
+  load-tracking-focused parameter settings;
+  \item comparison of the original TarMAC communication with TarMAC Hybrid, as
+  well as the ReLU, Linear, and Gated fusion ablations;
+  \item grouping-method experiments comparing K-means, GMM, agglomerative
+  clustering, and balanced spectral clustering under the same 5F setting;
+  \item grouping-feature experiments covering the full 9F control profile, the
+  5F, 4F, and 3F feature-count ablations, and the nine representative 3F
+  combinations A--I with multiple random seeds;
+  \item multi-seed stability and cross-climate experiments for the selected 3fA
+  feature roles in Vermont and Texas;
+  \item Soft Router experiments that gradually improved the training process from
+  an unstable initial design to the final stable version. The final version first
+  keeps the pretrained actors unchanged while training the selector, and then
+  keeps the learned selector fixed while making small adjustments to the actor
+  output layers.
+\end{itemize}
+
+\begin{zhtranslation}
+目前已经完成以下实验：
+\begin{itemize}
+  \item 奖励函数权重对比，包括基线参数、偏重舒适度的参数和偏重负荷跟踪的参数；
+  \item 原始 TarMAC 与 TarMAC Hybrid 的对比，以及 ReLU、Linear 和 Gated 融合方式消融；
+  \item 在相同5F设置下比较 K-means、GMM、凝聚聚类和 Balanced spectral 的分组方法实验；
+  \item 分组特征实验，包括完整9F control profile、5F、4F、3F 特征数量消融，以及九种代表性
+  3F 组合 A--I 的多随机种子实验；
+  \item 选定 3fA 特征角色在 Vermont 和 Texas 上的多随机种子稳定性与跨气候实验；
+  \item Soft Router 实验经过多次训练方式改进，从最初不稳定的设计发展到最终的稳定版本。
+  最终版本先保持预训练 actor 不变，只训练负责选择 actor 的网络；然后固定已经学好的选择器，
+  只对 actor 的输出部分进行小幅调整。
+\end{itemize}
+\end{zhtranslation}
+
+\section{Current Limitations}
+
+The final stable Soft Router can be trained reliably and provides a useful
+performance enhancement over fixed grouping. Its main limitation is that this
+stability depends on strong pretrained actors produced by an earlier fixed
+grouping; it still cannot learn equally strong actors and routing from random
+initialization. Therefore, Soft Router currently improves an existing grouping
+rather than replacing clustering completely. Validation on more climates and
+portfolio sizes is still needed.
+
+\begin{zhtranslation}
+最终的 stable Soft Router 已经能够稳定训练，并且可以作为固定分组之上的性能提升方法。
+它的主要局限是，这种稳定性仍然依赖前期固定分组训练出的强 actor；从随机初始化开始时，
+它还不能自己学出同样有效的 actor 和 routing。因此，Soft Router 目前是在已有分组基础上
+进一步提升性能，而不是完全替代聚类。后续仍需要在更多气候和不同建筑数量下验证。
+\end{zhtranslation}
