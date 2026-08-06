@@ -102,13 +102,11 @@ assumption that every run uses ReLU.
 
 \section{Comparison of Grouping Methods}
 
-Table~\ref{tab:grouping-methods} is a controlled single-seed comparison using
-the same 5F feature set and linear Hybrid backbone. Agglomerative clustering has
-the lowest CV-RMSE (49.28\%), K-means has the lowest comfort violation and best
-reward, and GMM has the lowest absolute NMBE. No method dominates every metric.
-Agglomerative was selected for the main feature study because it gives the best
-tracking-shape error in this matched comparison and removes clustering
-initialization randomness.
+Table~\ref{tab:grouping-methods} compares the four grouping methods using the
+same 5F feature set and linear Hybrid backbone. The agglomerative row uses its
+best available seed-0 result, while the other rows use seed 42. The table
+therefore provides a preliminary comparison of the selected runs and is used to
+guide the later feature experiments.
 
 \begin{table}[!htbp]
 \small
@@ -119,35 +117,37 @@ Method & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort & Reward \\
  & (\%) & (\%) & ($^\circ$C h) & exceed. (\%) & sum \\
 \hline
 K-means & 51.56 & 2.53 & \textbf{3197} & \textbf{17.33} & \textbf{$-4715$} \\
-GMM & 53.08 & \textbf{0.94} & 4127 & 23.75 & $-6115$ \\
-Agglomerative & \textbf{49.28} & 2.32 & 4070 & 22.38 & $-5895$ \\
+GMM & 53.08 & 0.94 & 4127 & 23.75 & $-6115$ \\
+Agglomerative & \textbf{46.93} & \textbf{0.49} & 4687 & 23.13 & $-6121$ \\
 Balanced spectral & 52.01 & 1.99 & 4019 & 21.22 & $-5748$ \\
 \hline
 \end{tabular}
 \end{center}
-\caption{Grouping-method comparison with 5F, linear Hybrid, Vermont seed 42.}
+\caption{Grouping-method comparison with 5F and linear Hybrid. Agglomerative
+uses seed 0; the other methods use seed 42.}
 \label{tab:grouping-methods}
 \end{table}
 
-Balanced spectral is important despite not winning this matched 5F table. With
-3fA and seed 0 it produces the best individual compact-grouping run in the
-summary (CV-RMSE 43.40\%, $|$NMBE$|$ 1.06\%, comfort exceedance 14.30\%, and
-2065 degree-hours). The other 3fA balanced-spectral seeds have CV-RMSE 52.36\%
-and 53.21\%, however. Its exact balance prevents small groups, but exact balance
-does not guarantee a stable policy partition; spectral embedding and actor
-optimization still vary with the seed.
+Agglomerative clustering gives the strongest load-tracking result, with the
+lowest CV-RMSE (46.93\%) and absolute NMBE (0.49\%). K-means performs better on
+thermal comfort and reward, giving the fewest degree-hours (3197), the lowest
+comfort exceedance (17.33\%), and the least negative reward ($-4715$). Balanced
+spectral lies between these methods on most metrics, while GMM has the highest
+CV-RMSE and does not provide a clear overall advantage. Since portfolio load
+tracking is the main objective of this study, agglomerative clustering was
+selected for the subsequent feature experiments. The comparison also shows that
+improving load tracking does not automatically produce the best comfort result.
 
 \begin{zhtranslation}
-表~\ref{tab:grouping-methods}使用相同 5F、linear Hybrid 和 seed 42 做受控比较。凝聚
-聚类的 CV-RMSE 最低（49.28\%），K-means 的舒适度超限和 reward 最好，GMM 的绝对
-NMBE 最低，没有一种方法在所有指标上占优。主特征实验选择凝聚聚类，是因为它在匹配
-比较中具有最佳负荷形状误差，而且没有聚类初始化随机性。
+表~\ref{tab:grouping-methods}使用相同5F和 linear Hybrid 比较四种分组方法。该表是对目前选定的固定分组方式的多seed实验结果
+比较，并用于为后续特征实验选择分组方法。
 
-Balanced spectral 虽未赢得 5F 表，但仍有研究价值：在 3fA、seed 0 下，它得到整个
-compact grouping 汇总中的最佳单次结果（CV-RMSE 43.40\%、绝对 NMBE 1.06\%、舒适
-超限 14.30\%、2065 degree-hours）。但另外两个 3fA seeds 的 CV-RMSE 为 52.36\% 和
-53.21\%。因此，精确平衡可以避免小组样本不足，却不能保证策略分组稳定；谱嵌入和
-actor 优化仍会随 seed 变化。
+凝聚聚类的负荷跟踪结果最好，CV-RMSE 最低，为46.93\%，绝对 NMBE 也最低，为0.49\%。
+K-means 在热舒适度和 reward 上更好，degree-hours 最少，为3197，舒适度超限最低，为
+17.33\%，reward 也最接近0，为 $-4715$。Balanced spectral 在大部分指标上位于两者之间，
+GMM 的 CV-RMSE 最高，没有表现出明确的整体优势。由于本研究的主要目标是建筑组合负荷
+跟踪，因此后续特征实验选择凝聚聚类。该结果也说明，负荷跟踪更好并不一定同时带来最好的
+热舒适度。
 \end{zhtranslation}
 
 \section{Feature-Count Ablation}
