@@ -517,20 +517,27 @@ def _compute_comfort_degree_hours_from_temperature_csv(
     comfort_low_c: float,
     comfort_high_c: float,
     expected_exceedance_hours: Any = None,
-) -> Optional[float]:
-    """Return portfolio temperature exceedance degree-hours (degree C * hour)."""
+) -> Dict[str, Optional[float]]:
+    """Return portfolio total and mean daily degree-hours per building."""
+    empty = {
+        "total": None,
+        "per_building_day": None,
+    }
     csv_candidates = [
         result_dir / "test_building_temperature_timeseries.csv",
         result_dir / "load_tracking_eval" / "test_building_temperature_timeseries.csv",
     ]
     csv_path = next((path for path in csv_candidates if path.exists()), None)
     if csv_path is None:
-        return None
+        return empty
 
     try:
-        temperature_df = pd.read_csv(csv_path, usecols=["indoor_temperature"])
+        temperature_df = pd.read_csv(
+            csv_path,
+            usecols=["building_id", "hour", "indoor_temperature"],
+        )
     except (OSError, ValueError):
-        return None
+        return empty
 
     indoor = pd.to_numeric(temperature_df["indoor_temperature"], errors="coerce")
     below = (comfort_low_c - indoor).clip(lower=0.0)
@@ -547,7 +554,21 @@ def _compute_comfort_degree_hours_from_temperature_csv(
         pass
 
     total = float(exceedance_degrees.sum(skipna=True) * step_hours)
-    return total if math.isfinite(total) else None
+    n_buildings = int(temperature_df["building_id"].nunique())
+    duration_days = float(temperature_df["hour"].nunique() * step_hours / 24.0)
+    per_building_day = (
+        total / (n_buildings * duration_days)
+        if n_buildings > 0 and duration_days > 0.0
+        else None
+    )
+    return {
+        "total": total if math.isfinite(total) else None,
+        "per_building_day": (
+            per_building_day
+            if per_building_day is not None and math.isfinite(per_building_day)
+            else None
+        ),
+    }
 
 
 def _compute_rbc_comfort_from_dataset(climate: str, test_month: int, n_buildings: int = 25) -> Dict[str, Optional[float]]:
@@ -1117,15 +1138,16 @@ def _build_grouping_feature_ablation(primary_df: pd.DataFrame) -> pd.DataFrame:
             _, comfort_low_c, comfort_high_c = _get_season_comfort_bounds(
                 int(test_month) if pd.notna(test_month) else 2
             )
-        row["primary_comfort_degree_hours_total"] = _round(
-            _compute_comfort_degree_hours_from_temperature_csv(
-                result_dir,
-                float(comfort_low_c),
-                float(comfort_high_c),
-                source_row.get("primary_comfort_exceedance_hours_total"),
-            ),
-            4,
+        comfort_degree_hours = _compute_comfort_degree_hours_from_temperature_csv(
+            result_dir,
+            float(comfort_low_c),
+            float(comfort_high_c),
+            source_row.get("primary_comfort_exceedance_hours_total"),
         )
+        row["primary_comfort_degree_hours_per_building_day"] = _round(
+            comfort_degree_hours["per_building_day"], 4
+        )
+        row["primary_comfort_degree_hours_total"] = _round(comfort_degree_hours["total"], 4)
         row.update(labels)
         rows.append(row)
 
@@ -1141,8 +1163,9 @@ def _build_grouping_feature_ablation(primary_df: pd.DataFrame) -> pd.DataFrame:
         "primary_load_cv_rmse_pct",
         "primary_load_nmbe_pct",
         "primary_abs_nmbe_pct",
-        "primary_comfort_degree_hours_total",
+        "primary_comfort_degree_hours_per_building_day",
         "primary_comfort_exceedance_pct",
+        "primary_comfort_degree_hours_total",
         "primary_comfort_exceedance_hours_total",
         "primary_comfort_exceedance_hours_mean",
         "primary_comfort_exceedance_hours_max",
@@ -1352,8 +1375,9 @@ def main() -> int:
         intro_lines=[
             "Sorted by `primary_rank` from `selected_experiment_metrics_primary_only_table.csv`. Lower rank is better.",
             "",
-            "`primary_comfort_degree_hours_total` is calculated from the existing hourly temperature results "
-            "(temperature exceedance x duration, degree C * hour). `primary_comfort_exceedance_pct` is retained beside it for reference.",
+            "`primary_comfort_degree_hours_per_building_day` is the mean across all buildings and test days "
+            "(temperature exceedance x duration, degree C * hour per building-day); it is not based on a sampled building. "
+            "`primary_comfort_exceedance_pct` and the portfolio total are retained beside it for reference.",
             "",
             "Included rows: compact fixed grouping runs, previous larger/full fixed grouping, legacy soft-router, "
             "upgraded capacity-router, and two-stage soft-router runs.",
