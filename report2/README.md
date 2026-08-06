@@ -7,8 +7,8 @@ For Overleaf:
 
 1. Upload the complete `report2` folder, including `figures/`.
 2. Set `thesis.tex` as the main document.
-3. Select **XeLaTeX** as the compiler because the report contains Chinese
-   translations.
+3. Select **XeLaTeX** as the recommended compiler because the report contains
+   Chinese translations. A pdfLaTeX-compatible CJK fallback is also included.
 
 The plots are generated only from recorded experiment outputs:
 

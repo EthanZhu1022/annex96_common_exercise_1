@@ -1,16 +1,17 @@
 \chapter{Evaluation and Result Analysis}\label{ch:eval}
 
-This chapter reports only values already exported by the experiment pipeline.
-The main sources are
-\texttt{experiment\_metric\_summary/grouping\_feature\_ablation\_primary\_only\_sorted.csv}
-and \texttt{selected\_experiment\_metrics\_full.csv}, which were produced by
-\texttt{summarize\_selected\_experiment\_metrics}.
+This chapter evaluates the methods introduced in Chapter~\ref{ch:method} using
+the CityLearn Annex 96 Common Exercise 1 portfolio load-tracking task. It
+compares TarMAC Hybrid, alternative building-grouping methods, grouping-feature
+ablations, Vermont--Texas generalization, and the Soft Router. The results are
+analysed in terms of load tracking, thermal comfort, and stability across
+multiple random seeds.
 
 \begin{zhtranslation}
-本章只报告实验流程已经导出的数值。主要来源为
-\texttt{grouping\_feature\_ablation\_primary\_only\_sorted.csv} 和
-\texttt{selected\_experiment\_metrics\_full.csv}，两者由
-\texttt{summarize\_selected\_experiment\_metrics} 生成。
+本章使用 CityLearn Annex 96 Common Exercise 1 建筑组合负荷跟踪任务，对第~\ref{ch:method}
+章提出的方法进行评估。主要比较 TarMAC Hybrid、不同建筑分组方法、分组特征消融、
+Vermont--Texas 泛化以及 Soft Router，并从负荷跟踪、热舒适度和多随机种子稳定性三个方面
+分析实验结果。
 \end{zhtranslation}
 
 \section{Evaluation Scope and Metrics}
@@ -23,12 +24,13 @@ both the percentage of building-hours outside the seasonal comfort band and
 degree-hours, which preserves the magnitude as well as the duration of a
 temperature violation. Lower values are better for all four metrics.
 
-The experiments do not all have the same statistical role. Architecture and
-method ablations use matched seed-42 runs to isolate one change. Feature-
-combination studies use seeds 0--2, and the selected 3fA configuration has five
-available agglomerative runs (0, 1, 2, 3, and 42). Cross-climate results use
-three seeds in each climate. Conclusions below explicitly distinguish a best
-single run from a stable multi-seed result.
+The evaluation combines repeated training results from multiple random seeds
+across the main feature, climate, and Soft Router studies.
+Controlled ablations compare runs under the same seed and settings, while
+repeated runs are summarized by their mean and standard deviation to verify
+that the main conclusions do not depend on one unusually good result. An
+individual run is discussed only when it is needed to explain a specific
+controlled comparison.
 
 \begin{zhtranslation}
 Vermont 使用一月进行训练和分组特征提取、二月测试；Texas 使用八月训练和提取特征、
@@ -36,9 +38,10 @@ Vermont 使用一月进行训练和分组特征提取、二月测试；Texas 使
 绝对值；舒适度同时使用超限 building-hours 比例和 degree-hours，后者同时保留温度越界
 的幅度与持续时间。四个指标均越低越好。
 
-不同实验承担不同统计作用。结构和方法消融使用匹配的 seed 42 以隔离单个改动；特征
-组合使用 seeds 0--2；选定的 3fA 凝聚聚类有五个可用 runs（0、1、2、3、42）；跨气候
-结果在每个气候使用三个 seeds。下文会明确区分“最佳单次结果”和“稳定多种子结果”。
+本章综合使用了多次不同随机种子的重复训练结果，覆盖主要的特征、气候和 Soft Router
+实验。控制变量的消融实验在相同 seed 和相同设置下进行比较；需要判断稳定性时，则使用
+多次重复实验的均值和标准差，确保主要结论不是由某一次偶然较好的结果决定。只有在解释
+某个具体的控制对照时，才会单独讨论一次实验结果。
 \end{zhtranslation}
 
 \section{TarMAC Hybrid Improvement}
@@ -336,6 +339,73 @@ Stable heads, 3 seeds & router 500 + head-only adaptation & $\mathbf{45.12\pm0.3
 \caption{Primary metrics across the main soft-router development stages.}
 \label{fig:router-progression}
 \end{figure}
+
+\subsection{Router-Collapse Analysis}
+
+Routing collapse occurs when the router sends almost all decisions to one
+expert, leaving the other actors with little or no use. Table~\ref{tab:router-collapse}
+uses the recorded training history of two matched seed-42 full-expert runs to
+examine this directly. Both use temperature $\tau=0.5$, increase $\alpha$ from
+0.5 to 1.0 over 150 episodes, use entropy coefficient $c_H=0.05$, balance
+coefficient $c_B=0.01$, and train the router at $10^{-4}$. Their first 500
+router-only episodes are identical. After this point, the joint version resumes
+router updates after a 100-episode pause and updates the full experts at
+$3\times10^{-5}$; the stable version freezes the router for all remaining 500
+episodes and updates only the action heads at $10^{-5}$.
+
+\begin{table}[!htbp]
+\scriptsize
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|c|c|c|c|l|r|r|r|}
+\hline
+Recorded point & $\tau$ & $\alpha$ & $c_H$ & $c_B$ & Router status & Gate entropy & Mean largest gate & Largest expert share \\
+\hline
+Start, episode 1 & 0.5 & 0.50 & 0.05 & 0.01 & training & 1.223 & 0.602 & 30.6\% \\
+End of router-only, episode 500 & 0.5 & 1.00 & 0.05 & 0.01 & training & 0.275 & 0.891 & 36.4\% \\
+Joint adaptation, episode 1000 & 0.5 & 1.00 & 0.05 & 0.01 & updated & 0.171 & 0.934 & 51.7\% \\
+Stable head adaptation, episode 1000 & 0.5 & 1.00 & 0.05 & 0.01 & frozen & 0.276 & 0.891 & 37.0\% \\
+\hline
+\end{tabular}}
+\end{center}
+\caption{Matched seed-42 routing-concentration data. Higher entropy and lower
+largest-gate/share values indicate less concentration.}
+\label{tab:router-collapse}
+\end{table}
+
+With five experts, the largest possible gate entropy is $\log(5)=1.609$. The
+prior and gradual $\alpha$ schedule give initial expert shares of 21.9\%,
+20.1\%, 30.6\%, 13.3\%, and 14.1\%. At episode 500 the largest share is still
+only 36.4\%. Continuing joint training then reduces entropy from 0.275 to 0.171
+and raises one expert's share to 51.7\%, whereas freezing the router preserves
+entropy at 0.276 and limits the largest share to 37.0\%. The three final stable
+seeds have largest shares of 37.5\%, 40.5\%, and 37.0\%, and the matched seed-42
+stable run also improves CV-RMSE from 45.45\% to 44.72\% and degree-hours from
+4471 to 2991. Together with probability sampling and PPO clipping, this supports
+the combined use of the prior, gradual $\alpha$, entropy, balance, and staged
+freezing. It does not produce perfect balance: expert 3 receives only
+0.015--0.036\% of final traffic. The safeguards therefore prevent total
+one-expert collapse, but one branch can still become almost unused.
+
+\begin{zhtranslation}
+Router 坍塌是指 router 把几乎所有控制选择都交给同一个 expert，导致其他 actor 很少或完全
+不被使用。表~\ref{tab:router-collapse}使用两组相同 seed 42 的 full-expert 实验记录直接分析
+这一问题。两组实验都使用 $\tau=0.5$，在150个 episodes 内把 $\alpha$ 从0.5增加到1.0，
+entropy 系数为 $c_H=0.05$，balance 系数为 $c_B=0.01$，router 学习率为 $10^{-4}$，并且
+前500个 router-only episodes 完全相同。之后，joint 版本先暂停更新 router 100个 episodes，
+随后继续联合更新 router 和完整 experts，expert 学习率为 $3\times10^{-5}$；stable 版本则在
+后500个 episodes 始终固定 router，只用 $10^{-5}$ 的学习率调整 action heads。
+
+五个 experts 的最大 entropy 是 $\log(5)=1.609$。原固定分组 prior 和逐步增加的 $\alpha$
+使 episode 1 的五个 expert 使用比例保持在21.9\%、20.1\%、30.6\%、13.3\%和14.1\%。到
+episode 500，最大比例仍只有36.4\%。继续联合训练会使 entropy 从0.275降到0.171，并使一个
+expert 上升到51.7\%；固定 router 后，entropy 保持在0.276，最大比例只有37.0\%。三个最终
+stable seeds 的最大比例分别为37.5\%、40.5\%和37.0\%，而 matched seed-42 stable 实验还将
+CV-RMSE 从45.45\%降到44.72\%、degree-hours 从4471降到2991。这说明组合防坍塌设计有效，
+包括 prior、逐步增加 $\alpha$、entropy、balance、按概率抽样、PPO clipping 和分阶段冻结。
+不过 expert 3 最终只占0.015--0.036\%，说明这些措施能避免所有选择集中到单个 expert，
+但还不能完全避免某一个分支几乎不被使用。
+\end{zhtranslation}
 
 The final stable-head result is the clearest evidence that routing has value.
 Across router-training seeds 0, 1, and 42, CV-RMSE is $45.12\pm0.35$\%,
