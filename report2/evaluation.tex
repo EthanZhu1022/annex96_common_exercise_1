@@ -503,9 +503,9 @@ three stable-head runs start from the same seed-42 pretrained actors and only
 change the random seed used for the later router training. Therefore, these
 results show that the router can be trained consistently, but they do not test
 whether the whole model is equally stable when trained from the beginning with
-different seeds. The final method should therefore be described as
-a useful and stable improvement built on strong fixed experts, not as a method
-that removes the need for good initial grouping.
+different seeds. Therefore, the final stable-head Soft Router is a useful and
+stable improvement built on strong fixed experts, but it does not remove the
+need for good initial grouping.
 
 \begin{zhtranslation}
 总体而言，stable-head Soft Router 是目前效果最好、也最稳定的 routing 版本。它的平均
@@ -516,13 +516,14 @@ router 训练使用的随机种子。因此，这些结果只能说明 router �
 有效且稳定的提升方法，而不是能够取消良好初始分组的方法。
 \end{zhtranslation}
 
-\section{Selected-Controller Diagnostics}
+\section{Detailed Results of the Best-Performing Experiments}
 
-The following plots use two representative runs. The fixed 3fA seed-42 run is
-shown because its checkpoint supplies the pretrained actors used by the final
-router experiments. Stable Soft Router seed 0 is shown because it has the best
-primary rank among the three final stable-head runs. These are individual-run
-diagnostics rather than plots averaged across seeds.
+The following plots present detailed test results from the selected
+best-performing fixed 3fA and stable Soft Router experiments. The fixed 3fA
+seed-42 run is shown because its checkpoint supplies the pretrained actors used
+by the final router experiments. Stable Soft Router seed 0 is shown because it
+has the best primary rank among the three final stable-head runs. These plots
+show individual experiments rather than curves averaged across seeds.
 
 \begin{figure}[!htbp]
 \begin{center}
@@ -583,7 +584,8 @@ month, and the controlled portfolio load, no-storage baseline, and district
 target are exported for the first 168 hours.
 
 \begin{zhtranslation}
-上述图像选择了两个有代表性的实验。固定 3fA 使用 seed 42，因为它的 checkpoint
+上述图像展示固定 3fA 和 stable Soft Router 中选定最佳实验的详细测试结果。固定 3fA
+使用 seed 42，因为它的 checkpoint
 正是最终 router 实验使用的预训练 actors；stable Soft Router 使用 seed 0，因为它在
 三个最终 stable-head 实验中的主指标综合排名最高。这些是单次实验的详细图，
 不是多个 seeds 的平均曲线。
@@ -605,32 +607,36 @@ The experiments support four conclusions. First, TarMAC Hybrid is a meaningful
 architectural improvement, and its advantage is best explained by compact local
 fusion plus a residual communication correction. Second, grouping is part of
 the learning system rather than neutral preprocessing: K-means, GMM,
-agglomerative, and balanced spectral partitions create different accuracy--
-comfort trade-offs. Third, compact physically distinct features are preferable
-to indiscriminately adding correlated building descriptors. 3fA is selected for
-its very low bias, interpretation, and climate transfer, while 3fI remains an
-important competing result on CV-RMSE and comfort. Fourth, soft routing can
-improve performance and seed stability, but only after useful fixed experts
-exist.
+agglomerative, and balanced spectral partitions create different accuracy.
+Third, using more grouping features does not necessarily improve the result. A
+small set of features that describe different aspects of a building is usually
+more effective than adding many similar features. The low bias, clear meaning,
+and good cross-climate performance of 3fA support this conclusion. Fourth, the
+Soft Router realizes the main innovation described in the Introduction. It
+allows each building to select different actors according to its current state,
+instead of always using the actor assigned by fixed grouping. This improves
+performance and seed stability and reduces dependence on the fixed assignment.
 
-The last point answers the router research question cautiously. The current
-soft router does not remove dependence on grouping. End-to-end and shared-
-representation attempts do not learn a strong partition from scratch, whereas
-pretrained full-expert and stable-head variants do. The router is therefore a
-``pro'' extension of fixed grouping: it lets the policy switch or interpolate
-between established specializations according to state, but the quality of the
-initial grouping still sets the quality of the expert basis.
+However, the Soft Router does not remove this dependence completely. The
+end-to-end and shared-representation versions perform poorly when trained from
+scratch; stable results are obtained only after loading strong pretrained
+experts. The Soft Router is therefore an improvement built on good fixed
+grouping: it reduces the restriction of permanently assigning each building to
+one actor, but the quality of the initial experts still affects the final
+performance.
 
 \begin{zhtranslation}
 实验支持四点结论。第一，TarMAC Hybrid 是有意义的结构改进，其优势最好解释为紧凑本地
 融合加残差通信修正。第二，分组不是中性的预处理，而是学习系统的一部分；K-means、
-GMM、凝聚和 balanced spectral 会形成不同的精度--舒适度折中。第三，相比无差别加入
-相关建筑描述，紧凑且物理作用不同的特征更合适；3fA 因低 bias、可解释性和气候迁移被
-选中，但 3fI 在 CV-RMSE 与舒适度方面仍是重要竞争结果。第四，soft routing 能提高性能
-和 seed 稳定性，但前提是已经存在有效的固定 experts。
+GMM、凝聚和 balanced spectral 会形成不同的精度。第三，分组特征并不是越多越好。选择
+描述建筑不同方面、重复信息较少的少量特征，通常比加入许多相似特征更有效。3fA 的低
+bias、清楚的物理含义和良好的跨气候表现支持了这一结论。第四，Soft Router 实现了
+Introduction 中提出的主要创新点。它让每栋建筑根据当前状态选择不同的 actor，而不是
+始终使用固定分组分配的同一个 actor。因此，它能够提高性能和 seed 稳定性，并减少模型
+对固定分组的依赖。
 
-因此，soft router 目前并没有消除对分组的依赖。End-to-end 和 shared-representation
-尝试无法从零学出强分组，而 pretrained full-expert 与 stable-head 可以。Soft router
-更适合被定位为固定分组的“pro”扩展：它允许策略随状态在已经建立的专门化之间切换或
-插值，但初始分组质量仍然决定 expert 基础的质量。
+不过，Soft Router 还不能完全消除这种依赖。End-to-end 和 shared-representation 版本
+从头训练时表现较差，只有载入效果较好的预训练 experts 后才能得到稳定结果。因此，
+Soft Router 是一种建立在良好固定分组之上的提升方法：它减少了每栋建筑始终绑定同一个
+actor 的限制，但初始 experts 的质量仍然会影响最终结果。
 \end{zhtranslation}
