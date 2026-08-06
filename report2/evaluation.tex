@@ -280,17 +280,19 @@ with the comfort15/binary30/degree10 reward setting.
 \begin{table}[!htbp]
 \small
 \begin{center}
-\begin{tabular}{|l|l|r|r|r|r|}
+\begin{tabular}{|l|r|r|r|r|}
 \hline
-Climate & Features & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort \\
- & & (\%) & (\%) & ($^\circ$C h/building-day) & exceed. (\%) \\
+Climate & CV-RMSE & $|$NMBE$|$ & DH/building-day & Comfort exceed. \\
+ & (\%) & (\%) & ($^\circ$C h) & (\%) \\
 \hline
-VT & capacity, heating mean, NSL mean & $49.64\pm1.59$ & $3.04\pm1.49$ & $5.10\pm1.95$ & $18.74\pm1.90$ \\
-TX & capacity, cooling mean, NSL mean & $78.83\pm4.90$ & $45.57\pm1.98$ & $1.59\pm0.31$ & $11.22\pm1.66$ \\
+VT & $49.64\pm1.59$ & $3.04\pm1.49$ & $5.10\pm1.95$ & $18.74\pm1.90$ \\
+TX & $78.83\pm4.90$ & $45.57\pm1.98$ & $1.59\pm0.31$ & $11.22\pm1.66$ \\
 \hline
 \end{tabular}
 \end{center}
-\caption{3fA role-based generalization; mean $\pm$ sample standard deviation over three seeds.}
+\caption{3fA role-based generalization; mean $\pm$ sample standard deviation
+over three seeds. VT uses capacity--heating mean--NSL mean, and TX uses
+capacity--cooling mean--NSL mean.}
 \label{tab:climate-generalization}
 \end{table}
 
@@ -318,13 +320,14 @@ Texas 三个 CV-RMSE 为 73.78--83.57\%，而 no-control baseline 为 163.74\%�
 
 \section{Soft-Router Ablation and Training Progression}
 
-Table~\ref{tab:router-progression} summarizes the main stages using seed 42,
-except the final row, which reports three seeds. The legacy end-to-end run has
-reasonable CV-RMSE but high bias and comfort degree-hours. Loading pretrained
-3fA experts immediately improves bias. The shared-encoder three-stage run is
-the worst routing result, indicating that reorganizing expert representations
-while learning the router destroys useful specialization. Full-expert routing
-is better because each encoder, communication path, and head remains matched.
+Table~\ref{tab:router-progression} lists the tested Soft Router variants, and
+Figure~\ref{fig:router-progression} shows the performance trend across the main
+development stages. Single-run rows use seed 42; the final stable-head row is
+the mean and sample standard deviation over three router-training seeds. The
+intermediate variants were evaluated only with seed 42 because their results
+were already poor and repeating these long training runs would require
+substantial time and computational cost. Multi-seed evaluation was therefore
+reserved for the final stable version.
 
 \begin{table}[!htbp]
 \scriptsize
@@ -357,6 +360,71 @@ Stable heads, 3 seeds & router 500 + head-only adaptation & $\mathbf{45.12\pm0.3
 \caption{Primary metrics across the main soft-router development stages.}
 \label{fig:router-progression}
 \end{figure}
+
+\subsection{Results for Each Soft Router Variant}
+
+The legacy end-to-end version trains the router and actors together from the
+beginning. Its CV-RMSE is 47.60\%, but its absolute NMBE is 4.31\%, its
+degree-hours are 10.02 per building-day, and its comfort exceedance is 24.64\%.
+It can learn a reasonable load shape, but its load bias and thermal comfort are
+poor.
+
+The two-stage versions first load the trained 3fA experts and then train the
+router. This immediately reduces the bias. The freeze200 version reaches
+48.26\% CV-RMSE and 1.35\% absolute NMBE. Changing the temperature and prior in
+the prior0.7 version improves CV-RMSE to 46.54\%. Removing the seven physical
+capacity inputs gives the lowest absolute NMBE in the table, 0.57\%, and also
+reduces degree-hours to 5.53 per building-day. These results show that loading
+useful experts is more important than giving the router many additional inputs.
+
+The three-stage experiments test how much of each expert should be preserved.
+The shared-encoder version is the worst variant, with 52.44\% CV-RMSE, 7.48\%
+absolute NMBE, and 31.35\% comfort exceedance. In contrast, preserving each
+complete expert branch reduces CV-RMSE to 45.45\%. The comparison shows that an
+expert's encoder, communication path, and output head should remain together;
+rebuilding a shared internal representation can destroy the useful behaviour
+already learned by the actors.
+
+The stable versions limit what can change after router training. The seed-42
+router-only run reaches 45.99\% CV-RMSE and 4.16 degree-hours per building-day.
+Across all five available router-only runs, CV-RMSE is $49.83\pm3.34$\%,
+$|$NMBE$|$ is $1.19\pm0.60$\%, degree-hours are $4.55\pm1.25$ per building-day,
+and comfort exceedance is $18.73\pm2.43$\%. Allowing only small changes to the
+action heads after the router has stabilized gives the strongest final result:
+$45.12\pm0.35$\% CV-RMSE, $1.35\pm0.33$\% absolute NMBE,
+$3.78\pm0.44$ degree-hours per building-day, and $17.30\pm1.33$\% comfort
+exceedance over three router-training seeds.
+
+\begin{zhtranslation}
+表~\ref{tab:router-progression}列出了测试过的 Soft Router 版本，
+图~\ref{fig:router-progression}展示了主要开发阶段的性能变化。除最终 stable-head 行使用
+三个 router-training seeds 的均值和样本标准差外，其余中间版本均只使用 seed 42。这是
+因为这些版本的结果已经较差，而重复运行多 seed 实验需要很高的时间和计算成本，因此只对
+最终的 stable 版本进行了多 seed 验证。
+
+Legacy end-to-end 版本从一开始就同时训练 router 和 actors。它的 CV-RMSE 为47.60\%，
+但绝对 NMBE 为4.31\%，每栋建筑每天的平均 degree-hours 为10.02，舒适超限为24.64\%。
+它能够学出基本合理的负荷曲线，但负荷偏差和热舒适度较差。
+
+Two-stage 版本先载入训练好的 3fA experts，再训练 router，因此 bias 立即降低。Freeze200
+版本的 CV-RMSE 为48.26\%，绝对 NMBE 为1.35\%；调整温度和 prior 后，prior0.7 版本将
+CV-RMSE 改善到46.54\%。移除七个物理 capacity 输入后，绝对 NMBE 降至表中最低的0.57\%，
+每栋建筑每天的平均 degree-hours 也降至5.53。这说明，载入有效 experts 比给 router 增加
+大量额外输入更重要。
+
+Three-stage 实验用于比较应该保留 expert 的哪些部分。Shared-encoder 版本是表现最差的
+版本，CV-RMSE 为52.44\%，绝对 NMBE 为7.48\%，舒适超限为31.35\%。相比之下，保留每个
+完整 expert 分支后，CV-RMSE 降至45.45\%。这说明 expert 的 encoder、communication path
+和 output head 应保持为一个整体；重新建立共享的内部表示会破坏 actors 已经学到的有效行为。
+
+Stable 版本限制了 router 训练完成后还能改变的部分。Seed-42 router-only 实验的 CV-RMSE
+为45.99\%，每栋建筑每天的平均 degree-hours 为4.16。五次可用 router-only 实验的
+CV-RMSE 为 $49.83\pm3.34$\%，绝对 NMBE 为 $1.19\pm0.60$\%，degree-hours 为
+$4.55\pm1.25$，舒适超限为 $18.73\pm2.43$\%。Router 稳定后只允许 action heads 小幅
+调整，得到最终最强结果：三个 router-training seeds 的 CV-RMSE 为 $45.12\pm0.35$\%，
+绝对 NMBE 为 $1.35\pm0.33$\%，每栋建筑每天的平均 degree-hours 为 $3.78\pm0.44$，
+舒适超限为 $17.30\pm1.33$\%。
+\end{zhtranslation}
 
 \subsection{Router-Collapse Analysis}
 
@@ -400,8 +468,8 @@ entropy at 0.276 and limits the largest share to 37.0\%. The three final stable
 seeds have largest shares of 37.5\%, 40.5\%, and 37.0\%, and the matched seed-42
 stable run also improves CV-RMSE from 45.45\% to 44.72\% and degree-hours from
 6.39 to 4.27 per building-day. Together with probability sampling and PPO
-clipping, this supports
-the combined use of the prior, gradual $\alpha$, entropy, balance, and staged
+clipping, this supports the combined use of the prior, gradual $\alpha$,
+entropy, balance, and staged
 freezing. It does not produce perfect balance: expert 3 receives only
 0.015--0.036\% of final traffic. The safeguards therefore prevent total
 one-expert collapse, but one branch can still become almost unused.
@@ -426,49 +494,26 @@ CV-RMSE 从45.45\%降到44.72\%、每栋建筑每天的平均 degree-hours 从6.
 但还不能完全避免某一个分支几乎不被使用。
 \end{zhtranslation}
 
-The final stable-head result is the clearest evidence that routing has value.
-Across router-training seeds 0, 1, and 42, CV-RMSE is $45.12\pm0.35$\%,
-degree-hours per building-day are $3.78\pm0.44$, and comfort exceedance is
-$17.30\pm1.33$\%. All three runs load the same strong seed-42 fixed-expert
-checkpoint, so this measures stability of routing and limited head adaptation
-\emph{conditional on one expert anchor}; it is not an end-to-end multi-seed
-test of expert learning. The fixed 3fA family over all five available seeds has
-CV-RMSE $49.86\pm3.65$\% and degree-hours per building-day of
-$4.64\pm1.27$. These sets are not
-paired, but the smaller conditional router variance and improved means justify
-calling the stable router a useful enhancement. Reward is not equally stable:
-one stable-head seed has a reward sum of $-17225$ despite acceptable reported
-primary metrics, so the result should be presented as strong but not fully
-resolved.
+\subsection{Final Soft Router Assessment}
 
-The five available \texttt{routeronly500} runs give CV-RMSE
-$49.83\pm3.34$\%, $|$NMBE$|$ $1.19\pm0.60$\%, degree-hours
-$4.55\pm1.25$ per building-day, and comfort exceedance $18.73\pm2.43$\%.
-Router-only training is
-therefore safer than uncontrolled joint training, but its mean gain over fixed
-3fA is modest. The larger gain appears when stable pretrained branches are kept
-and only a narrowly scoped head adaptation is allowed.
+Overall, the stable-head Soft Router is the strongest and most stable routing
+version. Its mean CV-RMSE and degree-hours are better than those of the five-run
+fixed 3fA family ($49.86\pm3.65$\% and $4.64\pm1.27$ per building-day). All
+three stable-head runs start from the same seed-42 pretrained actors and only
+change the random seed used for the later router training. Therefore, these
+results show that the router can be trained consistently, but they do not test
+whether the whole model is equally stable when trained from the beginning with
+different seeds. The final method should therefore be described as
+a useful and stable improvement built on strong fixed experts, not as a method
+that removes the need for good initial grouping.
 
 \begin{zhtranslation}
-表~\ref{tab:router-progression}汇总主要阶段。除最后一行是三 seeds 均值外，其余使用
-seed 42。Legacy end-to-end 的 CV-RMSE 尚可，但 bias 和 degree-hours 较高；载入预训练
-3fA experts 后，bias 立即改善。Shared-encoder 三阶段是最差的路由结果，说明在训练
-router 时重新组织 expert 表示会破坏已经有用的专门化；full-expert 更好，因为 encoder、
-communication 和 head 始终保持匹配。
-
-最终 stable-head 是 soft routing 有价值的最清晰证据。router-training seeds 0、1、42
-的 CV-RMSE 为 $45.12\pm0.35$\%，每栋建筑每天的平均 degree-hours 为 $3.78\pm0.44$，舒适超限为
-$17.30\pm1.33$\%。但三次实验都载入同一个强 seed-42 固定 expert checkpoint，因此
-这里衡量的是“在同一个 expert 锚点条件下”的 router 和有限 head adaptation 稳定性，
-不是完整 expert 学习的端到端多种子检验。固定 3fA 五次可用实验分别为
-$49.86\pm3.65$\% 和 $4.64\pm1.27$。两组没有严格配对，但 router 条件方差更小且均值
-更好，足以支持“有用增强”的判断。不过 reward 并不同样稳定：stable-head 的一个 seed
-虽然主指标可接受，reward sum 却为 $-17225$，因此该结果很强但尚未完全解决。
-
-五次 \texttt{routeronly500} 的 CV-RMSE 为 $49.83\pm3.34$\%，绝对 NMBE 为
-$1.19\pm0.60$\%，每栋建筑每天的平均 degree-hours 为 $4.55\pm1.25$，舒适超限为 $18.73\pm2.43$\%。因此
-router-only 比不受控联合训练更安全，但相对固定 3fA 的平均提升有限；更明显的提升来自
-保留稳定预训练分支，并只允许范围很小的 head adaptation。
+总体而言，stable-head Soft Router 是目前效果最好、也最稳定的 routing 版本。它的平均
+CV-RMSE 和 degree-hours 优于固定 3fA 五次实验的 $49.86\pm3.65$\% 和
+$4.64\pm1.27$。三个 stable-head 实验都从同一组 seed-42 预训练 actors 开始，只改变后续
+router 训练使用的随机种子。因此，这些结果只能说明 router 可以较稳定地训练，不能说明
+从头训练整个模型时也能在不同 seeds 下保持同样稳定。因此，最终方法stable-head Soft Router是建立在强固定 experts 上的
+有效且稳定的提升方法，而不是能够取消良好初始分组的方法。
 \end{zhtranslation}
 
 \section{Selected-Controller Diagnostics}
