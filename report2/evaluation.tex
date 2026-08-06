@@ -170,14 +170,16 @@ GMM 的 CV-RMSE 最高，没有表现出明确的整体优势。由于本研究�
 
 \section{Feature-Count Ablation}
 
-Table~\ref{tab:feature-count} compares 3fA, 4F, and 5F under the same
-agglomerative, linear-Hybrid, seed-42 setting. Adding HVAC rating to 3fA raises
-CV-RMSE by 9.24 percentage points and degree-hours per building-day by 3.28.
-Adding the comfort feature in 5F partly recovers performance but remains worse
-than 3fA on every
-reported primary metric. The result supports the low-redundancy hypothesis:
-more standardized columns can change the geometry of grouping even when each
-column appears individually relevant.
+Table~\ref{tab:feature-count} compares 3fA, 4F, and 5F with agglomerative
+grouping and the linear-Hybrid backbone. The 3fA and 5F rows are the means over
+all five available runs (seeds 0, 1, 2, 3, and 42), while 4F retains its only
+available result, seed 42. The 3fA mean is best on all four reported metrics.
+The 5F mean has a similar CV-RMSE but larger bias and comfort errors, while the
+single 4F result is worse than the 3fA mean on every metric. Since 4F currently
+has only one seed, its comparison should be treated as preliminary. Overall,
+the results support the low-redundancy hypothesis: more standardized columns
+can change the geometry of grouping even when each column appears individually
+relevant.
 
 \begin{table}[!htbp]
 \small
@@ -187,13 +189,14 @@ column appears individually relevant.
 Set & Added information & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort \\
  & & (\%) & (\%) & ($^\circ$C h/building-day) & exceed. (\%) \\
 \hline
-3fA & capacity, heat mean, NSL mean & \textbf{44.62} & \textbf{0.57} & \textbf{4.52} & \textbf{20.07} \\
+3fA & capacity, heat mean, NSL mean & \textbf{49.86} & \textbf{0.81} & \textbf{4.64} & \textbf{19.21} \\
 4F & 3fA + HVAC rating & 53.86 & 1.34 & 7.79 & 28.52 \\
-5F & 4F + comfort lower excess & 49.28 & 2.32 & 5.81 & 22.38 \\
+5F & 4F + comfort lower excess & 49.97 & 2.01 & 6.36 & 21.74 \\
 \hline
 \end{tabular}
 \end{center}
-\caption{Feature-count ablation with agglomerative grouping, Vermont seed 42.}
+\caption{Feature-count ablation with agglomerative grouping. The 3fA and 5F
+rows are five-seed means; the 4F row uses its only available run, seed 42.}
 \label{tab:feature-count}
 \end{table}
 
@@ -201,16 +204,15 @@ Set & Added information & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort \\
 \begin{center}
 \includegraphics[width=0.95\textwidth]{figures/feature_ablation.png}
 \end{center}
-\caption{Feature-count and three-feature combination ablations from recorded runs.}
+\caption{Feature-count and three-feature combination ablations from recorded
+runs. In the feature-count panel, 3fA and 5F use five seeds and 4F uses seed 42.}
 \label{fig:feature-ablation}
 \end{figure}
 
 \begin{zhtranslation}
-表~\ref{tab:feature-count}在相同凝聚聚类、linear Hybrid 和 seed 42 下比较 3fA、4F、
-5F。向 3fA 加入 HVAC 后，CV-RMSE 增加 9.24 个百分点、每栋建筑每天的平均 degree-hours
-增加 3.28；5F 加入舒适度特征后虽有部分恢复，但所有主指标仍差于 3fA。这支持低冗余
-假设：即使每个
-特征单独看来都相关，增加更多标准化列仍会改变聚类几何并损害结果。
+表~\ref{tab:feature-count}在相同凝聚聚类、 linear Hybrid和多seed均值 下比较 3fA、4F、5F。3fA 的均值在四项指标上都最好。5F 的平均 CV-RMSE 与 3fA 接近，但
+bias 和舒适度指标更差；4F 的均值结果也在所有指标上差于 3fA 均值。总体而言，这支持低冗余假设：即使每个特征单独
+看来都相关，增加更多标准化列仍可能改变聚类结果并降低性能。
 \end{zhtranslation}
 
 \section{Three-Feature Combination Ablation}

@@ -64,15 +64,26 @@ def save_hybrid_ablation() -> None:
 
 
 def save_feature_ablation() -> None:
-    count_names = {
-        "3fA": "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_3f_linear_vt_500_final",
-        "4F": "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_4f_linear_vt_500_final",
-        "5F": "mappo_grouped_tarmac_hybrid_agglomerative_capacity_load_5f_linear_vt_500_final",
+    count_specs = {
+        "3fA": ("capacity_load_3f", 5),
+        "4F": ("capacity_load_4f", 1),
+        "5F": ("capacity_load_5f", 5),
     }
-    count_values = [
-        float(exact_row(PRIMARY, name)["primary_load_cv_rmse_pct"])
-        for name in count_names.values()
-    ]
+    count_values: list[float] = []
+    count_errors: list[float] = []
+    for feature_set, expected_count in count_specs.values():
+        rows = PRIMARY.loc[
+            (PRIMARY["architecture"] == "TarMAC hybrid")
+            & (PRIMARY["grouping_method_short"] == "agglomerative")
+            & (PRIMARY["grouping_feature_set_short"] == feature_set)
+        ]
+        if len(rows) != expected_count:
+            raise ValueError(
+                f"Expected {expected_count} feature-count rows for {feature_set!r}, found {len(rows)}"
+            )
+        values = pd.to_numeric(rows["primary_load_cv_rmse_pct"])
+        count_values.append(float(values.mean()))
+        count_errors.append(float(values.std(ddof=1)) if len(values) > 1 else 0.0)
 
     patterns = {
         "A": r"agglomerative_capacity_load_3f_linear_vt_500_seed[0-2]$",
@@ -100,10 +111,16 @@ def save_feature_ablation() -> None:
         errors.append(float(values.std(ddof=1)))
 
     fig, axes = plt.subplots(1, 2, figsize=(9.4, 3.6))
-    axes[0].bar(list(count_names), count_values, color=["#2878b5", "#f28e2b", "#59a14f"])
+    axes[0].bar(
+        list(count_specs),
+        count_values,
+        yerr=count_errors,
+        capsize=3,
+        color=["#2878b5", "#f28e2b", "#59a14f"],
+    )
     axes[0].set_ylim(40, 57)
     axes[0].set_ylabel("CV-RMSE (%)")
-    axes[0].set_title("Feature count (seed 42)")
+    axes[0].set_title("Feature count (3fA/5F: 5 seeds; 4F: seed 42)")
     axes[0].grid(axis="y", alpha=0.25)
 
     x = np.arange(len(patterns))
