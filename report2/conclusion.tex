@@ -8,12 +8,6 @@ choices affect the final policy. The strongest overall approach combines a
 clearer TarMAC communication structure, compact building features,
 agglomerative grouping, and a stable Soft Router.
 
-\begin{zhtranslation}
-本报告延续了第一阶段的 grouped-MAPPO 研究，重点回答两个问题：在 CityLearn 建筑组合
-负荷跟踪任务中，应当如何共同设计通信结构、建筑分组方法和分组特征；以及控制器能否
-减少对固定分组的依赖。实验结果表明，这三个方面都会影响最终策略。整体效果最好的方案
-结合了更清楚的 TarMAC 通信结构、紧凑的建筑特征、凝聚聚类和 stable Soft Router。
-\end{zhtranslation}
 
 \section{Main Findings}
 
@@ -47,28 +41,6 @@ better than those of the five-run fixed 3fA family. The staged training and
 anti-collapse measures also keep the router from sending almost all buildings
 to one actor.
 
-\begin{zhtranslation}
-第一，TarMAC Hybrid 对原始 TarMAC 进行了改进：先压缩每个智能体的本地信息，用 ReLU
-保留更有用的部分，再与接收到的通信信息结合，同时通过残差连接保留原始信息。在相同
-基准下，它将 CV-RMSE 从49.65\%降到47.01\%，将舒适超限从22.10\%降到17.99\%，并将
-reward 绝对值从5996降到4715。Linear 和 gated 消融结果说明，性能提升并不是简单增加
-一层网络带来的。
-
-第二，建筑分组不是一个与训练无关的预处理步骤，而是学习系统的一部分。四种分组方法
-产生了不同结果，但凝聚聚类在分组方法比较中具有最好的负荷跟踪结果，因此后续特征实验选择了
-凝聚聚类。
-
-第三，分组特征并不是越多越好。3fA 由电池容量、平均供暖需求和平均不可转移负荷组成，
-它具有低且稳定的 bias、清楚的物理含义，并且可以从 Vermont 的供暖场景调整到 Texas 的
-制冷场景，因此是最合适的综合选择。部分其他三特征组合在个别指标上更好，但 3fA 的整体
-平衡更好。结果也说明，选择少量物理作用不同的特征，比加入许多相似或强相关的描述更有效。
-
-最后，stable-head Soft Router 得到了最好的 routing 结果。在三个 router-training seeds
-中，它的 CV-RMSE 为 $45.12\pm0.35$\%，绝对 NMBE 为 $1.35\pm0.33$\%，每栋建筑每天的
-平均 degree-hours 为 $3.78\pm0.44$，舒适超限为 $17.30\pm1.33$\%。它的平均负荷跟踪
-和舒适度严重程度都优于固定 3fA 的五次实验。分阶段训练和防坍塌措施也避免了 router 将
-几乎所有建筑都交给同一个 actor。
-\end{zhtranslation}
 
 \section{Main Innovation}
 
@@ -87,18 +59,6 @@ enhancement rather than only a theoretical idea. Therefore, Soft Router can
 reduce the model's dependence on fixed grouping, although it does not yet remove
 that dependence completely.
 
-\begin{zhtranslation}
-本研究最大的创新点是在 grouped MAPPO 中加入 Soft Router，根据建筑当前状态为其选择
-一个完整的 actor。在普通固定分组中，一栋建筑始终使用所属组对应的 actor；加入 Soft
-Router 后，同一栋建筑可以在不同时刻使用不同 actors。最终训练过程先保持预训练 actors
-不变，只学习负责选择 actor 的网络；然后固定已经训练好的选择器，只对 actor 的输出层
-进行小幅调整。
-
-这种设计减少了建筑与 actor 永久绑定造成的限制，同时保留固定 experts 已经学到的有效
-控制能力。稳定的多 seed 结果说明，它不仅是理论想法，也是一种实际有效的性能提升方法。
-因此，Soft Router 可以减少模型对固定分组
-的依赖，但目前还不能完全消除这种依赖。
-\end{zhtranslation}
 
 \section{Limitations}
 
@@ -122,21 +82,6 @@ RBC references, but its load bias remains high. Some buildings also continue to
 violate the comfort range for long periods. The current conclusions therefore
 need validation under more varied conditions.
 
-\begin{zhtranslation}
-目前最大的局限是，最终 Soft Router 仍然依赖效果较好的预训练 actors。报告中的三个
-seeds 都从同一个 seed-42 固定 expert checkpoint 开始，只改变后续 router 训练使用的
-随机种子。因此，结果能够说明 router 可以稳定训练，但不能说明整个模型从不同随机初始
-状态开始时，也能学出同样有效的 experts 和 routing。较弱的 end-to-end 和 shared-encoder
-实验也说明，当前 router 还不能完全替代固定分组。
-
-实验覆盖也还不完全平衡。大部分中间 Soft Router 版本只使用 seed 42，因为它们的初步
-结果较差，而且重复训练需要很高的时间和计算成本。这些实验足以帮助筛选值得继续研究的
-方向，但最终比较仍需要更加严格的配对多 seed 结果。
-
-最后，跨气候测试目前只覆盖由25栋建筑组成的 Vermont 和 Texas 场景。Texas 控制器明显
-优于 no-control 和 RBC 参考，但负荷 bias 仍然较高；部分建筑也仍会长时间超出舒适温度
-范围。因此，目前结论还需要在更多不同条件下进行验证。
-\end{zhtranslation}
 
 \section{Future Work}
 
@@ -154,16 +99,3 @@ The next stage should focus on strengthening the current conclusions:
 These experiments will determine whether Soft Router can progress from a stable
 enhancement of fixed grouping toward a more independent and adaptive grouping
 method.
-
-\begin{zhtranslation}
-下一阶段应重点加强目前结论的验证：
-\begin{itemize}
-  \item 继续研究更优秀的分组方法和特征组合设置，提升前期固定分组性能；
-  \item 继续改进 Soft Router，使其从较弱分组或随机初始化开始时也能训练，并避免 routing
-  坍塌；
-  \item 更详细地分析 actor 选择概率和每栋建筑的舒适度，进一步提高目前实验方法在不同气候条件下的表现。
-\end{itemize}
-
-这些实验将进一步判断 Soft Router 能否从固定分组之上的稳定提升方法，发展为更加独立、
-更加灵活的动态分组方法。
-\end{zhtranslation}

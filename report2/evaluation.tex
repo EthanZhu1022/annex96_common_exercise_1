@@ -7,12 +7,6 @@ ablations, Vermont--Texas generalization, and the Soft Router. The results are
 analysed in terms of load tracking, thermal comfort, and stability across
 multiple random seeds.
 
-\begin{zhtranslation}
-本章使用 CityLearn Annex 96 Common Exercise 1 建筑组合负荷跟踪任务，对第~\ref{ch:method}
-章提出的方法进行评估。主要比较 TarMAC Hybrid、不同建筑分组方法、分组特征消融、
-Vermont--Texas 泛化以及 Soft Router，并从负荷跟踪、热舒适度和多随机种子稳定性三个方面
-分析实验结果。
-\end{zhtranslation}
 
 \section{Evaluation Scope and Metrics}
 
@@ -46,21 +40,6 @@ that the main conclusions do not depend on one unusually good result. An
 individual run is discussed only when it is needed to explain a specific
 controlled comparison.
 
-\begin{zhtranslation}
-Vermont 使用一月进行训练和分组特征提取、二月测试；Texas 使用八月训练和提取特征、
-九月测试。除非另有说明，每个实验训练 500 episodes。负荷跟踪使用 CV-RMSE 和 NMBE
-绝对值；舒适度同时使用超限 building-hours 比例和 degree-hours，后者同时保留温度越界
-的幅度与持续时间。本报告使用的是每栋建筑每天的平均超标度时，即组合总超标度时除以
-建筑数量与测试天数的乘积，如公式~\eqref{eq:degree-hours-per-building-day} 所示。其中
-$d_{i,t}$ 是建筑 $i$ 在时间 $t$ 超出舒适温度范围的度数，$\Delta t$ 是时间步长度，
-$N_{\mathrm{building}}$ 是建筑数量，$D_{\mathrm{test}}$ 是测试天数。该指标的单位为
-$^\circ$C h/建筑--天。四个指标均越低越好。
-
-本章综合使用了多次不同随机种子的重复训练结果，覆盖主要的特征、气候和 Soft Router
-实验。控制变量的消融实验在相同 seed 和相同设置下进行比较；需要判断稳定性时，则使用
-多次重复实验的均值和标准差，确保主要结论不是由某一次偶然较好的结果决定。只有在解释
-某个具体的控制对照时，才会单独讨论一次实验结果。
-\end{zhtranslation}
 
 \section{TarMAC Hybrid Improvement}
 
@@ -107,16 +86,6 @@ linear Hybrid mode as a controlled communication backbone, as indicated by
 therefore refers to the local/context residual architecture family, not to an
 assumption that every run uses ReLU.
 
-\begin{zhtranslation}
-表~\ref{tab:hybrid-architecture}在此前 seed 42 基准下比较原始 TarMAC 和三种 Hybrid
-融合。ReLU Hybrid 将 CV-RMSE 从 49.65\% 降到 47.01\%，舒适度超限从 22.10\% 降到
-17.99\%，reward 从 $-5996$ 改善到 $-4715$。相对原始 TarMAC，这分别相当于 CV-RMSE
-降低 5.3\%、舒适度超限降低 18.6\%、reward 绝对值降低 21.4\%；绝对 NMBE 仅从 3.32\%
-小幅变为 3.51\%。Linear 和 gated 对照说明，并不是简单增加一层就会提升；初始最强
-结果确实来自紧凑投影、ReLU 和 residual update 的组合。后续分组实验的 run name 中
-标有 \texttt{linear}，它们使用 linear Hybrid 作为受控通信骨架，因此 Hybrid 在这些
-实验中指整个 local/context residual 结构族，并不代表每次都启用 ReLU。
-\end{zhtranslation}
 
 \section{Comparison of Grouping Methods}
 
@@ -156,17 +125,6 @@ tracking is the main objective of this study, agglomerative clustering was
 selected for the subsequent feature experiments. The comparison also shows that
 improving load tracking does not automatically produce the best comfort result.
 
-\begin{zhtranslation}
-表~\ref{tab:grouping-methods}使用相同5F和 linear Hybrid 比较四种分组方法。该表是对目前选定的固定分组方式的多seed实验结果
-比较，并用于为后续特征实验选择分组方法。
-
-凝聚聚类的负荷跟踪结果最好，CV-RMSE 最低，为46.93\%，绝对 NMBE 也最低，为0.49\%。
-K-means 在热舒适度和 reward 上更好，每栋建筑每天的平均 degree-hours 最少，为4.57，舒适度超限最低，为
-17.33\%，reward 也最接近0，为 $-4715$。Balanced spectral 在大部分指标上位于两者之间，
-GMM 的 CV-RMSE 最高，没有表现出明确的整体优势。由于本研究的主要目标是建筑组合负荷
-跟踪，因此后续特征实验选择凝聚聚类。该结果也说明，负荷跟踪更好并不一定同时带来最好的
-热舒适度。
-\end{zhtranslation}
 
 \section{Feature-Count Ablation}
 
@@ -206,11 +164,6 @@ runs. Five-seed means.}
 \label{fig:feature-ablation}
 \end{figure}
 
-\begin{zhtranslation}
-表~\ref{tab:feature-count}在相同凝聚聚类、 linear Hybrid和多seed均值 下比较 3fA、4F、5F。3fA 的均值在四项指标上都最好。5F 的平均 CV-RMSE 与 3fA 接近，但
-bias 和舒适度指标更差；4F 的均值结果也在所有指标上差于 3fA 均值。总体而言，这支持低冗余假设：即使每个特征单独
-看来都相关，增加更多标准化列仍可能改变聚类结果并降低性能。
-\end{zhtranslation}
 
 \section{Three-Feature Combination Ablation}
 
@@ -254,20 +207,6 @@ $-5125\pm731$. Its CV-RMSE range is 44.62--54.09\%, while all five absolute
 NMBE values remain at or below 2.01\%. This supports stability in portfolio
 bias, although seed sensitivity in load shape has not disappeared.
 
-\begin{zhtranslation}
-表~\ref{tab:feature-combination}报告 seeds 0--2 的均值和样本标准差。由于这是多目标
-实验，“最佳”取决于指标：移除 capacity、加入 comfort 的 3fI 具有最低平均 CV-RMSE
-和 degree-hours，3fE 的舒适度方差最小；而 3fA 的绝对偏差明显最低且最稳定，为
-$0.49\pm0.18$\%，并且三个特征能跨气候直接解释。因此，本报告把 3fA 选为“最佳综合
-折中”。
-
-在更大的五次 3fA 稳定性实验（seeds 0、1、2、3、42）中，CV-RMSE 为
-$49.86\pm3.65$\%，绝对 NMBE 为 $0.81\pm0.68$\%，每栋建筑每天的平均 degree-hours 为
-$4.64\pm1.27$，
-舒适超限为 $19.21\pm2.85$\%，reward 为 $-5125\pm731$。CV-RMSE 范围仍有
-44.62--54.09\%，但五次绝对 NMBE 都不超过 2.01\%。这说明组合偏差非常稳定，不过负荷
-形状对随机种子的敏感性仍未完全消失。
-\end{zhtranslation}
 
 \section{Vermont--Texas Generalization}
 
@@ -306,17 +245,6 @@ bias therefore remains a clear limitation, but the learned controller is still
 substantially better than both references and has low seed variation in comfort
 and bias. This supports generalization of the compact feature principle.
 
-\begin{zhtranslation}
-跨气候实验迁移的是 3fA 的“特征角色”，而不是 Vermont 已训练参数。Vermont 使用
-capacity--heating mean--NSL mean；Texas 使用 capacity--cooling mean--NSL mean，
-并在自己的八月训练、九月测试。两个气候和目标曲线不同，数值尺度不能直接互相排名。
-关键结果是每个气候内部的稳定性，以及相对非学习参考的改善。
-
-Texas 三个 CV-RMSE 为 73.78--83.57\%，而 no-control baseline 为 163.74\%、RBC 为
-207.63\%；平均绝对 NMBE 为 45.57\%，两个参考分别为 79.12\% 和 89.57\%。TX 的 bias
-仍然是明显限制，但学习控制器依然大幅优于两个参考，而且舒适度与偏差的 seed 波动较小。
-因此，结果支持紧凑特征原则的泛化。
-\end{zhtranslation}
 
 \section{Soft-Router Ablation and Training Progression}
 
@@ -395,36 +323,6 @@ $45.12\pm0.35$\% CV-RMSE, $1.35\pm0.33$\% absolute NMBE,
 $3.78\pm0.44$ degree-hours per building-day, and $17.30\pm1.33$\% comfort
 exceedance over three router-training seeds.
 
-\begin{zhtranslation}
-表~\ref{tab:router-progression}列出了测试过的 Soft Router 版本，
-图~\ref{fig:router-progression}展示了主要开发阶段的性能变化。除最终 stable-head 行使用
-三个 router-training seeds 的均值和样本标准差外，其余中间版本均只使用 seed 42。这是
-因为这些版本的结果已经较差，而重复运行多 seed 实验需要很高的时间和计算成本，因此只对
-最终的 stable 版本进行了多 seed 验证。
-
-Legacy end-to-end 版本从一开始就同时训练 router 和 actors。它的 CV-RMSE 为47.60\%，
-但绝对 NMBE 为4.31\%，每栋建筑每天的平均 degree-hours 为10.02，舒适超限为24.64\%。
-它能够学出基本合理的负荷曲线，但负荷偏差和热舒适度较差。
-
-Two-stage 版本先载入训练好的 3fA experts，再训练 router，因此 bias 立即降低。Freeze200
-版本的 CV-RMSE 为48.26\%，绝对 NMBE 为1.35\%；调整温度和 prior 后，prior0.7 版本将
-CV-RMSE 改善到46.54\%。移除七个物理 capacity 输入后，绝对 NMBE 降至表中最低的0.57\%，
-每栋建筑每天的平均 degree-hours 也降至5.53。这说明，载入有效 experts 比给 router 增加
-大量额外输入更重要。
-
-Three-stage 实验用于比较应该保留 expert 的哪些部分。Shared-encoder 版本是表现最差的
-版本，CV-RMSE 为52.44\%，绝对 NMBE 为7.48\%，舒适超限为31.35\%。相比之下，保留每个
-完整 expert 分支后，CV-RMSE 降至45.45\%。这说明 expert 的 encoder、communication path
-和 output head 应保持为一个整体；重新建立共享的内部表示会破坏 actors 已经学到的有效行为。
-
-Stable 版本限制了 router 训练完成后还能改变的部分。Seed-42 router-only 实验的 CV-RMSE
-为45.99\%，每栋建筑每天的平均 degree-hours 为4.16。五次可用 router-only 实验的
-CV-RMSE 为 $49.83\pm3.34$\%，绝对 NMBE 为 $1.19\pm0.60$\%，degree-hours 为
-$4.55\pm1.25$，舒适超限为 $18.73\pm2.43$\%。Router 稳定后只允许 action heads 小幅
-调整，得到最终最强结果：三个 router-training seeds 的 CV-RMSE 为 $45.12\pm0.35$\%，
-绝对 NMBE 为 $1.35\pm0.33$\%，每栋建筑每天的平均 degree-hours 为 $3.78\pm0.44$，
-舒适超限为 $17.30\pm1.33$\%。
-\end{zhtranslation}
 
 \subsection{Router-Collapse Analysis}
 
@@ -474,25 +372,6 @@ freezing. It does not produce perfect balance: expert 3 receives only
 0.015--0.036\% of final traffic. The safeguards therefore prevent total
 one-expert collapse, but one branch can still become almost unused.
 
-\begin{zhtranslation}
-Router 坍塌是指 router 把几乎所有控制选择都交给同一个 expert，导致其他 actor 很少或完全
-不被使用。表~\ref{tab:router-collapse}使用两组相同 seed 42 的 full-expert 实验记录直接分析
-这一问题。两组实验都使用 $\tau=0.5$，在150个 episodes 内把 $\alpha$ 从0.5增加到1.0，
-entropy 系数为 $c_H=0.05$，balance 系数为 $c_B=0.01$，router 学习率为 $10^{-4}$，并且
-前500个 router-only episodes 完全相同。之后，joint 版本先暂停更新 router 100个 episodes，
-随后继续联合更新 router 和完整 experts，expert 学习率为 $3\times10^{-5}$；stable 版本则在
-后500个 episodes 始终固定 router，只用 $10^{-5}$ 的学习率调整 action heads。
-
-五个 experts 的最大 entropy 是 $\log(5)=1.609$。原固定分组 prior 和逐步增加的 $\alpha$
-使 episode 1 的五个 expert 使用比例保持在21.9\%、20.1\%、30.6\%、13.3\%和14.1\%。到
-episode 500，最大比例仍只有36.4\%。继续联合训练会使 entropy 从0.275降到0.171，并使一个
-expert 上升到51.7\%；固定 router 后，entropy 保持在0.276，最大比例只有37.0\%。三个最终
-stable seeds 的最大比例分别为37.5\%、40.5\%和37.0\%，而 matched seed-42 stable 实验还将
-CV-RMSE 从45.45\%降到44.72\%、每栋建筑每天的平均 degree-hours 从6.39降到4.27。这说明组合防坍塌设计有效，
-包括 prior、逐步增加 $\alpha$、entropy、balance、按概率抽样、PPO clipping 和分阶段冻结。
-不过 expert 3 最终只占0.015--0.036\%，说明这些措施能避免所有选择集中到单个 expert，
-但还不能完全避免某一个分支几乎不被使用。
-\end{zhtranslation}
 
 \subsection{Final Soft Router Assessment}
 
@@ -507,14 +386,6 @@ different seeds. Therefore, the final stable-head Soft Router is a useful and
 stable improvement built on strong fixed experts, but it does not remove the
 need for good initial grouping.
 
-\begin{zhtranslation}
-总体而言，stable-head Soft Router 是目前效果最好、也最稳定的 routing 版本。它的平均
-CV-RMSE 和 degree-hours 优于固定 3fA 五次实验的 $49.86\pm3.65$\% 和
-$4.64\pm1.27$。三个 stable-head 实验都从同一组 seed-42 预训练 actors 开始，只改变后续
-router 训练使用的随机种子。因此，这些结果只能说明 router 可以较稳定地训练，不能说明
-从头训练整个模型时也能在不同 seeds 下保持同样稳定。因此，最终方法stable-head Soft Router是建立在强固定 experts 上的
-有效且稳定的提升方法，而不是能够取消良好初始分组的方法。
-\end{zhtranslation}
 
 \section{Detailed Results of the Best-Performing Experiments}
 
@@ -583,23 +454,6 @@ plot in the first report: the trained checkpoint is rerun over the February test
 month, and the controlled portfolio load, no-storage baseline, and district
 target are exported for the first 168 hours.
 
-\begin{zhtranslation}
-上述图像展示固定 3fA 和 stable Soft Router 中选定最佳实验的详细测试结果。固定 3fA
-使用 seed 42，因为它的 checkpoint
-正是最终 router 实验使用的预训练 actors；stable Soft Router 使用 seed 0，因为它在
-三个最终 stable-head 实验中的主指标综合排名最高。这些是单次实验的详细图，
-不是多个 seeds 的平均曲线。
-
-日指标图显示，固定 3fA 的 CV-RMSE 和绝对 NMBE 略低，而 stable router 将舒适度
-超限从 20.07\% 降到 16.45\%，并将每栋建筑每天的平均 degree-hours 从 4.52 降到 3.43。因此，router 改善了
-整体平衡，但并不是在这两次实验的每个指标上都更好。整月室温曲线进一步表明，
-stable router 降低了舒适度问题的总严重程度，但没有完全消除越界，仍有几栋建筑长时间
-高于舒适温度上限。
-
-第~\ref{fig:stable-router-week1}图与第一份报告的 week-1 图使用相同方法生成：在二月测试环境中
-重新运行训练完成的 checkpoint，并导出前 168 小时的建筑组合受控负荷、无储能基线与
-district target。
-\end{zhtranslation}
 
 \section{Overall Interpretation and Limitations}
 
@@ -624,19 +478,3 @@ experts. The Soft Router is therefore an improvement built on good fixed
 grouping: it reduces the restriction of permanently assigning each building to
 one actor, but the quality of the initial experts still affects the final
 performance.
-
-\begin{zhtranslation}
-实验支持四点结论。第一，TarMAC Hybrid 是有意义的结构改进，其优势最好解释为紧凑本地
-融合加残差通信修正。第二，分组不是中性的预处理，而是学习系统的一部分；K-means、
-GMM、凝聚和 balanced spectral 会形成不同的精度。第三，分组特征并不是越多越好。选择
-描述建筑不同方面、重复信息较少的少量特征，通常比加入许多相似特征更有效。3fA 的低
-bias、清楚的物理含义和良好的跨气候表现支持了这一结论。第四，Soft Router 实现了
-Introduction 中提出的主要创新点。它让每栋建筑根据当前状态选择不同的 actor，而不是
-始终使用固定分组分配的同一个 actor。因此，它能够提高性能和 seed 稳定性，并减少模型
-对固定分组的依赖。
-
-不过，Soft Router 还不能完全消除这种依赖。End-to-end 和 shared-representation 版本
-从头训练时表现较差，只有载入效果较好的预训练 experts 后才能得到稳定结果。因此，
-Soft Router 是一种建立在良好固定分组之上的提升方法：它减少了每栋建筑始终绑定同一个
-actor 的限制，但初始 experts 的质量仍然会影响最终结果。
-\end{zhtranslation}
