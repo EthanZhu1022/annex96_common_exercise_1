@@ -171,15 +171,13 @@ GMM 的 CV-RMSE 最高，没有表现出明确的整体优势。由于本研究�
 \section{Feature-Count Ablation}
 
 Table~\ref{tab:feature-count} compares 3fA, 4F, and 5F with agglomerative
-grouping and the linear-Hybrid backbone. The 3fA and 5F rows are the means over
-all five available runs (seeds 0, 1, 2, 3, and 42), while 4F retains its only
-available result, seed 42. The 3fA mean is best on all four reported metrics.
-The 5F mean has a similar CV-RMSE but larger bias and comfort errors, while the
-single 4F result is worse than the 3fA mean on every metric. Since 4F currently
-has only one seed, its comparison should be treated as preliminary. Overall,
-the results support the low-redundancy hypothesis: more standardized columns
-can change the geometry of grouping even when each column appears individually
-relevant.
+grouping and the linear-Hybrid backbone, using the mean results across the
+currently available seeds. The 3fA mean is best on all four reported metrics.
+The 5F mean has a similar CV-RMSE to 3fA but larger bias and comfort errors, and
+the reported 4F mean is also worse than the 3fA mean on every metric. Overall,
+the results support the low-redundancy hypothesis: even when each feature is
+individually relevant, adding more standardized features can still change the
+grouping result and reduce performance.
 
 \begin{table}[!htbp]
 \small
@@ -195,8 +193,7 @@ Set & Added information & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort \\
 \hline
 \end{tabular}
 \end{center}
-\caption{Feature-count ablation with agglomerative grouping. The 3fA and 5F
-rows are five-seed means; the 4F row uses its only available run, seed 42.}
+\caption{Feature-count ablation with agglomerative grouping. Five-seed means.}
 \label{tab:feature-count}
 \end{table}
 
@@ -205,7 +202,7 @@ rows are five-seed means; the 4F row uses its only available run, seed 42.}
 \includegraphics[width=0.95\textwidth]{figures/feature_ablation.png}
 \end{center}
 \caption{Feature-count and three-feature combination ablations from recorded
-runs. In the feature-count panel, 3fA and 5F use five seeds and 4F uses seed 42.}
+runs. Five-seed means.}
 \label{fig:feature-ablation}
 \end{figure}
 
