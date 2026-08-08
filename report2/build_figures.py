@@ -64,13 +64,18 @@ def save_hybrid_ablation() -> None:
 
 
 def save_feature_ablation() -> None:
+    metrics = [
+        "primary_load_cv_rmse_pct",
+        "primary_abs_nmbe_pct",
+        "primary_comfort_degree_hours_per_building_day",
+        "primary_comfort_exceedance_pct",
+    ]
     count_specs = {
         "3fA": ("capacity_load_3f", 5),
         "4F": ("capacity_load_4f", 1),
         "5F": ("capacity_load_5f", 5),
     }
-    count_values: list[float] = []
-    count_errors: list[float] = []
+    count_means: list[pd.Series] = []
     for feature_set, expected_count in count_specs.values():
         rows = PRIMARY.loc[
             (PRIMARY["architecture"] == "TarMAC hybrid")
@@ -81,9 +86,11 @@ def save_feature_ablation() -> None:
             raise ValueError(
                 f"Expected {expected_count} feature-count rows for {feature_set!r}, found {len(rows)}"
             )
-        values = pd.to_numeric(rows["primary_load_cv_rmse_pct"])
-        count_values.append(float(values.mean()))
-        count_errors.append(float(values.std(ddof=1)) if len(values) > 1 else 0.0)
+        count_means.append(rows[metrics].apply(pd.to_numeric).mean())
+
+    count_frame = pd.DataFrame(count_means, index=count_specs)
+    count_relative = count_frame.min(axis=0).div(count_frame).mul(100.0)
+    count_scores = count_relative.mean(axis=1).sort_values(ascending=False)
 
     patterns = {
         "A": r"agglomerative_capacity_load_3f_linear_vt_500_seed[0-2]$",
@@ -96,40 +103,55 @@ def save_feature_ablation() -> None:
         "H": r"agglomerative_3f_H_.*seed[0-2]$",
         "I": r"agglomerative_3f_I_.*seed[0-2]$",
     }
-    means: list[float] = []
-    errors: list[float] = []
+    combination_means: list[pd.Series] = []
     for pattern in patterns.values():
-        values = pd.to_numeric(
-            PRIMARY.loc[
-                PRIMARY["experiment"].str.contains(pattern, regex=True, na=False),
-                "primary_load_cv_rmse_pct",
-            ]
-        )
-        if len(values) != 3:
+        rows = PRIMARY.loc[
+            PRIMARY["experiment"].str.contains(pattern, regex=True, na=False)
+        ]
+        if len(rows) != 3:
             raise ValueError(f"Expected three feature-combination rows for {pattern!r}")
-        means.append(float(values.mean()))
-        errors.append(float(values.std(ddof=1)))
+        combination_means.append(rows[metrics].apply(pd.to_numeric).mean())
 
-    fig, axes = plt.subplots(1, 2, figsize=(9.4, 3.6))
-    axes[0].bar(
-        list(count_specs),
-        count_values,
-        yerr=count_errors,
-        capsize=3,
-        color=["#2878b5", "#f28e2b", "#59a14f"],
+    combination_frame = pd.DataFrame(combination_means, index=patterns)
+    combination_relative = (
+        combination_frame.min(axis=0).div(combination_frame).mul(100.0)
     )
-    axes[0].set_ylim(40, 57)
-    axes[0].set_ylabel("CV-RMSE (%)")
-    axes[0].set_title("Feature count (3fA/5F: 5 seeds; 4F: seed 42)")
-    axes[0].grid(axis="y", alpha=0.25)
+    combination_scores = combination_relative.mean(axis=1).sort_values(
+        ascending=False
+    )
 
-    x = np.arange(len(patterns))
-    axes[1].bar(x, means, yerr=errors, capsize=3, color="#4e79a7")
-    axes[1].set_xticks(x, list(patterns))
-    axes[1].set_ylim(44, 59)
-    axes[1].set_ylabel("CV-RMSE (%)")
-    axes[1].set_title("Three-feature combinations (mean ± SD, 3 seeds)")
-    axes[1].grid(axis="y", alpha=0.25)
+    fig, axes = plt.subplots(1, 2, figsize=(9.4, 3.8))
+
+    count_colors = [
+        "#2878b5" if label == "3fA" else "#b8c2cc" for label in count_scores.index
+    ]
+    count_bars = axes[0].bar(
+        count_scores.index,
+        count_scores.values,
+        color=count_colors,
+    )
+    axes[0].set_ylim(0, 108)
+    axes[0].set_ylabel("Four-metric score - higher is better")
+    axes[0].set_title("Feature count - 5 seeds")
+    axes[0].grid(axis="y", alpha=0.25)
+    axes[0].bar_label(count_bars, fmt="%.1f", padding=3)
+
+    combination_colors = [
+        "#2878b5" if label == "A" else "#b8c2cc"
+        for label in combination_scores.index
+    ]
+    combination_bars = axes[1].barh(
+        [f"3f{label}" for label in combination_scores.index],
+        combination_scores.values,
+        color=combination_colors,
+    )
+    axes[1].invert_yaxis()
+    axes[1].set_xlim(0, 105)
+    axes[1].set_xlabel("Four-metric score - higher is better")
+    axes[1].set_title("Three-feature combinations - 3 seeds")
+    axes[1].grid(axis="x", alpha=0.25)
+    axes[1].bar_label(combination_bars, fmt="%.1f", padding=3)
+
     fig.tight_layout()
     fig.savefig(OUT / "feature_ablation.png", bbox_inches="tight", dpi=220)
     plt.close(fig)

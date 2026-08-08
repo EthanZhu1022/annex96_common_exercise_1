@@ -137,6 +137,21 @@ the results support the low-redundancy hypothesis: even when each feature is
 individually relevant, adding more standardized features can still change the
 grouping result and reduce performance.
 
+Figure~\ref{fig:feature-ablation} summarizes all four primary metrics rather
+than displaying CV-RMSE alone. For each lower-is-better metric, a candidate's
+relative score is the best mean value in the panel divided by that candidate's
+mean value, multiplied by 100. The four relative scores for CV-RMSE, absolute
+NMBE, degree-hours, and comfort exceedance are then averaged with equal weight:
+\begin{equation}
+S_j=\frac{100}{4}\sum_{m=1}^{4}
+\frac{\min_k \bar{x}_{k,m}}{\bar{x}_{j,m}}.
+\label{eq:feature-ablation-score}
+\end{equation}
+Higher scores therefore indicate a better overall balance. In the feature-count
+comparison, 3fA ranks first with a score of 100.0, ahead of 5F at 75.4 and 4F at
+70.0. The score is used only to summarize the four reported metrics visually;
+the raw values remain available in Table~\ref{tab:feature-count}.
+
 \begin{table}[!htbp]
 \small
 \begin{center}
@@ -159,8 +174,11 @@ Set & Added information & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort \\
 \begin{center}
 \includegraphics[width=0.95\textwidth]{figures/feature_ablation.png}
 \end{center}
-\caption{Feature-count and three-feature combination ablations from recorded
-runs. Five-seed means.}
+\caption{Equal-weight four-metric scores for the feature-count and
+three-feature-combination ablations. Higher is better, and 3fA is highlighted
+in blue. Scores are calculated from the recorded CV-RMSE, absolute NMBE,
+degree-hours, and comfort-exceedance results using
+Equation~\eqref{eq:feature-ablation-score}.}
 \label{fig:feature-ablation}
 \end{figure}
 
@@ -174,6 +192,13 @@ CV-RMSE and degree-hours. 3fE has the lowest comfort variability. In contrast,
 3fA has by far the lowest and most stable absolute bias, $0.49\pm0.18$\%, and
 its features remain directly interpretable across climates. It is therefore
 selected as the best overall compromise.
+
+The right panel of Figure~\ref{fig:feature-ablation} confirms this overall
+selection using the same four-metric score. Across the nine three-feature
+combinations, 3fA ranks first at 88.9, followed by 3fI at 80.9 and 3fE at 78.3.
+This does not mean that 3fA is best on every individual metric; rather, its much
+lower load bias compensates for the individual CV-RMSE and comfort advantages
+of some alternatives and gives it the strongest equal-weight overall result.
 
 \begin{table}[!htbp]
 \scriptsize
