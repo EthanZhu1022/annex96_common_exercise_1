@@ -36,22 +36,24 @@ if [[ "${1:-}" != "--inside-screen" ]]; then
   RUN_STAMP="${RUN_STAMP:-$(date +%Y%m%d_%H%M%S)}"
   export RUN_STAMP UV_EXE CPU_OFFSET USE_GPU FORCE SCREEN_NAME
 
-  launch=(bash "$SCRIPT_PATH" --inside-screen)
-  if command -v systemd-inhibit >/dev/null 2>&1; then
-    launch=(
-      systemd-inhibit
-      --what=sleep:idle
-      --mode=block
-      --why="Report 2 MAPPO comparison experiments"
-      bash "$SCRIPT_PATH" --inside-screen
-    )
+  BOOT_LOG_DIR="$REPO_DIR/experiment_queue_logs/report2_fair_seeds_${RUN_STAMP}"
+  mkdir -p "$BOOT_LOG_DIR"
+  SCREEN_LOG="$BOOT_LOG_DIR/screen.log"
+  screen -L -Logfile "$SCREEN_LOG" -dmS "$SCREEN_NAME" \
+    bash "$SCRIPT_PATH" --inside-screen
+  sleep 2
+  if ! screen -list 2>/dev/null | grep -Eq "[.]${SCREEN_NAME}[[:space:]]"; then
+    echo "The screen session exited during startup." >&2
+    echo "Startup log: $SCREEN_LOG" >&2
+    if [[ -f "$SCREEN_LOG" ]]; then
+      tail -n 80 "$SCREEN_LOG" >&2
+    fi
+    exit 1
   fi
-
-  screen -dmS "$SCREEN_NAME" "${launch[@]}"
   echo "Started detached screen session: $SCREEN_NAME"
   echo "Attach: screen -r $SCREEN_NAME"
   echo "List:   screen -ls"
-  echo "Logs:   $REPO_DIR/experiment_queue_logs/report2_fair_seeds_${RUN_STAMP}/"
+  echo "Logs:   $BOOT_LOG_DIR/"
   exit 0
 fi
 
