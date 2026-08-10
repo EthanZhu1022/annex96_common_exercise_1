@@ -1,0 +1,78 @@
+{
+  "grouping_method": "agglomerative",
+  "grouping_feature_set": "control_profile",
+  "grouping_feature_month": 9,
+  "grouping_feature_columns": [
+    "bes_capacity_kwh",
+    "cooling_mean",
+    "nsl_mean"
+  ],
+  "k": 4,
+  "seed": null,
+  "balance": 0.18181818181818182,
+  "cluster_sizes": [
+    8,
+    11,
+    2,
+    4
+  ],
+  "feature_columns": [
+    "bes_capacity_kwh",
+    "cooling_mean",
+    "nsl_mean"
+  ],
+  "cluster_centers_original_scale": {
+    "cluster_0": {
+      "bes_capacity_kwh": 12.975000000000001,
+      "cooling_mean": 2.764528844370833,
+      "nsl_mean": 0.950963766359375,
+      "n_buildings": 8
+    },
+    "cluster_1": {
+      "bes_capacity_kwh": 11.418181818181818,
+      "cooling_mean": 1.4672624743677247,
+      "nsl_mean": 0.6067920798901515,
+      "n_buildings": 11
+    },
+    "cluster_2": {
+      "bes_capacity_kwh": 18.1,
+      "cooling_mean": 3.56796560114375,
+      "nsl_mean": 2.0525703569722222,
+      "n_buildings": 2
+    },
+    "cluster_3": {
+      "bes_capacity_kwh": 4.575,
+      "cooling_mean": 1.493793877857639,
+      "nsl_mean": 0.4366234396284722,
+      "n_buildings": 4
+    }
+  },
+  "group_assignments": {
+    "building_0": 0,
+    "building_1": 1,
+    "building_2": 1,
+    "building_3": 3,
+    "building_4": 0,
+    "building_5": 2,
+    "building_6": 1,
+    "building_7": 0,
+    "building_8": 3,
+    "building_9": 0,
+    "building_10": 1,
+    "building_11": 1,
+    "building_12": 0,
+    "building_13": 1,
+    "building_14": 0,
+    "building_15": 1,
+    "building_16": 0,
+    "building_17": 1,
+    "building_18": 3,
+    "building_19": 1,
+    "building_20": 1,
+    "building_21": 2,
+    "building_22": 1,
+    "building_23": 0,
+    "building_24": 3
+  },
+  "selection_rationale": "Chose method=agglomerative K=4 seed=None (balance=0.182; group 0: 8 buildings, group 1: 11 buildings, group 2: 2 buildings, group 3: 4 buildings). Tried 2 K values x 1 fits. Balance = min_cluster_size / max_cluster_size."
+}
