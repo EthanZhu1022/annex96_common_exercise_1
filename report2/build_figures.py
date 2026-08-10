@@ -72,7 +72,7 @@ def save_feature_ablation() -> None:
     ]
     count_specs = {
         "3fA": ("capacity_load_3f", 5),
-        "4F": ("capacity_load_4f", 1),
+        "4F": ("capacity_load_4f", 4),
         "5F": ("capacity_load_5f", 5),
     }
     count_means: list[pd.Series] = []
@@ -132,7 +132,7 @@ def save_feature_ablation() -> None:
     )
     axes[0].set_ylim(0, 108)
     axes[0].set_ylabel("Four-metric score - higher is better")
-    axes[0].set_title("Feature count - 5 seeds")
+    axes[0].set_title("Feature-count ablation")
     axes[0].grid(axis="y", alpha=0.25)
     axes[0].bar_label(count_bars, fmt="%.1f", padding=3)
 

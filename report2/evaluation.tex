@@ -90,9 +90,9 @@ assumption that every run uses ReLU.
 \section{Comparison of Grouping Methods}
 
 Table~\ref{tab:grouping-methods} compares the four grouping methods using the
-same 5F feature set and linear Hybrid backbone. It compares the multi-seed
-experimental results of the selected fixed grouping methods and is used to
-select the grouping method for the subsequent feature experiments.
+same 5F feature set and linear Hybrid backbone. Each method is summarized over
+the same three seeds (0, 1, and 42), allowing the grouping methods to be compared
+under the same experimental conditions.
 
 \begin{table}[!htbp]
 \small
@@ -102,35 +102,46 @@ select the grouping method for the subsequent feature experiments.
 Method & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort & Reward \\
  & (\%) & (\%) & ($^\circ$C h/building-day) & exceed. (\%) & sum \\
 \hline
-K-means & 51.56 & 2.53 & \textbf{4.57} & \textbf{17.33} & \textbf{$-4715$} \\
-GMM & 53.08 & 0.94 & 5.90 & 23.75 & $-6115$ \\
-Agglomerative & \textbf{46.93} & \textbf{0.49} & 6.70 & 23.13 & $-6121$ \\
-Balanced spectral & 52.01 & 1.99 & 5.74 & 21.22 & $-5748$ \\
+K-means & 50.90 & \textbf{1.36} & \textbf{3.64} & \textbf{15.86} & \textbf{$-4326$} \\
+GMM & \textbf{48.11} & 1.67 & 5.23 & 21.38 & $-5583$ \\
+Agglomerative & 49.85 & 1.62 & 5.42 & 20.96 & $-5574$ \\
+Balanced spectral & 51.23 & 4.22 & 11.50 & 25.72 & $-7496$ \\
 \hline
 \end{tabular}
 \end{center}
-\caption{Multi-seed comparison of the selected fixed grouping methods with 5F
-and linear Hybrid.}
+\caption{Three-seed mean comparison of the selected fixed grouping methods
+with 5F and linear Hybrid, using matched seeds 0, 1, and 42.}
 \label{tab:grouping-methods}
 \end{table}
 
-Agglomerative clustering gives the strongest load-tracking result, with the
-lowest CV-RMSE (46.93\%) and absolute NMBE (0.49\%). K-means performs better on
-thermal comfort and reward, giving the fewest degree-hours per building-day
-(4.57), the lowest
-comfort exceedance (17.33\%), and the least negative reward ($-4715$). Balanced
-spectral lies between these methods on most metrics, while GMM has the highest
-CV-RMSE and does not provide a clear overall advantage. Since portfolio load
-tracking is the main objective of this study, agglomerative clustering was
-selected for the subsequent feature experiments. The comparison also shows that
-improving load tracking does not automatically produce the best comfort result.
+The mean results show that GMM has the lowest CV-RMSE (48.11\%), while K-means
+has the lowest absolute NMBE (1.36\%), degree-hours per building-day (3.64), and
+comfort exceedance (15.86\%), as well as the least negative reward ($-4326$).
+Agglomerative clustering remains competitive, with a CV-RMSE of 49.85\% and an
+absolute NMBE of 1.62\%, whereas balanced spectral gives the weakest comfort and
+bias results in this comparison. No single method is best on every metric.
+Agglomerative clustering provides competitive load-tracking performance and is
+therefore used as the fixed grouping method for the later feature ablations,
+ensuring that those experiments compare only the effect of changing the feature
+set.
+
+\begin{zhtranslation}
+表格对四种分组方法统一采用 seeds 0、1 和 42 的三次实验均值，使四种方法能够在相同条件下
+进行比较。GMM 的 CV-RMSE
+最低，为 48.11\%；K-means 的绝对 NMBE、每栋建筑每天的超标度时、舒适度超标比例和
+reward 最好。凝聚聚类的 CV-RMSE 为 49.85\%，绝对 NMBE 为 1.62\%，整体仍具有竞争力；
+Balanced Spectral 在舒适度和偏差指标上表现较弱。没有一种分组方法能够在所有指标上同时
+取得最优结果。凝聚聚类具有较有竞争力的负荷跟踪表现，因此后续特征消融固定使用凝聚聚类，
+使这些实验只比较不同特征组合带来的影响。
+\end{zhtranslation}
 
 
 \section{Feature-Count Ablation}
 
 Table~\ref{tab:feature-count} compares 3fA, 4F, and 5F with agglomerative
-grouping and the linear-Hybrid backbone, using the mean results across the
-currently available seeds. The 3fA mean is best on all four reported metrics.
+grouping and the linear-Hybrid backbone. The 3fA and 5F results are five-seed
+means, while the 4F result is evaluated over four independent seeds. The 3fA
+mean is best on all four reported metrics.
 The 5F mean has a similar CV-RMSE to 3fA but larger bias and comfort errors, and
 the reported 4F mean is also worse than the 3fA mean on every metric. Overall,
 the results support the low-redundancy hypothesis: even when each feature is
@@ -148,9 +159,15 @@ S_j=\frac{100}{4}\sum_{m=1}^{4}
 \label{eq:feature-ablation-score}
 \end{equation}
 Higher scores therefore indicate a better overall balance. In the feature-count
-comparison, 3fA ranks first with a score of 100.0, ahead of 5F at 75.4 and 4F at
-70.0. The score is used only to summarize the four reported metrics visually;
+comparison, 3fA ranks first with a score of 100.0, ahead of 4F at 80.5 and 5F at
+75.4. The score is used only to summarize the four reported metrics visually;
 the raw values remain available in Table~\ref{tab:feature-count}.
+
+\begin{zhtranslation}
+特征数量消融中，3fA 和 5F 使用五个 seed 的均值，4F 使用四个独立 seed 的均值。3fA 在
+CV-RMSE、绝对 NMBE、每栋建筑每天的超标度时和舒适度超标比例四项指标上都是最好。
+图中的四指标综合分数为：3fA 为 100.0，4F 为 80.5，5F 为 75.4。
+\end{zhtranslation}
 
 \begin{table}[!htbp]
 \small
@@ -161,12 +178,13 @@ Set & Added information & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort \\
  & & (\%) & (\%) & ($^\circ$C h/building-day) & exceed. (\%) \\
 \hline
 3fA & capacity, heat mean, NSL mean & \textbf{49.86} & \textbf{0.81} & \textbf{4.64} & \textbf{19.21} \\
-4F & 3fA + HVAC rating & 53.86 & 1.34 & 7.79 & 28.52 \\
+4F & 3fA + HVAC rating & 51.62 & 1.80 & 5.27 & 20.82 \\
 5F & 4F + comfort lower excess & 49.97 & 2.01 & 6.36 & 21.74 \\
 \hline
 \end{tabular}
 \end{center}
-\caption{Feature-count ablation with agglomerative grouping. Five-seed means.}
+\caption{Feature-count ablation with agglomerative grouping. The 3fA and 5F
+rows are five-seed means, while the 4F row is a four-seed mean.}
 \label{tab:feature-count}
 \end{table}
 
@@ -178,7 +196,8 @@ Set & Added information & CV-RMSE & $|$NMBE$|$ & Degree-hours & Comfort \\
 three-feature-combination ablations. Higher is better, and 3fA is highlighted
 in blue. Scores are calculated from the recorded CV-RMSE, absolute NMBE,
 degree-hours, and comfort-exceedance results using
-Equation~\eqref{eq:feature-ablation-score}.}
+Equation~\eqref{eq:feature-ablation-score}. The feature-count panel uses five
+runs for 3fA and 5F and four runs for 4F.}
 \label{fig:feature-ablation}
 \end{figure}
 
