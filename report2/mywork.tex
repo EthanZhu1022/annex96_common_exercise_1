@@ -57,12 +57,38 @@ $w_{\mathrm{nmbe}}$, CV-RMSE weight $w_{\mathrm{cv\_rmse}}$, overall comfort wei
 $w_{\mathrm{comfort}}$, fixed comfort-violation weight
 $w_{\mathrm{binary}}$, and temperature-exceedance weight
 $w_{\mathrm{degree}}$. In this order, the usual baseline setting is
-$(1.0,1.0,0.8,1.3,0.3)$. Reward-parameter comparison experiments were also
-conducted. The tested settings included a comfort-focused combination
-$(1.0,1.0,1.5,3.0,1.5)$ and a load-tracking-focused combination
-$(5.0,5.0,1.0,1.0,1.5)$. These comparisons test whether increasing the load
-weights or the comfort weights produces a better balance in the final results;
-therefore, the reward parameters were also tuned rather than treated as fixed.
+$(1.0,1.0,0.8,1.3,0.3)$. These objectives can conflict. For example, moving
+battery or HVAC demand to improve indoor comfort can move the portfolio load
+away from its target, while concentrating only on load tracking can leave less
+freedom to correct indoor-temperature violations. NMBE and CV-RMSE can also
+favour different behaviours because one measures overall bias and the other
+measures hour-by-hour tracking error.
+
+Four reward settings were compared: the baseline above; a stricter-comfort
+setting $(1.0,1.0,1.5,3.0,1.0)$; a degree-hours follow-up
+$(1.0,1.0,1.5,3.0,1.5)$; and a load-tracking-focused setting
+$(5.0,5.0,1.0,1.0,1.5)$. The stricter-comfort setting keeps both load-tracking
+weights at 1.0 while increasing the three comfort-related weights. The next
+comparison keeps the first four weights unchanged and increases only
+$w_{\mathrm{degree}}$ from 1.0 to 1.5. This controlled change tests whether a
+larger penalty for the size of a temperature violation actually reduces
+degree-hours. The load-tracking-focused setting then tests the opposite
+direction by increasing the NMBE and CV-RMSE weights. The best setting is chosen
+from the measured load-tracking and comfort results rather than from reward
+magnitude alone.
+
+\begin{zhtranslation}
+这五个目标之间可能相互矛盾。例如，为改善室内舒适度而调整电池或 HVAC 用电，可能使建筑
+组合的总负荷偏离目标；只重视负荷跟踪，又可能减少纠正室温超标的空间。NMBE 衡量总体偏差，
+CV-RMSE 衡量逐时误差，因此二者也不一定同时达到最好。
+
+实验比较了四组 reward 参数：基准设置 $(1.0,1.0,0.8,1.3,0.3)$、加强舒适度的设置
+$(1.0,1.0,1.5,3.0,1.0)$、degree-hours 后续设置 $(1.0,1.0,1.5,3.0,1.5)$，以及加强负荷
+跟踪的设置 $(5.0,5.0,1.0,1.0,1.5)$。加强舒适度的设置保持两个负荷跟踪权重为 1.0，
+只提高舒适度相关权重。之后保持前四个权重完全相同，只把 $w_{\mathrm{degree}}$ 从 1.0
+提高到 1.5，以单独检验加大温度超标程度的惩罚是否真的能够减少 degree-hours。最终参数
+根据实际负荷跟踪和舒适度指标选择，而不是直接比较不同权重下 reward 数值的大小。
+\end{zhtranslation}
 
 
 \section{TarMAC Hybrid Communication}
@@ -557,8 +583,8 @@ partition.
 
 At the current stage, the following experiments have been completed:
 \begin{itemize}
-  \item reward-weight comparisons using the baseline, comfort-focused, and
-  load-tracking-focused parameter settings;
+  \item reward-weight comparisons using the baseline, stricter-comfort,
+  controlled degree-hours, and load-tracking-focused parameter settings;
   \item comparison of the original TarMAC communication with TarMAC Hybrid, as
   well as the ReLU, Linear, and Gated fusion ablations;
   \item grouping-method experiments comparing K-means, GMM, agglomerative
