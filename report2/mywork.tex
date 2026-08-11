@@ -77,20 +77,6 @@ direction by increasing the NMBE and CV-RMSE weights. The best setting is chosen
 from the measured load-tracking and comfort results rather than from reward
 magnitude alone.
 
-\begin{zhtranslation}
-这五个目标之间可能相互矛盾。例如，为改善室内舒适度而调整电池或 HVAC 用电，可能使建筑
-组合的总负荷偏离目标；只重视负荷跟踪，又可能减少纠正室温超标的空间。NMBE 衡量总体偏差，
-CV-RMSE 衡量逐时误差，因此二者也不一定同时达到最好。
-
-实验比较了四组 reward 参数：基准设置 $(1.0,1.0,0.8,1.3,0.3)$、加强舒适度的设置
-$(1.0,1.0,1.5,3.0,1.0)$、degree-hours 后续设置 $(1.0,1.0,1.5,3.0,1.5)$，以及加强负荷
-跟踪的设置 $(5.0,5.0,1.0,1.0,1.5)$。加强舒适度的设置保持两个负荷跟踪权重为 1.0，
-只提高舒适度相关权重。之后保持前四个权重完全相同，只把 $w_{\mathrm{degree}}$ 从 1.0
-提高到 1.5，以单独检验加大温度超标程度的惩罚是否真的能够减少 degree-hours。最终参数
-根据实际负荷跟踪和舒适度指标选择，而不是直接比较不同权重下 reward 数值的大小。
-\end{zhtranslation}
-
-
 \section{TarMAC Hybrid Communication}
 
 The original implementation follows targeted multi-agent communication

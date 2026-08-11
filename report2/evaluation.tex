@@ -125,17 +125,6 @@ therefore used as the fixed grouping method for the later feature ablations,
 ensuring that those experiments compare only the effect of changing the feature
 set.
 
-\begin{zhtranslation}
-表格对四种分组方法统一采用 seeds 0、1 和 42 的三次实验均值，使四种方法能够在相同条件下
-进行比较。GMM 的 CV-RMSE
-最低，为 48.11\%；K-means 的绝对 NMBE、每栋建筑每天的超标度时、舒适度超标比例和
-reward 最好。凝聚聚类的 CV-RMSE 为 49.85\%，绝对 NMBE 为 1.62\%，整体仍具有竞争力；
-Balanced Spectral 在舒适度和偏差指标上表现较弱。没有一种分组方法能够在所有指标上同时
-取得最优结果。凝聚聚类具有较有竞争力的负荷跟踪表现，因此后续特征消融固定使用凝聚聚类，
-使这些实验只比较不同特征组合带来的影响。
-\end{zhtranslation}
-
-
 \section{Feature-Count Ablation}
 
 Table~\ref{tab:feature-count} compares 3fA, 4F, and 5F with agglomerative
@@ -162,12 +151,6 @@ Higher scores therefore indicate a better overall balance. In the feature-count
 comparison, 3fA ranks first with a score of 100.0, ahead of 4F at 80.5 and 5F at
 75.4. The score is used only to summarize the four reported metrics visually;
 the raw values remain available in Table~\ref{tab:feature-count}.
-
-\begin{zhtranslation}
-特征数量消融中，3fA 和 5F 使用五个 seed 的均值，4F 使用四个独立 seed 的均值。3fA 在
-CV-RMSE、绝对 NMBE、每栋建筑每天的超标度时和舒适度超标比例四项指标上都是最好。
-图中的四指标综合分数为：3fA 为 100.0，4F 为 80.5，5F 为 75.4。
-\end{zhtranslation}
 
 \begin{table}[!htbp]
 \small
@@ -543,25 +526,6 @@ load-tracking weights to 5.0 also fails to improve mean CV-RMSE and gives larger
 bias and comfort errors. These results demonstrate the conflict between the
 reward objectives and show why the largest individual weight is not necessarily
 the best choice.
-
-\begin{zhtranslation}
-表中四组实验都使用 3fA、凝聚聚类、Linear Hybrid 和 Vermont 测试月份，每组数据均为
-seeds 0--2 的均值。
-
-四组实验的平均 CV-RMSE 均处于 49.64\%--51.93\% 的较小范围内，因此可以在负荷形状误差
-相近的情况下进一步比较舒适度和总体偏差。与基准设置相比，加强舒适度的参数将 CV-RMSE
-从 51.93\% 降至 49.64\%，degree-hours 从 5.22 降至 5.10，舒适度超标比例从 20.27\%
-降至 18.74\%，但绝对 NMBE 从 0.49\% 增加到 3.04\%。综合考虑各项指标，
-$(1,1,1.5,3.0,1.0)$ 的平衡最好，因此用于后续 Vermont--Texas 对比。
-
-degree-hours 后续实验是单参数对照：前四个权重保持完全相同，只把
-$w_{\mathrm{degree}}$ 从 1.0 提高到 1.5。结果表明，更大的 degree 权重没有改善舒适度，
-反而使不同 seed 的结果更不稳定：degree-hours 的标准差从 1.95 增至 12.77，舒适度
-超标比例的标准差从 1.90 增至 11.93 个百分点。把两个负荷跟踪权重提高到 5.0 同样没有降低平均
-CV-RMSE，并且产生了更大的偏差和舒适度误差。这说明几个 reward 目标确实会相互影响，
-单纯增大某个权重并不一定能改善对应指标。
-\end{zhtranslation}
-
 
 \section{Overall Interpretation and Limitations}
 
