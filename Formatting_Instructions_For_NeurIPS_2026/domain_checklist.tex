@@ -1,0 +1,37 @@
+\section*{AI4PowerGrids domain checklist}
+
+\begin{enumerate}
+  \item \textbf{Physics feasibility.}
+  \emph{Not applicable to AC power-flow feasibility.} CityLearn enforces the
+  simulated battery, HVAC, and building thermal dynamics and bounds the control
+  actions, while thermal violations are reported explicitly in
+  Sections~3--4. The benchmark does not include a distribution-network model;
+  consequently, voltage, line-flow, and full AC power-flow feasibility are not
+  evaluated and no such claim is made.
+
+  \item \textbf{Out-of-distribution evaluation.}
+  Section~4 and Appendix~B evaluate the same feature-design principle in two
+  seasonal/climate regimes (Vermont heating and Texas cooling), each with a
+  chronological held-out month. The Texas controller is retrained, so this is
+  not zero-shot evaluation of one policy on an unseen climate or topology. This
+  missing test is stated as a limitation.
+
+  \item \textbf{Failure modes.}
+  Section~4 reports routing concentration, an almost unused expert, failed
+  end-to-end and shared-encoder variants, large Texas bias, and the reversal
+  between average and worst-building comfort. Appendix~A gives the numerical
+  ablation results.
+
+  \item \textbf{System-level effect.}
+  Section~3 reports portfolio CV-RMSE, NMBE, peak demand, total energy, ramping,
+  and load-share fairness, together with building-level comfort. This evaluates
+  the routed policy inside the complete closed-loop CityLearn portfolio rather
+  than as a standalone classifier.
+
+  \item \textbf{Data and code.}
+  The experiments use the open CityLearn implementation and IEA EBC Annex~96
+  Common Exercise~1 benchmark data. We plan to provide the training and
+  evaluation code, environment specifications, configuration scripts, processed
+  metric tables, and plotting code as anonymized supplementary material during
+  review, followed by a de-anonymized public repository upon acceptance.
+\end{enumerate}
