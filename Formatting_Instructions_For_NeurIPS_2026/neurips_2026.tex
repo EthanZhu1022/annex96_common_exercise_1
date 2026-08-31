@@ -265,13 +265,20 @@ was never trained. The selected design switches the matched
 encoder--TarMAC--head branch as one expert. If expert $k$ defines
 $\pi_{\phi_k}$, the routed action distribution is
 \begin{equation}
-\pi_{\theta,\phi}(a_{it}\mid s_t)=
-\sum_{k=1}^{5}g_{itk}(\theta)\pi_{\phi_k}(a_{it}\mid s_t).
+\begin{aligned}
+\pi_{\theta,\phi}(a_{it}\mid s_t)
+&=\sum_{k=1}^{5}g_{itk}(\theta)\pi_{\phi_k}(a_{it}\mid s_t),\\
+\nabla_\theta\log\pi_{\theta,\phi}(a_{it}\mid s_t)
+&=\sum_{k=1}^{5}\rho_{itk}\nabla_\theta\log g_{itk}(\theta),\quad
+\rho_{itk}=\frac{g_{itk}\pi_{\phi_k}(a_{it}\mid s_t)}
+{\sum_j g_{itj}\pi_{\phi_j}(a_{it}\mid s_t)}.
+\end{aligned}
 \label{eq:mixture}
 \end{equation}
-PPO can update $\theta$ while $\phi$ is frozen because the likelihood of the
-executed action still depends on $g_{it}$. Entropy and a batch-level
-load-balancing loss discourage one expert from receiving all traffic.
+Thus PPO can update router parameters $\theta$ while expert parameters $\phi$
+are frozen. The critic remains active: its advantage estimate weights this
+router policy gradient, while its value loss is optimized separately. Entropy
+and batch-level load balancing discourage one expert from receiving all traffic.
 
 % 中文（路由完整专家）：
 %   早期只切换动作头的方案可能把某个动作头
@@ -279,10 +286,12 @@ load-balancing loss discourage one expert from receiving all traffic.
 %   最终设计把匹配的“编码器—TarMAC—动作头”分支
 %   作为一个完整专家共同切换。
 %   如果专家 k 的动作分布是 π_{φ_k}，
-%   完整路由策略就是式（4）所示的混合分布。
-%   即使专家参数 φ 被冻结，
-%   PPO 仍可更新路由参数 θ，
-%   因为已执行动作的概率仍依赖 g_{it}。
+%   式（4）第一行给出完整路由策略的混合分布，第二行展开路由器梯度。
+%   其中 ρ_{itk} 表示专家 k 对已执行动作的后验责任权重。
+%   即使专家参数 φ 被冻结，只要不同专家的动作分布不完全相同，
+%   动作似然仍依赖 g_{it}，因此 PPO 仍可更新路由参数 θ。
+%   critic 也仍然发挥作用：它产生的 advantage 对路由策略梯度加权，
+%   而 critic 自身的 value loss 则单独优化。
 %   熵正则和 batch 级负载均衡损失
 %   用于抑制全部流量坍塌到同一个专家。
 %
@@ -316,11 +325,12 @@ reference behaviors before allowing a small final adjustment.
 All rows use the 25-home Vermont setting, January training data, and the
 chronologically held-out February test at one-hour resolution. Lower is better
 for CV-RMSE, absolute NMBE, comfort-exceedance percentage, and worst-home
-violation hours. The comparison uses the selected single runs from the project
-record: independent PPO (80 episodes), independent SAC (500), no-communication
-grouped MAPPO (500), Hybrid ReLU (500), and Soft Router seed~0. The router adds
-1,000 adaptation episodes to a 500-episode expert checkpoint; the comparison is
-therefore architectural and outcome-focused, not compute-matched.
+violation hours. The comparison uses one recorded run per method: independent
+PPO (80 episodes), independent SAC (500), no-communication grouped MAPPO (500),
+Hybrid ReLU (500), and Soft Router. The router adds 1,000 adaptation episodes
+to a 500-episode expert checkpoint, whereas the other controllers use 80 or
+500 episodes. We therefore compare final test outcomes, not training efficiency
+under an equal episode budget.
 
 % 中文（实验协议）：
 %   所有方法都使用 25 栋住宅的 Vermont 设置，
@@ -328,29 +338,30 @@ therefore architectural and outcome-focused, not compute-matched.
 %   时间分辨率为一小时。
 %   CV-RMSE、绝对 NMBE、舒适区超限率和
 %   最差建筑超限小时数均为越低越好。
-%   图中使用项目记录中选定的单次实验：
+%   图中每种方法使用一次项目记录中的实验：
 %   个体 PPO 训练 80 个 episode，
 %   个体 SAC、无通信 grouped MAPPO 和 Hybrid ReLU
 %   各训练 500 个 episode；
-%   Soft Router 使用 seed 0，
 %   并在 500-episode 专家 checkpoint 上
 %   额外进行 1,000 个 episode 的两阶段适配。
-%   因此，这里比较的是架构与最终结果，
-%   不是严格匹配计算预算的比较。
+%   因此，Soft Router 的总训练量约为 1,500 个 episode，
+%   而其他控制器只使用 80 或 500 个 episode。
+%   这里比较的是最终测试结果，不能据此比较相同训练量下的训练效率。
 %
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=0.96\linewidth]{figures/controller_comparison.png}
   \caption{Focused comparison requested from the recorded Vermont runs.
-  The Soft Router bar is the selected seed-0 run built from the seed-42 TarMAC
-  Hybrid experts. PPO has a smaller training budget than the other baselines.
+  The Soft Router bar is the selected full-expert stable-head configuration
+  built from pretrained TarMAC Hybrid experts. PPO has a smaller training
+  budget than the other baselines.
   Lower is better in all three panels.}
 
   % 中文图 1：
   %   使用已记录 Vermont 实验得到的五方法重点比较。
-  %   Soft Router 是选定的 seed-0 实验，
-  %   它建立在 seed-42 TarMAC Hybrid 专家之上。
+  %   Soft Router 是选定的完整专家、稳定动作头配置，
+  %   它建立在预训练 TarMAC Hybrid 专家之上。
   %   PPO 的训练预算小于其他基线。
   %   三个子图中的指标都是越低越好。
   %
@@ -427,8 +438,8 @@ portfolio context to both actions and expert selection, while routing converts
 that context into time-varying policy specialization. The strongest design is
 also conservative---it preserves complete pretrained TarMAC experts and
 separates router learning from head adaptation. However, the final router runs
-reuse one strong expert checkpoint, training budgets are unmatched, and the
-study contains only 25-building simulations. The Texas stress test in Appendix
+reuse one strong expert checkpoint, controllers receive different amounts of
+training, and the study contains only 25-building simulations. The Texas stress test in Appendix
 \ref{app:climate} retrains the design and therefore does not establish
 zero-shot out-of-distribution robustness. CityLearn enforces device dynamics
 but contains no distribution-network or AC power-flow model. Future evaluation
@@ -444,7 +455,7 @@ network feasibility checks.
 %   它保留完整的预训练 TarMAC 专家，
 %   并把路由器学习与动作头适配分开。
 %   但最终路由实验重复使用同一个较强专家 checkpoint，
-%   各方法训练预算不匹配，
+%   各方法使用的训练量不同，
 %   且研究只包含 25 栋建筑的模拟。
 %   附录 D 的 Texas 压力测试重新训练了该设计，
 %   因而不能证明零样本分布外鲁棒性。
@@ -498,14 +509,15 @@ Multi-stage Soft Router & $500+500+500$ & \textbf{45.25} & \textbf{1.06} & 16.45
 \bottomrule
 \end{tabular}}
 \caption{Exact selected Vermont runs. Soft Router training comprises fixed
-expert pretraining, router-only learning, and head-only adaptation. Results are
-not compute-matched.}
+expert pretraining, router-only learning, and head-only adaptation. Because
+episode counts differ, the table compares final outcomes rather than training
+efficiency.}
 
 % 中文表 1：
 %   五个选定 Vermont 实验的准确结果。
 %   Soft Router 的训练包括固定专家预训练、
 %   仅训练路由器和仅微调动作头三个阶段。
-%   各方法没有严格匹配计算预算。
+%   由于各方法的 episode 数不同，该表比较最终结果而不是训练效率。
 %
 \end{table}
 
