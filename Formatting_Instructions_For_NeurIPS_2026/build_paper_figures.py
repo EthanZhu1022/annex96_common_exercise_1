@@ -21,9 +21,9 @@ EXPERIMENTS = [
     ("Ind.\nPPO", "rllib_independent_ppo_vt_80_final2"),
     ("Ind.\nSAC", "rllib_sac_vt_500_final2"),
     ("MAPPO\n(no comm.)", "mappo_grouped_vt_500_final3"),
-    ("TarMAC\nHybrid", "mappo_grouped_tarmac_hybrid_vt_500_final2"),
+    ("TarMAC\n(comm.\nonly)", "mappo_grouped_tarmac_hybrid_vt_500_final2"),
     (
-        "Soft Router",
+        "TarMAC+\nRoute",
         "mappo_grouped_tarmac_soft_router_full_expert_stable_heads_3f_vt_seed0",
     ),
 ]

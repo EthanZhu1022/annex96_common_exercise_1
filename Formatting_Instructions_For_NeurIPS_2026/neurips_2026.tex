@@ -30,16 +30,15 @@ specialization. We study this interaction across 25 grid-interactive homes
 simulated in CityLearn using a residential load-tracking benchmark. Preliminary experiments
 compare independent PPO and SAC, grouped MAPPO without communication, and a
 broad set of communication mechanisms. They show that communication can be
-either useful context or noise, motivating a hybrid targeted multi-agent
-communication (TarMAC) module: state-dependent attention followed by compressed
-local/message fusion and a residual update.
-We then place a multi-stage Soft Router above five complete TarMAC-aware actor
-experts. TarMAC tells the router what is happening across the portfolio; the
-router decides which specialized encoder--communication--head branch should
-control each building at that time. We call the resulting framework
-TarMAC+Route. On the Vermont February test, the selected
-Soft Router obtains 45.25\% CV-RMSE, 1.06\% absolute NMBE, and 16.45\% comfort
-exceedance, compared with 47.01\%, 3.51\%, and 17.99\% for TarMAC Hybrid and
+either useful context or noise, motivating an enhanced targeted multi-agent
+communication (TarMAC) module with state-dependent attention, compressed
+local/message fusion, and a residual update. We combine it with a multi-stage
+router over five complete actor experts, forming TarMAC+Route. The communication
+module tells the router what is happening across the portfolio; the router
+decides which specialized encoder--communication--head branch should control
+each building at that time. On the Vermont February test, TarMAC+Route obtains
+45.25\% CV-RMSE, 1.06\% absolute NMBE, and 16.45\% comfort exceedance, compared
+with 47.01\%, 3.51\%, and 17.99\% for communication-only TarMAC and
 51.50\%, 2.75\%, and 20.95\% for no-communication grouped MAPPO. Independent
 PPO retains the best mean comfort, and the router's worst building still
 violates the comfort band for 551 hours. The result is therefore a stronger
@@ -73,8 +72,8 @@ changes; PowerNet-style results suggested that useful local features should be
 preserved rather than overwritten. TarMAC was the most extensible direction
 because it learns a different communication weight for every sender, receiver,
 and state instead of imposing a fixed average \citep{tarmac2019}. We retained
-that adaptive attention and incorporated the two lessons above in TarMAC
-Hybrid.
+that adaptive attention and incorporated the two lessons above in the enhanced
+communication backbone of TarMAC+Route.
 
 
 Communication alone still leaves a second restriction. Grouped MAPPO assigns
@@ -85,11 +84,11 @@ Mixture-of-experts methods provide conditional specialization
 route complete control policies rather than feed-forward sublayers. The paper
 therefore follows one experimental chain:
 \emph{independent control $\rightarrow$ cooperative MAPPO $\rightarrow$
-TarMAC Hybrid communication $\rightarrow$ multi-stage expert routing}.
+TarMAC communication $\rightarrow$ TarMAC+Route expert routing}.
 The final communication-and-routing framework is denoted TarMAC+Route.
 
 
-\section{TarMAC Hybrid: why communication helps}
+\section{Communication backbone in TarMAC+Route}
 
 
 \paragraph{Targeted portfolio context.}
@@ -108,10 +107,10 @@ weights also change each hour, which is important when the same building moves
 from available flexibility to saturation.
 
 
-\paragraph{Hybrid fusion preserves local control information.}
+\paragraph{Fusion preserves local control information.}
 The original implementation fed a 256-dimensional local state and a
 64-dimensional message directly to fusion, allowing repeated local information
-to dominate the smaller message. The best Hybrid variant instead computes
+to dominate the smaller message. The enhanced fusion instead computes
 \begin{equation}
 \ell_i=\operatorname{ReLU}(W_\ell h_i),\quad
 \Delta_i=\tanh\!\left(W_2\tanh(W_1[\ell_i;c_i]+b_1)+b_2\right),\quad
@@ -122,20 +121,23 @@ The $256\!\rightarrow\!64$ projection balances local and communicated widths,
 ReLU filters the local representation, and the residual path prevents
 communication from erasing the original state. In the matched seed-42
 experiment, original TarMAC achieved 49.65\% CV-RMSE and 22.10\% comfort
-exceedance; Hybrid ReLU improved them to 47.01\% and 17.99\%. Against
-no-communication grouped MAPPO, Hybrid reduces CV-RMSE by 8.7\% and mean
+exceedance; the enhanced ReLU fusion improved them to 47.01\% and 17.99\%.
+Against no-communication grouped MAPPO, the communication-only ablation reduces
+CV-RMSE by 8.7\% and mean
 comfort exceedance by 14.1\%, although absolute NMBE increases from 2.75\% to
 3.51\%. Communication improves the balance, not every metric.
 
 
-\section{Multi-stage Soft Router over TarMAC experts}
+\section{Expert routing in TarMAC+Route}
 
 
 \paragraph{Complementary roles.}
-TarMAC and the router solve different questions. TarMAC answers
+Within TarMAC+Route, communication and routing solve different questions. The
+TarMAC module answers
 \emph{what is happening elsewhere in the portfolio?}; the router answers
 \emph{which specialized policy should act here now?} Five grouped MAPPO actors
-are first pretrained with TarMAC Hybrid. For building $i$, its communicated
+are first pretrained with the enhanced communication module. For building $i$,
+its communicated
 256-dimensional feature $h_{it}$ is augmented with seven physical features:
 battery capacity, HVAC rating, state of charge, remaining charge space,
 available discharge energy, non-shiftable load, and heating demand. A shared
@@ -172,7 +174,8 @@ and batch-level load balancing discourage one expert from receiving all traffic.
 
 
 \paragraph{Multi-stage stabilization.}
-The best schedule starts from the 500-episode Hybrid expert checkpoint. It
+The best schedule starts from the 500-episode communication-only expert
+checkpoint. It
 trains only the router for 500 episodes with $\tau=0.5$ and
 $\alpha:0.5\!\rightarrow\!1$, then freezes the router, encoders, and TarMAC
 module and adapts only action heads for 500 episodes at $10^{-5}$. Jointly
@@ -190,7 +193,7 @@ chronologically held-out February test at one-hour resolution. Lower is better
 for CV-RMSE, absolute NMBE, comfort-exceedance percentage, and worst-home
 violation hours. The comparison uses one recorded run per method: independent
 PPO (80 episodes), independent SAC (500), no-communication grouped MAPPO (500),
-Hybrid ReLU (500), and Soft Router. The router adds 1,000 adaptation episodes
+communication-only TarMAC (500), and TarMAC+Route. The router adds 1,000 adaptation episodes
 to a 500-episode expert checkpoint, whereas the other controllers use 80 or
 500 episodes. We therefore compare final test outcomes, not training efficiency
 under an equal episode budget.
@@ -200,8 +203,8 @@ under an equal episode budget.
   \centering
   \includegraphics[width=0.96\linewidth]{figures/controller_comparison.png}
   \caption{Focused comparison requested from the recorded Vermont runs.
-  The Soft Router bar is the selected full-expert stable-head configuration
-  built from pretrained TarMAC Hybrid experts. PPO has a smaller training
+  The TarMAC+Route bar is the selected full-expert stable-head configuration
+  built from pretrained communication-enabled experts. PPO has a smaller training
   budget than the other baselines.
   Lower is better in all three panels.}
 
@@ -211,16 +214,17 @@ under an equal episode budget.
 \paragraph{Communication is the first gain.}
 Figure~\ref{fig:controller-comparison} shows that no-communication MAPPO has
 the weakest CV-RMSE (51.50\%) among the five selected learned controllers.
-TarMAC Hybrid lowers this to 47.01\% and reduces mean comfort exceedance from
+Communication-only TarMAC lowers this to 47.01\% and reduces mean comfort exceedance from
 20.95\% to 17.99\%. This supports the original communication study: the
 portfolio target needs cross-building context, but the fusion must filter
 messages and preserve local state.
 
 
 \paragraph{Routing adds conditional specialization.}
-The multi-stage router further lowers CV-RMSE to 45.25\%, absolute NMBE to
-1.06\%, and mean comfort exceedance to 16.45\%. Relative to Hybrid, these are
-3.7\%, 69.8\%, and 8.6\% reductions, respectively. Independent SAC reaches
+TarMAC+Route further lowers CV-RMSE to 45.25\%, absolute NMBE to
+1.06\%, and mean comfort exceedance to 16.45\%. These are
+3.7\%, 69.8\%, and 8.6\% reductions relative to communication-only TarMAC,
+respectively. Independent SAC reaches
 46.53\% CV-RMSE but has 8.93\% absolute bias and 44.46\% comfort exceedance;
 independent PPO gives the best mean comfort (13.74\%) but 49.76\% CV-RMSE.
 The routed controller is consequently the strongest balance in this selected
@@ -228,8 +232,8 @@ set rather than the winner of every individual objective.
 
 
 \paragraph{Mean gains do not guarantee local safety.}
-The Soft Router's worst home violates the comfort band for 551 hours, compared
-with 410 for Hybrid, 384 for no-communication MAPPO, and 314 for independent
+TarMAC+Route's worst home violates the comfort band for 551 hours, compared
+with 410 for communication-only TarMAC, 384 for no-communication MAPPO, and 314 for independent
 PPO. The full temperature traces in Appendix~\ref{app:temperatures} show that a
 small number of homes remain above $24^\circ$C for long periods. Appendix
 \ref{app:daily} also shows large day-to-day CV-RMSE and NMBE variation.
@@ -240,8 +244,8 @@ tail-risk problem.
 \section{Limitations and conclusion}
 
 
-TarMAC and Soft Router are complementary: attention supplies state-dependent
-portfolio context to both actions and expert selection, while routing converts
+Within TarMAC+Route, attention supplies state-dependent portfolio context to
+both actions and expert selection, while routing converts
 that context into time-varying policy specialization. The strongest design is
 also conservative---it preserves complete pretrained TarMAC experts and
 separates router learning from head adaptation. However, the final router runs
@@ -270,6 +274,9 @@ and did not generate experimental data or figures.
 \section{Exact selected-run comparison and protocol}
 \label{app:protocol}
 
+Table~\ref{tab:selected-runs} reports the exact selected-run values underlying
+Figure~\ref{fig:controller-comparison}, together with training episodes and
+secondary peak-demand and ramping metrics.
 
 \begin{table}[h]
 \centering
@@ -283,14 +290,15 @@ Controller & Training episodes & CV-RMSE & $|$NMBE$|$ & Comfort & Worst home & P
 Independent PPO & 80 & 49.76 & 1.24 & \textbf{13.74} & \textbf{314} & 256.3 & 372.1 \\
 Independent SAC & 500 & 46.53 & 8.93 & 44.46 & 582 & \textbf{197.4} & \textbf{353.5} \\
 Grouped MAPPO, no communication & 500 & 51.50 & 2.75 & 20.95 & 384 & 257.0 & 519.1 \\
-TarMAC Hybrid ReLU & 500 & 47.01 & 3.51 & 17.99 & 410 & 269.5 & 457.8 \\
-Multi-stage Soft Router & $500+500+500$ & \textbf{45.25} & \textbf{1.06} & 16.45 & 551 & 281.3 & 466.8 \\
+TarMAC, communication only & 500 & 47.01 & 3.51 & 17.99 & 410 & 269.5 & 457.8 \\
+TarMAC+Route & $500+500+500$ & \textbf{45.25} & \textbf{1.06} & 16.45 & 551 & 281.3 & 466.8 \\
 \bottomrule
 \end{tabular}}
-\caption{Exact selected Vermont runs. Soft Router training comprises fixed
+\caption{Exact selected Vermont runs. TarMAC+Route training comprises fixed
 expert pretraining, router-only learning, and head-only adaptation. Because
 episode counts differ, the table compares final outcomes rather than training
 efficiency.}
+\label{tab:selected-runs}
 
 \end{table}
 
@@ -304,7 +312,7 @@ complete held-out February month with a $20$--$24^\circ$C comfort band.
 
 
 \clearpage
-\section{Daily behavior of the selected Soft Router}
+\section{Daily behavior of TarMAC+Route}
 \label{app:daily}
 
 
@@ -312,7 +320,7 @@ complete held-out February month with a $20$--$24^\circ$C comfort band.
   \centering
   \includegraphics[width=\textwidth]{figures/stable_soft_router_test_daily_metrics.png}
   \caption{Daily NMBE, CV-RMSE, portfolio comfort exceedance, and the
-  distribution of per-building exceedance hours for the selected Soft Router
+  distribution of per-building exceedance hours for TarMAC+Route
   run. The exported figure retains the TarMAC backbone label.}
 
 \end{figure}
@@ -326,7 +334,7 @@ complete held-out February month with a $20$--$24^\circ$C comfort band.
   \centering
   \includegraphics[width=\textwidth]{figures/stable_soft_router_test_building_temperatures_full.png}
   \caption{Hourly indoor temperatures for all 25 buildings under the selected
-  Soft Router. Green bounds mark the $20$--$24^\circ$C comfort band. Persistent
+  TarMAC+Route. Green bounds mark the $20$--$24^\circ$C comfort band. Persistent
   upper-bound violations in several homes explain the worst-home tail metric.}
 
 \end{figure}
