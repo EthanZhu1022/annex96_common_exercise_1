@@ -14,8 +14,8 @@
 \usepackage{microtype}
 \usepackage{xcolor}
 
-\title{Expert Routing in Multi-Agent RL for Load Management of Grid-Interactive
-Buildings}
+\title{TarMAC+Route: Multi-Agent Communication and Routing in MARL for
+Grid-Interactive Buildings}
 
 
 % Double-blind submission: do not add identifying information.
@@ -36,7 +36,8 @@ local/message fusion and a residual update.
 We then place a multi-stage Soft Router above five complete TarMAC-aware actor
 experts. TarMAC tells the router what is happening across the portfolio; the
 router decides which specialized encoder--communication--head branch should
-control each building at that time. On the Vermont February test, the selected
+control each building at that time. We call the resulting framework
+TarMAC+Route. On the Vermont February test, the selected
 Soft Router obtains 45.25\% CV-RMSE, 1.06\% absolute NMBE, and 16.45\% comfort
 exceedance, compared with 47.01\%, 3.51\%, and 17.99\% for TarMAC Hybrid and
 51.50\%, 2.75\%, and 20.95\% for no-communication grouped MAPPO. Independent
@@ -85,6 +86,7 @@ route complete control policies rather than feed-forward sublayers. The paper
 therefore follows one experimental chain:
 \emph{independent control $\rightarrow$ cooperative MAPPO $\rightarrow$
 TarMAC Hybrid communication $\rightarrow$ multi-stage expert routing}.
+The final communication-and-routing framework is denoted TarMAC+Route.
 
 
 \section{TarMAC Hybrid: why communication helps}
