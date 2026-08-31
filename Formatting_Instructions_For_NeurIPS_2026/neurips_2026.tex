@@ -14,8 +14,8 @@
 \usepackage{microtype}
 \usepackage{xcolor}
 
-\title{From TarMAC Communication to Expert Routing: MARL for Community Load
-Tracking in CityLearn}
+\title{From TarMAC Communication to Expert Routing: MARL for Load Tracking in
+a Building Community}
 
 
 % Double-blind submission: do not add identifying information.
@@ -26,8 +26,9 @@ Tracking in CityLearn}
 
 \begin{abstract}
 Coordinating flexible buildings requires both information exchange and policy
-specialization. We study this interaction on the 25-home IEA EBC Annex~96
-Common Exercise~1 load-tracking task in CityLearn. Preliminary experiments
+specialization. We study this interaction in a 25-home building community
+simulated in CityLearn using the IEA EBC Annex~96 Common Exercise~1 task
+(hereafter, the CityLearn building community). Preliminary experiments
 compare independent PPO and SAC, grouped MAPPO without communication, and a
 broad set of communication mechanisms. They show that communication can be
 either useful context or noise, motivating TarMAC Hybrid: state-dependent
@@ -49,12 +50,13 @@ portfolio controller, not evidence of deployment-ready per-building safety.
 
 
 An aggregator can coordinate batteries and heating, ventilation, and air
-conditioning (HVAC) so that a community follows a portfolio reference load.
+conditioning (HVAC) so that a building community follows a portfolio reference load.
 Each home observes different demand, thermal state, and flexibility, but the
 tracking objective depends on their sum. Independent control may protect local
 objectives yet cannot explicitly reason about the aggregate error; cooperative
 MARL can optimize the portfolio but risks hiding poor individual outcomes.
-CityLearn provides a reproducible closed-loop environment for this problem
+CityLearn provides the reproducible closed-loop environment used to instantiate
+this building community
 \citep{citylearn2020,citylearnv2}, and MAPPO provides a stable
 centralized-training/decentralized-execution backbone \citep{mappo2022}.
 
