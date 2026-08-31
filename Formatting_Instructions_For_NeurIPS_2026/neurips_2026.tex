@@ -17,10 +17,6 @@
 \title{From TarMAC Communication to Expert Routing: MARL for Community Load
 Tracking in CityLearn}
 
-% 中文标题：
-%   从 TarMAC 通信到专家路由：用于 CityLearn 社区负荷跟踪的
-%   多智能体强化学习
-%
 
 % Double-blind submission: do not add identifying information.
 \author{Anonymous Author(s)}
@@ -47,37 +43,10 @@ PPO retains the best mean comfort, and the router's worst building still
 violates the comfort band for 551 hours. The result is therefore a stronger
 portfolio controller, not evidence of deployment-ready per-building safety.
 
-% 中文：
-%   协调具有灵活性的建筑既需要信息交换，也需要策略专业化。
-%   本文在 CityLearn 的 25 栋住宅 IEA EBC Annex 96
-%   Common Exercise 1 负荷跟踪任务中研究二者的相互作用。
-%   前期实验比较了个体 PPO、个体 SAC、无通信 grouped MAPPO，
-%   以及多种通信机制。
-%   结果表明，通信信息可能是有用的全局背景，也可能成为噪声。
-%   这促使我们设计 TarMAC Hybrid：
-%   先用状态相关的 attention 选择其他建筑的信息，
-%   再压缩局部信息、融合局部信息与消息，并使用残差更新。
-%   随后，我们在五个完整的 TarMAC-aware actor 专家之上
-%   加入多阶段 Soft Router。
-%   TarMAC 告诉路由器整个建筑组合正在发生什么；
-%   路由器则决定当前应由哪一套专业化的
-%   “编码器—通信模块—动作头”分支控制每栋建筑。
-%   在 Vermont 二月测试中，选定的 Soft Router 达到
-%   45.25% CV-RMSE、1.06% 绝对 NMBE 和
-%   16.45% 舒适区超限率。
-%   TarMAC Hybrid 对应为 47.01%、3.51% 和 17.99%，
-%   无通信 grouped MAPPO 为 51.50%、2.75% 和 20.95%。
-%   个体 PPO 仍具有最好的平均舒适度，
-%   而 Soft Router 最差建筑仍有 551 小时超出舒适区。
-%   因此，该结果代表更强的组合控制器，
-%   不能被解释为已经满足逐建筑部署安全要求。
-%
 \end{abstract}
 
 \section{Introduction}
 
-% 中文小节：引言
-%
 
 An aggregator can coordinate batteries and heating, ventilation, and air
 conditioning (HVAC) so that a community follows a portfolio reference load.
@@ -89,18 +58,6 @@ CityLearn provides a reproducible closed-loop environment for this problem
 \citep{citylearn2020,citylearnv2}, and MAPPO provides a stable
 centralized-training/decentralized-execution backbone \citep{mappo2022}.
 
-% 中文：
-%   聚合商可以协调社区内的电池和暖通空调（HVAC），
-%   使整个社区跟踪给定的组合参考负荷。
-%   每栋住宅看到的需求、热状态和灵活性不同，
-%   但负荷跟踪目标取决于所有住宅负荷之和。
-%   个体控制可能更容易保护局部目标，
-%   却无法显式分析整个组合的跟踪误差；
-%   合作式 MARL 可以优化组合目标，
-%   但也可能掩盖某些建筑的不良结果。
-%   CityLearn 为该问题提供可复现的闭环环境，
-%   MAPPO 则提供相对稳定的集中训练、分散执行主体结构。
-%
 
 The first stage of this project compared independent PPO/SAC
 \citep{ppo2017,haarnoja2018sac}, standard and grouped MAPPO,
@@ -115,20 +72,6 @@ and state instead of imposing a fixed average \citep{tarmac2019}. We retained
 that adaptive attention and incorporated the two lessons above in TarMAC
 Hybrid.
 
-% 中文：
-%   项目前期比较了个体 PPO/SAC、标准和 grouped MAPPO、
-%   无通信控制、CommNet 式平均通信、固定的组内/组外加权、
-%   GAT、DIAL、PowerNet 式结构化信息交换和 TarMAC attention。
-%   没有一种通信机制在所有指标上都占优。
-%   固定权重消融表明，随着组外消息权重变化，
-%   跨组信息可能从增益变成噪声；
-%   PowerNet 类实验则说明，有用的局部特征不应被通信覆盖。
-%   我们最终选择 TarMAC 作为继续开发的方向，
-%   因为它不使用固定平均权重，
-%   而是针对不同发送者、接收者和当前状态学习不同通信权重。
-%   TarMAC Hybrid 保留这种自适应 attention，
-%   同时吸收了前述两个前期实验结论。
-%
 
 Communication alone still leaves a second restriction. Grouped MAPPO assigns
 each building permanently to one actor, although the most appropriate policy
@@ -140,22 +83,9 @@ therefore follows one experimental chain:
 \emph{independent control $\rightarrow$ cooperative MAPPO $\rightarrow$
 TarMAC Hybrid communication $\rightarrow$ multi-stage expert routing}.
 
-% 中文：
-%   仅有通信仍存在第二个限制。
-%   Grouped MAPPO 会把每栋建筑永久分配给同一个 actor，
-%   但最合适的策略可能随 SOC、热需求和组合工况变化。
-%   Mixture-of-experts 提供条件专业化思想；
-%   本文把该思想用于路由完整控制策略，
-%   而不是只路由前馈网络中的子层。
-%   因此，论文围绕一条清楚的实验链展开：
-%   个体控制 → 合作式 MAPPO → TarMAC Hybrid 通信
-%   → 多阶段专家路由。
-%
 
 \section{TarMAC Hybrid: why communication helps}
 
-% 中文小节：TarMAC Hybrid——通信为什么有帮助
-%
 
 \paragraph{Targeted portfolio context.}
 For latent state $h_i$, TarMAC forms query, key, and value vectors and sends
@@ -172,16 +102,6 @@ relevant battery or HVAC flexibility and suppress an irrelevant sender. The
 weights also change each hour, which is important when the same building moves
 from available flexibility to saturation.
 
-% 中文（有针对性的组合信息）：
-%   对隐藏状态 h_i，TarMAC 构造 query、key 和 value，
-%   并按照式（1）向建筑 i 发送 attention 加权后的上下文 c_i。
-%   与个体 PPO/SAC 不同，每个动作可以依赖其他住宅的状态。
-%   与无权重的平均通信不同，接收者可以提高具有相关电池或
-%   HVAC 灵活性的建筑权重，并抑制无关发送者。
-%   这些权重每小时都会变化；
-%   当同一栋建筑从具有可用灵活性变为设备饱和时，
-%   这种状态相关性尤其重要。
-%
 
 \paragraph{Hybrid fusion preserves local control information.}
 The original implementation fed a 256-dimensional local state and a
@@ -202,30 +122,9 @@ no-communication grouped MAPPO, Hybrid reduces CV-RMSE by 8.7\% and mean
 comfort exceedance by 14.1\%, although absolute NMBE increases from 2.75\% to
 3.51\%. Communication improves the balance, not every metric.
 
-% 中文（Hybrid 融合保留局部控制信息）：
-%   原始实现把 256 维局部状态和 64 维通信消息直接送入融合层，
-%   大量重复的局部信息可能压过维度较小的消息。
-%   最佳 Hybrid 变体改用式（2）的结构：
-%   先把局部信息从 256 维压缩到 64 维并通过 ReLU，
-%   再与通信信息融合，最后用残差形式加回原始状态。
-%   这种 256→64 投影平衡了局部信息与通信信息的宽度，
-%   ReLU 对局部表示进行筛选，
-%   残差通路则防止通信抹去原始状态。
-%   在匹配的 seed-42 实验中，
-%   原始 TarMAC 的 CV-RMSE 和舒适区超限率分别为
-%   49.65% 和 22.10%；
-%   Hybrid ReLU 改善到 47.01% 和 17.99%。
-%   与无通信 grouped MAPPO 相比，
-%   Hybrid 将 CV-RMSE 降低 8.7%，
-%   将平均舒适区超限率降低 14.1%；
-%   但绝对 NMBE 从 2.75% 增加到 3.51%。
-%   因此，通信改善的是综合平衡，并非所有单项指标。
-%
 
 \section{Multi-stage Soft Router over TarMAC experts}
 
-% 中文小节：建立在 TarMAC 专家之上的多阶段 Soft Router
-%
 
 \paragraph{Complementary roles.}
 TarMAC and the router solve different questions. TarMAC answers
@@ -244,20 +143,6 @@ g_{it}=(1-\alpha)p_i+\alpha d_{it},
 where $p_i$ is the original fixed-group assignment. TarMAC context therefore
 conditions the routing decision; routing does not replace communication.
 
-% 中文（互补作用）：
-%   TarMAC 与路由器回答的是两个不同问题。
-%   TarMAC 回答“建筑组合中的其他位置正在发生什么？”
-%   路由器回答“此时此地应由哪一个专业化策略执行动作？”
-%   首先使用 TarMAC Hybrid 预训练五个 grouped MAPPO actor。
-%   对建筑 i，把其经过通信后的 256 维特征 h_{it}
-%   与七个物理特征组合：
-%   电池容量、HVAC 额定功率、SOC、剩余充电空间、
-%   可用放电能量、不可转移负荷和供暖需求。
-%   共享的 263→64→5 路由器按式（3）输出专家概率，
-%   并与原固定分组 p_i 按 α 混合。
-%   因此，TarMAC 上下文直接影响路由选择；
-%   Soft Router 并不是用来替代通信。
-%
 
 \paragraph{Route complete experts.}
 Early head-only switching could pair an action head with an encoder on which it
@@ -280,21 +165,6 @@ are frozen. The critic remains active: its advantage estimate weights this
 router policy gradient, while its value loss is optimized separately. Entropy
 and batch-level load balancing discourage one expert from receiving all traffic.
 
-% 中文（路由完整专家）：
-%   早期只切换动作头的方案可能把某个动作头
-%   与从未和它共同训练的编码器配对。
-%   最终设计把匹配的“编码器—TarMAC—动作头”分支
-%   作为一个完整专家共同切换。
-%   如果专家 k 的动作分布是 π_{φ_k}，
-%   式（4）第一行给出完整路由策略的混合分布，第二行展开路由器梯度。
-%   其中 ρ_{itk} 表示专家 k 对已执行动作的后验责任权重。
-%   即使专家参数 φ 被冻结，只要不同专家的动作分布不完全相同，
-%   动作似然仍依赖 g_{it}，因此 PPO 仍可更新路由参数 θ。
-%   critic 也仍然发挥作用：它产生的 advantage 对路由策略梯度加权，
-%   而 critic 自身的 value loss 则单独优化。
-%   熵正则和 batch 级负载均衡损失
-%   用于抑制全部流量坍塌到同一个专家。
-%
 
 \paragraph{Multi-stage stabilization.}
 The best schedule starts from the 500-episode Hybrid expert checkpoint. It
@@ -305,21 +175,9 @@ changing routing semantics and complete experts caused concentration and
 unstable policies; staged freezing turns the pretrained experts into fixed
 reference behaviors before allowing a small final adjustment.
 
-% 中文（多阶段稳定训练）：
-%   最佳方案从训练 500 个 episode 的 Hybrid 专家 checkpoint 开始。
-%   第一阶段只训练路由器 500 个 episode，
-%   使用 τ=0.5，并让 α 从 0.5 增长到 1。
-%   第二阶段冻结路由器、编码器和 TarMAC，
-%   只以 10^{-5} 学习率微调动作头 500 个 episode。
-%   同时改变路由含义和完整专家会造成路由集中和策略不稳定；
-%   分阶段冻结先把预训练专家变成稳定的参考行为，
-%   再允许较小的最终调整。
-%
 
 \section{Evaluation}
 
-% 中文小节：评估
-%
 
 \paragraph{Protocol.}
 All rows use the 25-home Vermont setting, January training data, and the
@@ -332,22 +190,6 @@ to a 500-episode expert checkpoint, whereas the other controllers use 80 or
 500 episodes. We therefore compare final test outcomes, not training efficiency
 under an equal episode budget.
 
-% 中文（实验协议）：
-%   所有方法都使用 25 栋住宅的 Vermont 设置，
-%   一月训练数据，以及按时间顺序留出的二月测试数据，
-%   时间分辨率为一小时。
-%   CV-RMSE、绝对 NMBE、舒适区超限率和
-%   最差建筑超限小时数均为越低越好。
-%   图中每种方法使用一次项目记录中的实验：
-%   个体 PPO 训练 80 个 episode，
-%   个体 SAC、无通信 grouped MAPPO 和 Hybrid ReLU
-%   各训练 500 个 episode；
-%   并在 500-episode 专家 checkpoint 上
-%   额外进行 1,000 个 episode 的两阶段适配。
-%   因此，Soft Router 的总训练量约为 1,500 个 episode，
-%   而其他控制器只使用 80 或 500 个 episode。
-%   这里比较的是最终测试结果，不能据此比较相同训练量下的训练效率。
-%
 
 \begin{figure}[t]
   \centering
@@ -358,13 +200,6 @@ under an equal episode budget.
   budget than the other baselines.
   Lower is better in all three panels.}
 
-  % 中文图 1：
-  %   使用已记录 Vermont 实验得到的五方法重点比较。
-  %   Soft Router 是选定的完整专家、稳定动作头配置，
-  %   它建立在预训练 TarMAC Hybrid 专家之上。
-  %   PPO 的训练预算小于其他基线。
-  %   三个子图中的指标都是越低越好。
-  %
   \label{fig:controller-comparison}
 \end{figure}
 
@@ -376,15 +211,6 @@ TarMAC Hybrid lowers this to 47.01\% and reduces mean comfort exceedance from
 portfolio target needs cross-building context, but the fusion must filter
 messages and preserve local state.
 
-% 中文（通信带来第一阶段收益）：
-%   图 1 表明，在五个选定的学习控制器中，
-%   无通信 MAPPO 的 CV-RMSE 最差，为 51.50%。
-%   TarMAC Hybrid 将其降低到 47.01%，
-%   同时把平均舒适区超限率从 20.95% 降到 17.99%。
-%   这支持前期通信实验的结论：
-%   组合目标需要跨建筑上下文，
-%   但融合过程必须筛选消息并保留局部状态。
-%
 
 \paragraph{Routing adds conditional specialization.}
 The multi-stage router further lowers CV-RMSE to 45.25\%, absolute NMBE to
@@ -395,18 +221,6 @@ independent PPO gives the best mean comfort (13.74\%) but 49.76\% CV-RMSE.
 The routed controller is consequently the strongest balance in this selected
 set rather than the winner of every individual objective.
 
-% 中文（路由进一步加入条件专业化）：
-%   多阶段路由器进一步把 CV-RMSE 降到 45.25%，
-%   把绝对 NMBE 降到 1.06%，
-%   把平均舒适区超限率降到 16.45%。
-%   相对 Hybrid，这三个指标分别降低 3.7%、69.8% 和 8.6%。
-%   个体 SAC 的 CV-RMSE 为 46.53%，
-%   但绝对偏差达到 8.93%，舒适区超限率达到 44.46%；
-%   个体 PPO 具有最好的平均舒适度（13.74%），
-%   但 CV-RMSE 为 49.76%。
-%   因此，路由控制器是在这组方法中综合平衡最好，
-%   而不是在每个单项指标上都获胜。
-%
 
 \paragraph{Mean gains do not guarantee local safety.}
 The Soft Router's worst home violates the comfort band for 551 hours, compared
@@ -417,21 +231,9 @@ small number of homes remain above $24^\circ$C for long periods. Appendix
 Communication and routing improve the portfolio average while leaving a
 tail-risk problem.
 
-% 中文（平均收益不代表局部安全）：
-%   Soft Router 最差建筑有 551 小时超出舒适区，
-%   Hybrid、无通信 MAPPO 和个体 PPO
-%   分别为 410、384 和 314 小时。
-%   附录 C 的完整温度轨迹显示，
-%   少数住宅会长时间高于 24°C。
-%   附录 B 也显示逐日 CV-RMSE 和 NMBE 波动较大。
-%   因此，通信和路由改善了组合平均结果，
-%   但仍留下尾部风险问题。
-%
 
 \section{Limitations and conclusion}
 
-% 中文小节：局限性与结论
-%
 
 TarMAC and Soft Router are complementary: attention supplies state-dependent
 portfolio context to both actions and expert selection, while routing converts
@@ -447,25 +249,6 @@ should pair complete-training seeds, test unseen portfolios and target
 profiles, add tail-aware comfort constraints, and couple the controller to
 network feasibility checks.
 
-% 中文：
-%   TarMAC 与 Soft Router 具有互补关系：
-%   attention 为动作和专家选择提供状态相关的组合上下文，
-%   路由器则把这些上下文转化为随时间变化的策略专业化。
-%   最强方案也相对保守：
-%   它保留完整的预训练 TarMAC 专家，
-%   并把路由器学习与动作头适配分开。
-%   但最终路由实验重复使用同一个较强专家 checkpoint，
-%   各方法使用的训练量不同，
-%   且研究只包含 25 栋建筑的模拟。
-%   附录 D 的 Texas 压力测试重新训练了该设计，
-%   因而不能证明零样本分布外鲁棒性。
-%   CityLearn 会执行设备动态，
-%   但不包含配电网络或 AC 潮流模型。
-%   后续评估应匹配完整训练随机种子，
-%   测试未见建筑组合和目标负荷，
-%   增加关注尾部风险的舒适度约束，
-%   并把控制器与网络可行性检查结合。
-%
 
 \section*{Generative AI disclosure}
 A generative-AI system was used to assist with manuscript organization and
@@ -474,13 +257,6 @@ results, and references against the implementation, recorded experiment
 artifacts, and cited sources. Generative AI was not part of the research method
 and did not generate experimental data or figures.
 
-% 中文（生成式 AI 披露）：
-%   生成式 AI 系统被用于辅助论文结构组织和语言编辑。
-%   作者依据实现代码、实验记录和引用来源，
-%   对技术描述、数值结果和参考文献进行了核验。
-%   生成式 AI 不是研究方法的一部分，
-%   也没有用于生成实验数据或图表。
-%
 
 \bibliographystyle{plainnat}
 \bibliography{references}
@@ -489,8 +265,6 @@ and did not generate experimental data or figures.
 \section{Exact selected-run comparison and protocol}
 \label{app:protocol}
 
-% 中文附录 A：选定实验的准确对比与实验协议
-%
 
 \begin{table}[h]
 \centering
@@ -513,12 +287,6 @@ expert pretraining, router-only learning, and head-only adaptation. Because
 episode counts differ, the table compares final outcomes rather than training
 efficiency.}
 
-% 中文表 1：
-%   五个选定 Vermont 实验的准确结果。
-%   Soft Router 的训练包括固定专家预训练、
-%   仅训练路由器和仅微调动作头三个阶段。
-%   由于各方法的 episode 数不同，该表比较最终结果而不是训练效率。
-%
 \end{table}
 
 MAPPO uses actor/critic learning rates $3\times10^{-4}$, $\gamma=0.99$, GAE
@@ -529,25 +297,11 @@ learning rate $10^{-4}$, entropy scale 0.05, balance coefficient 0.01, and
 head-adaptation learning rate $10^{-5}$. Deterministic evaluation covers the
 complete held-out February month with a $20$--$24^\circ$C comfort band.
 
-% 中文：
-%   MAPPO 的 actor/critic 学习率为 3×10^{-4}，
-%   γ=0.99，GAE λ=0.95，PPO clip 为 0.2，
-%   每次更新使用 10 个 PPO epoch 和四个 mini-batch，
-%   actor 为两层、隐藏维度 256。
-%   TarMAC 使用 32 维 query/key、64 维 value，
-%   并进行一轮全局通信。
-%   路由器学习率为 10^{-4}，熵尺度为 0.05，
-%   均衡系数为 0.01，动作头适配学习率为 10^{-5}。
-%   确定性测试覆盖完整的二月留出月份，
-%   舒适区间为 20–24°C。
-%
 
 \clearpage
 \section{Daily behavior of the selected Soft Router}
 \label{app:daily}
 
-% 中文附录 B：选定 Soft Router 的逐日表现
-%
 
 \begin{figure}[h]
   \centering
@@ -556,19 +310,12 @@ complete held-out February month with a $20$--$24^\circ$C comfort band.
   distribution of per-building exceedance hours for the selected Soft Router
   run. The exported figure retains the TarMAC backbone label.}
 
-  % 中文图 2：
-  %   选定 Soft Router 实验的逐日 NMBE、CV-RMSE、
-  %   组合舒适区超限率和逐建筑超限小时分布。
-  %   导出的原始图片保留了 TarMAC 主体结构标签。
-  %
 \end{figure}
 
 \clearpage
 \section{Full-month building temperatures}
 \label{app:temperatures}
 
-% 中文附录 C：完整测试月份的建筑温度
-%
 
 \begin{figure}[h]
   \centering
@@ -577,20 +324,12 @@ complete held-out February month with a $20$--$24^\circ$C comfort band.
   Soft Router. Green bounds mark the $20$--$24^\circ$C comfort band. Persistent
   upper-bound violations in several homes explain the worst-home tail metric.}
 
-  % 中文图 3：
-  %   选定 Soft Router 控制下 25 栋建筑的逐小时室内温度。
-  %   绿色边界表示 20–24°C 舒适区间。
-  %   一些住宅长期超过上限，
-  %   这解释了最差建筑的尾部风险指标。
-  %
 \end{figure}
 
 \clearpage
 \section{Cross-climate stress test}
 \label{app:climate}
 
-% 中文附录 D：跨气候压力测试
-%
 
 \begin{table}[h]
 \centering
@@ -610,11 +349,6 @@ Texas rule based & 207.63 & 89.57 & -- & -- \\
 with mean cooling demand and retrains from scratch; this is not zero-shot policy
 transfer.}
 
-% 中文表 2：
-%   三随机种子的特征角色迁移结果。
-%   Texas 用平均制冷需求替换平均供暖需求，
-%   并从头重新训练，因此这不是策略零样本迁移。
-%
 \end{table}
 
 \clearpage
