@@ -1,32 +1,54 @@
 \section*{AI4PowerGrids domain checklist}
+% 中文：
+%   AI4PowerGrids 电网领域检查表
 
 \begin{enumerate}
   \item \textbf{Physics feasibility.}
   \emph{Not applicable to AC power-flow feasibility.} CityLearn enforces the
   simulated battery, HVAC, and building thermal dynamics and bounds the control
-  actions, while thermal violations are reported explicitly in
-  Sections~3--4. The benchmark does not include a distribution-network model;
+  actions, while Section~4 and Appendices~B--C report thermal-comfort violations
+  explicitly. The benchmark does not include a distribution-network model;
   consequently, voltage, line-flow, and full AC power-flow feasibility are not
   evaluated and no such claim is made.
+  % 中文（物理可行性）：
+  %   不适用于交流潮流可行性。CityLearn 会执行模拟电池、HVAC 和建筑热动态，
+  %   并限制控制动作；第 4 节及附录 B--C 明确报告了室内热舒适度违规情况。
+  %   该基准不包含配电网络模型，因此本文没有评估电压、线路潮流或完整交流潮流
+  %   可行性，也不作出相关声明。
 
   \item \textbf{Out-of-distribution evaluation.}
-  Section~4 and Appendix~B evaluate the same feature-design principle in two
+  Section~5 and Appendix~D evaluate the same feature-design principle in two
   seasonal/climate regimes (Vermont heating and Texas cooling), each with a
   chronological held-out month. The Texas controller is retrained, so this is
   not zero-shot evaluation of one policy on an unseen climate or topology. This
   missing test is stated as a limitation.
+  % 中文（分布外评估）：
+  %   第 5 节和附录 D 在 Vermont 供暖季与 Texas 制冷季两种气候工况中评估
+  %   同一套特征设计原则，并分别使用按时间顺序留出的测试月份。
+  %   Texas 控制器经过重新训练，因此这不是将同一策略零样本部署到未见气候
+  %   或拓扑上的评估；本文已将缺少这种测试明确列为局限。
 
   \item \textbf{Failure modes.}
-  Section~4 reports routing concentration, an almost unused expert, failed
-  end-to-end and shared-encoder variants, large Texas bias, and the reversal
-  between average and worst-building comfort. Appendix~A gives the numerical
-  ablation results.
+  Section~4 reports the reversal between mean and worst-building comfort and
+  the unmatched training budgets. Appendices~B--C expose daily metric variation
+  and persistent temperature violations in individual homes. Section~3 also
+  explains why joint router/expert training was rejected after routing
+  concentration and policy instability were observed.
+  % 中文（失效模式）：
+  %   第 4 节报告了平均舒适度与最差建筑舒适度之间的结论反转，以及各方法训练
+  %   预算不匹配的问题。附录 B--C 展示逐日指标波动和个别住宅持续温度超限。
+  %   第 3 节还说明：由于观察到路由集中和策略不稳定，最终没有采用路由器与
+  %   专家联合训练方案。
 
   \item \textbf{System-level effect.}
-  Section~3 reports portfolio CV-RMSE, NMBE, peak demand, total energy, ramping,
-  and load-share fairness, together with building-level comfort. This evaluates
-  the routed policy inside the complete closed-loop CityLearn portfolio rather
-  than as a standalone classifier.
+  Section~4 and Appendix~A report portfolio CV-RMSE, NMBE, peak demand, and
+  ramping together with building-level comfort. This evaluates each controller
+  inside the complete closed-loop CityLearn portfolio rather than as a
+  standalone predictor or router.
+  % 中文（系统级影响）：
+  %   第 4 节和附录 A 同时报告组合层面的 CV-RMSE、NMBE、峰值需求、ramping，
+  %   以及建筑层面的舒适度。由此评估的是完整 CityLearn 建筑组合闭环中的控制器，
+  %   而不是脱离系统的独立预测器或路由器。
 
   \item \textbf{Data and code.}
   The experiments use the open CityLearn implementation and IEA EBC Annex~96
@@ -34,4 +56,9 @@
   evaluation code, environment specifications, configuration scripts, processed
   metric tables, and plotting code as anonymized supplementary material during
   review, followed by a de-anonymized public repository upon acceptance.
+  % 中文（数据与代码）：
+  %   实验使用开放的 CityLearn 实现和 IEA EBC Annex 96 Common Exercise 1
+  %   基准数据。我们计划在评审期间以匿名补充材料形式提供训练与评估代码、环境
+  %   规格、配置脚本、处理后的指标表和绘图代码；若论文录用，再公开去匿名化后的
+  %   代码仓库。
 \end{enumerate}
