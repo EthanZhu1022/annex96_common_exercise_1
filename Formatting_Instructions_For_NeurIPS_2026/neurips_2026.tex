@@ -14,8 +14,8 @@
 \usepackage{microtype}
 \usepackage{xcolor}
 
-\title{From TarMAC Communication to Expert Routing: MARL for Load Tracking in
-Grid-Interactive Buildings}
+\title{Expert Routing in Multi-Agent RL for Load Management of Grid-Interactive
+Buildings}
 
 
 % Double-blind submission: do not add identifying information.
@@ -30,8 +30,9 @@ specialization. We study this interaction across 25 grid-interactive homes
 simulated in CityLearn using a residential load-tracking benchmark. Preliminary experiments
 compare independent PPO and SAC, grouped MAPPO without communication, and a
 broad set of communication mechanisms. They show that communication can be
-either useful context or noise, motivating TarMAC Hybrid: state-dependent
-attention followed by a compressed local/message fusion and residual update.
+either useful context or noise, motivating a hybrid targeted multi-agent
+communication (TarMAC) module: state-dependent attention followed by compressed
+local/message fusion and a residual update.
 We then place a multi-stage Soft Router above five complete TarMAC-aware actor
 experts. TarMAC tells the router what is happening across the portfolio; the
 router decides which specialized encoder--communication--head branch should
@@ -64,7 +65,8 @@ The first stage of this project compared independent PPO/SAC
 \citep{ppo2017,haarnoja2018sac}, standard and grouped MAPPO,
 no-communication control, CommNet-style averaging, fixed
 same-/other-group weighting, GAT, DIAL, PowerNet-style structured exchange, and
-TarMAC attention. No mechanism dominated every metric. Fixed-weight ablations
+targeted multi-agent communication (TarMAC) attention. No mechanism dominated
+every metric. Fixed-weight ablations
 showed that cross-group information changes from gain to noise as the weight
 changes; PowerNet-style results suggested that useful local features should be
 preserved rather than overwritten. TarMAC was the most extensible direction
